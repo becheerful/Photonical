@@ -4,9 +4,8 @@ use ggez::{Context, GameResult, graphics::{Drawable, Image, Rect}};
 
 #[derive(Debug)]
 pub struct Atlas {
-    pub path: PathBuf,
     pub image: Image,
-    pub tile_size: usize,
+    tile_size: usize,
     rows: u8,
     cols: u8,
     pub rects: Vec<Rect>,
@@ -14,9 +13,8 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn new(ctx: &Context, path: &str, tile_size: usize, rows: u8, cols: u8) -> GameResult<Self> {
-        let path = PathBuf::from(path);
-        let image = Image::from_path(ctx, path.as_path())?;
-        Ok(Atlas { path, image, tile_size, rows, cols, rects: vec![] })
+        let image = Image::from_path(ctx, PathBuf::from(path).as_path())?;
+        Ok(Atlas { image, tile_size, rows, cols, rects: vec![] })
     }
 
     pub fn get(&self, id: u32) -> Rect {

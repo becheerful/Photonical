@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ggez::{Context, ContextBuilder, GameResult, event, graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray}};
+use ggez::{Context, ContextBuilder, GameResult, event::{self, MouseButton}, graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Text}};
 
 mod world;
 mod res;
@@ -22,19 +22,34 @@ impl Game {
 }
 
 impl event::EventHandler for Game {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        if ctx.mouse.button_pressed(MouseButton::Right) {
+            let mouse_point = ctx.mouse.position();
+            let tile_x = mouse_point.x as usize / self.world.tile_size;
+            let tile_y = mouse_point.y as usize / self.world.tile_size;
+            let tile = self.world.get_mut(tile_x, tile_y).unwrap();
+            tile.id = world::TileType::Stone;
+        } else if ctx.mouse.button_pressed(MouseButton::Left) {
+            let mouse_point = ctx.mouse.position();
+            let tile_x = mouse_point.x as usize / self.world.tile_size;
+            let tile_y = mouse_point.y as usize / self.world.tile_size;
+            let tile = self.world.get_mut(tile_x, tile_y).unwrap();
+            tile.id = world::TileType::Air;
+        }
+
         self.world.update()?;
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(255, 255, 255));
+        let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
         for tile in &self.world.map {
             let rect = self.atlas.rects.get(tile.id as usize).unwrap();
             array.push(DrawParam::default().src(*rect).dest(tile.pos));
         }
         array.draw(&mut canvas, DrawParam::default());
+        canvas.draw(&Text::new(format!("FPS: {:.0}", ctx.time.fps())), DrawParam::default().color(Color::BLACK));
         canvas.finish(ctx)?;
         Ok(())
     }
