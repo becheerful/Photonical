@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ggez::{Context, ContextBuilder, GameResult, event, graphics::{Canvas, Color, DrawParam, InstanceArray, Rect}};
+use ggez::{Context, ContextBuilder, GameResult, event, graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray}};
 
 mod world;
 mod res;
@@ -29,10 +29,12 @@ impl event::EventHandler for Game {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(255, 255, 255));
+        let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
         for tile in &self.world.map {
             let rect = self.atlas.rects.get(tile.id as usize).unwrap();
-            canvas.draw(&self.atlas.image, DrawParam::default().src(*rect).dest(tile.pos));
+            array.push(DrawParam::default().src(*rect).dest(tile.pos));
         }
+        array.draw(&mut canvas, DrawParam::default());
         canvas.finish(ctx)?;
         Ok(())
     }
