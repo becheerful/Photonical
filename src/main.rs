@@ -30,10 +30,7 @@ impl event::EventHandler for Game {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(255, 255, 255));
         for tile in &self.world.map {
-            let rect = match self.atlas.rects.get(tile.id as usize) {
-                Some(r) => r,
-                None => &Rect::new(0f32, 0f32, (self.atlas.tile_size) as f32, (self.atlas.tile_size) as f32),
-            };
+            let rect = self.atlas.rects.get(tile.id as usize).unwrap();
             canvas.draw(&self.atlas.image, DrawParam::default().src(*rect).dest(tile.pos));
         }
         canvas.finish(ctx)?;

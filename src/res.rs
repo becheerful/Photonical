@@ -19,20 +19,16 @@ impl Atlas {
         Ok(Atlas { path, image, tile_size, rows, cols, rects: vec![] })
     }
 
-    pub fn get(&self, id: u32) -> Option<Rect> {
-        if id >= (self.rows as u32) * (self.cols as u32) {
-            return None
-        } else {
-            let col = id % (self.cols as u32);
-            let row = id / (self.rows as u32);
-            let size = self.tile_size as u32;
-            Some(self.image.uv_rect(col * size, row * size, size, size))
-        }
+    pub fn get(&self, id: u32) -> Rect {
+        let col = id % (self.cols as u32);
+        let row = id / (self.rows as u32);
+        let size = self.tile_size as u32;
+        self.image.uv_rect(col * size, row * size, size, size)
     }
 
     pub fn load_rects(&mut self) {
         for i in 0..(self.rows * self.cols) {
-            let rect = self.get(i as u32).unwrap();
+            let rect = self.get(i as u32);
             self.rects.push(rect);
         }
     }
