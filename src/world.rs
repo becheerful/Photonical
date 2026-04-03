@@ -1,4 +1,4 @@
-use ggez::{GameResult, mint::Point2};
+use ggez::{GameResult, glam::Vec2};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TileType {
@@ -9,11 +9,11 @@ pub enum TileType {
 #[derive(Debug, Clone, Copy)]
 pub struct Tile {
     pub id: TileType,
-    pub pos: Point2<f32>,
+    pub pos: Vec2,
 }
 
 impl Tile {
-    pub fn new(id: TileType, pos: Point2<f32>) -> Self {
+    pub fn new(id: TileType, pos: Vec2) -> Self {
         Tile { id, pos }
     }
 }
@@ -29,7 +29,7 @@ impl World {
     pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Tile::new(
-            TileType::Air, Point2::from_slice(&[((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32])
+            TileType::Air, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
         World { width, height, tile_size, map }
     }

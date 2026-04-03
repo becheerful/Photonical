@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ggez::{Context, ContextBuilder, GameResult, event, graphics::{Canvas, Color, DrawParam}};
+use ggez::{Context, ContextBuilder, GameResult, event, graphics::{Canvas, Color, DrawParam, InstanceArray, Rect}};
 
 mod world;
 mod res;
@@ -12,7 +12,8 @@ struct Game {
 
 impl Game {
     fn new(ctx: &mut Context, atlas_path: &str, world: world::World) -> GameResult<Game> {
-        let atlas = res::Atlas::new(ctx, atlas_path, world.tile_size, 2, 2)?;
+        let mut atlas = res::Atlas::new(ctx, atlas_path, world.tile_size, 2, 2)?;
+        atlas.load_rects();
         Ok(Game {
             world,
             atlas,
@@ -29,8 +30,11 @@ impl event::EventHandler for Game {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(255, 255, 255));
         for tile in &self.world.map {
-            let rect = self.atlas.get(&tile.id).unwrap();
-            canvas.draw(&self.atlas.image, DrawParam::default().src(rect).dest(tile.pos));
+            let rect = match self.atlas.rects.get(tile.id as usize) {
+                Some(r) => r,
+                None => &Rect::new(0f32, 0f32, (self.atlas.tile_size) as f32, (self.atlas.tile_size) as f32),
+            };
+            canvas.draw(&self.atlas.image, DrawParam::default().src(*rect).dest(tile.pos));
         }
         canvas.finish(ctx)?;
         Ok(())
