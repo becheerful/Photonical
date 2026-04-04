@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
-use ggez::{Context, ContextBuilder, GameResult, event::{self, EventHandler, MouseButton}, graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text}};
+use ggez::{
+    Context, ContextBuilder, GameResult,
+    event::{self, EventHandler, MouseButton},
+    glam::Vec2,
+    graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text}
+};
 
 use crate::res::Atlas;
 
@@ -9,14 +14,26 @@ mod res;
 mod entity;
 mod player;
 
+struct Settings {
+    pub aspect: Vec2,
+}
+
+impl Settings {
+    pub fn new() -> Self {
+        Settings { aspect: Vec2::ONE }
+    }
+}
+
 struct Game {
     pub world: world::World,
     pub atlas: res::Atlas,
+    pub settings: Settings,
 }
 
 impl Game {
-    fn new(_ctx: &mut Context, atlas: res::Atlas, world: world::World) -> GameResult<Game> {
+    fn new(_ctx: &mut Context, settings: Settings, atlas: res::Atlas, world: world::World) -> GameResult<Game> {
         Ok(Game {
+            settings,
             world,
             atlas,
         })
@@ -51,7 +68,7 @@ impl EventHandler for Game {
 
         for tile in &self.world.map {
             let rect = self.atlas.rects.get(tile.id as usize).unwrap();
-            array.push(DrawParam::default().src(*rect).dest(tile.pos).scale(self.atlas.aspect));
+            array.push(DrawParam::default().src(*rect).dest(tile.pos).scale(self.settings.aspect));
         }
 
         array.draw(&mut canvas, DrawParam::default());
@@ -70,13 +87,15 @@ fn main() -> GameResult {
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
 
-    let world = world::World::new(100, 60, 32);
+    let world = world::World::new(100, 60, 64);
 
     let mut atlas = Atlas::new(&ctx, "/atlas.png", 16, 2, 2)?;
     atlas.load_rects();
-    atlas.calc_aspect(&world);
 
-    let game = Game::new(&mut ctx, atlas, world)?;
+    let mut settings = Settings::new();
+    settings.aspect = Vec2::splat(world.tile_size as f32 / atlas.tile_size as f32);
+
+    let game = Game::new(&mut ctx, settings, atlas, world)?;
 
     event::run(ctx, event_loop, game);
 }

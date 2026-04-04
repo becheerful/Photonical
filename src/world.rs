@@ -29,7 +29,7 @@ impl World {
     pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Block::new(
-            BlockType::Air, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
+            BlockType::Stone, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
         World { width, height, tile_size, map }
     }

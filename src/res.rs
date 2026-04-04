@@ -1,14 +1,11 @@
 use std::path::PathBuf;
 
-use ggez::{Context, GameResult, glam::Vec2, graphics::{Image, Rect}};
-
-use crate::world::World;
+use ggez::{Context, GameResult, graphics::{Image, Rect}};
 
 #[derive(Debug)]
 pub struct Atlas {
     pub image: Image,
-    pub aspect: Vec2,
-    tile_size: usize,
+    pub tile_size: usize,
     rows: u8,
     cols: u8,
     pub rects: Vec<Rect>,
@@ -17,7 +14,7 @@ pub struct Atlas {
 impl Atlas {
     pub fn new(ctx: &Context, path: &str, tile_size: usize, rows: u8, cols: u8) -> GameResult<Self> {
         let image = Image::from_path(ctx, PathBuf::from(path).as_path())?;
-        Ok(Atlas { image, aspect: Vec2::ONE, tile_size, rows, cols, rects: Vec::new() })
+        Ok(Atlas { image, tile_size, rows, cols, rects: Vec::new() })
     }
 
     fn get(&self, id: u32) -> Rect {
@@ -32,9 +29,5 @@ impl Atlas {
             let rect = self.get(i as u32);
             self.rects.push(rect);
         }
-    }
-
-    pub fn calc_aspect(&mut self, world: &World) -> () {
-        self.aspect = Vec2::splat(world.tile_size as f32 / self.tile_size as f32);
     }
 }
