@@ -2,9 +2,11 @@ use std::path::PathBuf;
 
 use ggez::{
     Context, ContextBuilder, GameResult,
+    conf::{FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler, MouseButton},
     glam::Vec2,
-    graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text}
+    graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
+    input::keyboard::KeyCode
 };
 
 use crate::res::Atlas;
@@ -18,11 +20,12 @@ struct Settings {
     pub aspect: Vec2,
     pub sc_width: f32,
     pub sc_height: f32,
+    pub fullscreen_type: FullscreenType,
 }
 
 impl Settings {
     pub fn new() -> Self {
-        Settings { aspect: Vec2::ONE, sc_width: 640.0, sc_height: 480.0 }
+        Settings { aspect: Vec2::ONE, sc_width: 640.0, sc_height: 480.0, fullscreen_type: FullscreenType::Windowed }
     }
 }
 
@@ -43,6 +46,21 @@ impl Game {
 }
 
 impl EventHandler for Game {
+    fn key_down_event(&mut self, ctx: &mut Context, input: ggez::input::keyboard::KeyInput, _repeated: bool) -> GameResult {
+        if input.keycode.unwrap() == KeyCode::F11 {
+            self.settings.fullscreen_type = match self.settings.fullscreen_type {
+                FullscreenType::Windowed => FullscreenType::Desktop,
+                _ => FullscreenType::Windowed,
+            };
+
+            ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
+        } else if input.keycode.unwrap() == KeyCode::Escape {
+            ctx.request_quit();
+        }
+
+        Ok(())
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         if ctx.mouse.button_pressed(MouseButton::Right) {
             let mouse_point = ctx.mouse.position();
@@ -98,8 +116,8 @@ fn main() -> GameResult {
     let sc_height: f32 = 960.0;
 
     let (mut ctx, event_loop) = ContextBuilder::new("advent", "becheerful")
-        .window_setup(ggez::conf::WindowSetup::default().title("Advent"))
-        .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height))
+        .window_setup(WindowSetup::default().title("Advent"))
+        .window_mode(WindowMode::default().dimensions(sc_width, sc_height))
         .build()
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
