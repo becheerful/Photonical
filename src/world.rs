@@ -1,5 +1,7 @@
 use ggez::{GameResult, glam::Vec2};
 
+use crate::player::Player;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockType {
     Air = 0,
@@ -23,6 +25,7 @@ pub struct World {
     pub height: usize,
     pub tile_size: usize,
     pub map: Vec<Block>,
+    pub player: Player,
 }
 
 impl World {
@@ -31,7 +34,7 @@ impl World {
         let map = (0..size).map(|i| Block::new(
             BlockType::Stone, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
-        World { width, height, tile_size, map }
+        World { width, height, tile_size, map, player: Player::new(100) }
     }
 
     pub fn get(&self, x: usize, y: usize) -> Option<&Block> {

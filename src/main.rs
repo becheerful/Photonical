@@ -6,7 +6,7 @@ use ggez::{
     event::{self, EventHandler, MouseButton},
     glam::Vec2,
     graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
-    input::keyboard::KeyCode
+    input::keyboard::{KeyCode, KeyInput}
 };
 
 use crate::res::Atlas;
@@ -46,26 +46,33 @@ impl Game {
 }
 
 impl EventHandler for Game {
-    fn key_down_event(&mut self, ctx: &mut Context, input: ggez::input::keyboard::KeyInput, _repeated: bool) -> GameResult {
-        if input.keycode.unwrap() == KeyCode::F11 {
-            self.settings.fullscreen_type = match self.settings.fullscreen_type {
-                FullscreenType::Windowed => FullscreenType::Desktop,
-                _ => FullscreenType::Windowed,
-            };
+    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> GameResult {
+        if let Some(keycode) = input.keycode {
+            match keycode {
+                KeyCode::F11 => {     
+                    self.settings.fullscreen_type = match self.settings.fullscreen_type {
+                        FullscreenType::Windowed => FullscreenType::Desktop,
+                        _ => FullscreenType::Windowed,
+                    };
 
-            ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
-        } else if input.keycode.unwrap() == KeyCode::Escape {
-            ctx.request_quit();
+                    ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
+                }
+                KeyCode::Escape => ctx.request_quit(),
+                key => self.world.player.camera.handle_movement(key),
+            }
         }
-
+    
         Ok(())
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         if ctx.mouse.button_pressed(MouseButton::Right) {
             let mouse_point = ctx.mouse.position();
-            let tile_x = mouse_point.x / self.world.tile_size as f32;
-            let tile_y = mouse_point.y / self.world.tile_size as f32;
+            let rel_x = mouse_point.x + self.world.player.camera.pos.x;
+            let rel_y = mouse_point.y + self.world.player.camera.pos.y;
+
+            let tile_x = rel_x / self.world.tile_size as f32;
+            let tile_y = rel_y / self.world.tile_size as f32;
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
@@ -73,8 +80,11 @@ impl EventHandler for Game {
             }
         } else if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
-            let tile_x = mouse_point.x / self.world.tile_size as f32;
-            let tile_y = mouse_point.y / self.world.tile_size as f32;
+            let rel_x = mouse_point.x + self.world.player.camera.pos.x;
+            let rel_y = mouse_point.y + self.world.player.camera.pos.y;
+
+            let tile_x = rel_x / self.world.tile_size as f32;
+            let tile_y = rel_y / self.world.tile_size as f32;
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
@@ -94,7 +104,7 @@ impl EventHandler for Game {
 
         for tile in &self.world.map {
             let rect = self.atlas.rects.get(tile.id as usize).unwrap();
-            array.push(DrawParam::default().src(*rect).dest(tile.pos).scale(self.settings.aspect));
+            array.push(DrawParam::default().src(*rect).dest(tile.pos - self.world.player.camera.pos).scale(self.settings.aspect));
         }
 
         array.draw(&mut canvas, DrawParam::default());
