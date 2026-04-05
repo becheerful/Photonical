@@ -58,7 +58,12 @@ impl EventHandler for Game {
                     ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
                 }
                 KeyCode::Escape => ctx.request_quit(),
-                key => self.world.player.camera.handle_movement(key),
+                key => {
+                    if let Some(direction) = self.world.player.camera.get_movement_vector(key) {
+                        let speed = self.world.player.camera.movement_speed;
+                        self.world.player.camera.pos += direction * speed;
+                    }
+                }
             }
         }
     

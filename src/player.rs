@@ -1,4 +1,4 @@
-use ggez::{glam::Vec2, input::keyboard::KeyCode};
+use ggez::{glam::Vec2, input::keyboard::KeyCode, mint::Point2};
 
 use crate::{entity::Entity, world::BlockType};
 
@@ -30,13 +30,13 @@ impl Camera {
         Camera { pos: Vec2::ZERO, movement_speed: 8.0 }
     }
 
-    pub fn handle_movement(&mut self, keycode: KeyCode) {
+    pub fn get_movement_vector(&mut self, keycode: KeyCode) -> Option<Vec2> {
         match keycode {
-            KeyCode::W => self.pos.y -= self.movement_speed,
-            KeyCode::A => self.pos.x -= self.movement_speed,
-            KeyCode::S => self.pos.y += self.movement_speed,
-            KeyCode::D => self.pos.x += self.movement_speed,
-            _ => {}
+            KeyCode::W => Some(Vec2 { x:  0.0, y: -1.0 }),
+            KeyCode::A => Some(Vec2 { x: -1.0, y:  0.0 }),
+            KeyCode::S => Some(Vec2 { x:  0.0, y:  1.0 }),
+            KeyCode::D => Some(Vec2 { x:  1.0, y:  0.0 }),
+            _ => None,
         }
     }
 }
