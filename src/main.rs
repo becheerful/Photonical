@@ -60,8 +60,7 @@ impl EventHandler for Game {
                 KeyCode::Escape => ctx.request_quit(),
                 key => {
                     if let Some(direction) = self.world.player.camera.get_movement_vector(key) {
-                        let speed = self.world.player.camera.movement_speed;
-                        self.world.player.camera.pos += direction * speed;
+                        self.world.player.camera.move_towards(direction, self.world.bounds);
                     }
                 }
             }

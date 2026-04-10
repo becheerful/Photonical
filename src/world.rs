@@ -23,6 +23,7 @@ impl Block {
 pub struct World {
     pub width: usize,
     pub height: usize,
+    pub bounds: Vec2,
     pub tile_size: usize,
     pub map: Vec<Block>,
     pub player: Player,
@@ -34,7 +35,16 @@ impl World {
         let map = (0..size).map(|i| Block::new(
             BlockType::Stone, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
-        World { width, height, tile_size, map, player: Player::new(100) }
+        let width_pixels = (width * tile_size) as f32 * 0.75;
+        let height_pixels = (height * tile_size) as f32 * 0.75;
+        World {
+            width,
+            height,
+            bounds: Vec2::new(width_pixels, height_pixels),
+            tile_size,
+            map,
+            player: Player::new(100)
+        }
     }
 
     pub fn get(&self, x: usize, y: usize) -> Option<&Block> {

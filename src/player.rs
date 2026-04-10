@@ -1,4 +1,4 @@
-use ggez::{glam::Vec2, input::keyboard::KeyCode, mint::Point2};
+use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
 use crate::{entity::Entity, world::BlockType};
 
@@ -39,13 +39,19 @@ impl Camera {
             _ => None,
         }
     }
+
+    pub fn move_towards(&mut self, dir: Vec2, bounds: Vec2) {
+        self.pos = (self.pos + dir * self.movement_speed)
+            .max(Vec2::ZERO)
+            .min(bounds);
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Player {
     pub camera: Camera,
     pub entity: Entity,
-    pub inventory: Vec<Item>,
+    pub inventory: Vec<Option<Item>>,
 }
 
 impl Player {
