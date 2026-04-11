@@ -7,7 +7,7 @@ pub enum ItemType {
     Test = 0,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemKind {
     Item(ItemType),
     Block(BlockType),
@@ -15,6 +15,7 @@ pub enum ItemKind {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Item {
+    pub stack_max: u8,
     pub count: u8,
     pub kind: ItemKind,
 }
@@ -55,7 +56,35 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(max_health: u16) -> Self {
-        Player { camera: Camera::new(), entity: Entity::new(max_health), inventory: Vec::new() }
+    pub fn new(max_health: u16, slot_count: usize) -> Self {
+        Player {
+            camera: Camera::new(),
+            entity: Entity::new(max_health),
+            inventory: vec![None; slot_count]
+        }
+    }
+
+    pub fn add_item(&mut self, new_item: Item) -> bool {
+        for slot in self.inventory.iter_mut() {
+            if let Some(item) = slot {
+                if item.kind == new_item.kind {
+                    if item.count + new_item.count > item.stack_max {
+                        continue;
+                    }
+
+                    item.count += new_item.count;
+                    return true;
+                }
+            }
+        }
+
+        for slot in self.inventory.iter_mut() {
+            if slot.is_none() {
+                *slot = Some(new_item);
+                return true;
+            }
+        }
+
+        false
     }
 }

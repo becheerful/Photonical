@@ -43,7 +43,7 @@ impl World {
             bounds: Vec2::new(width_pixels, height_pixels),
             tile_size,
             map,
-            player: Player::new(100)
+            player: Player::new(100, 20)
         }
     }
 
