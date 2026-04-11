@@ -9,7 +9,7 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::Item, res::Atlas, world::BlockType};
+use crate::{player::{Item, ItemKind}, res::Atlas, world::BlockType};
 
 mod world;
 mod res;
@@ -94,7 +94,7 @@ impl EventHandler for Game {
                 let tile = self.world.get(tile_x as usize, tile_y as usize).unwrap();
                 if tile.id != BlockType::Air {
                     self.world.player.add_item(Item {
-                        stack_max: 64, count: 1, kind: player::ItemKind::Block(tile.id)
+                        stack_max: 64, count: 7, kind: ItemKind::Block(tile.id)
                     });
                     let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
                     tile.id = world::BlockType::Air;

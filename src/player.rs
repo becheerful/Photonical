@@ -64,16 +64,20 @@ impl Player {
         }
     }
 
-    pub fn add_item(&mut self, new_item: Item) -> bool {
+    pub fn add_item(&mut self, mut new_item: Item) -> Option<Item> {
         for slot in self.inventory.iter_mut() {
             if let Some(item) = slot {
                 if item.kind == new_item.kind {
-                    if item.count + new_item.count > item.stack_max {
-                        continue;
-                    }
+                    let free = item.stack_max - item.count;
+                    if free > 0 {
+                        let take = free.min(new_item.count);
+                        item.count += take;
+                        new_item.count -= take;
 
-                    item.count += new_item.count;
-                    return true;
+                        if new_item.count == 0 {
+                            return None;
+                        }
+                    }
                 }
             }
         }
@@ -81,10 +85,10 @@ impl Player {
         for slot in self.inventory.iter_mut() {
             if slot.is_none() {
                 *slot = Some(new_item);
-                return true;
+                return None;
             }
         }
 
-        false
+        Some(new_item)
     }
 }
