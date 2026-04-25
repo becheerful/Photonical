@@ -1,24 +1,6 @@
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
-use crate::{entity::Entity, world::BlockType};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ItemType {
-    Test = 0,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ItemKind {
-    Item(ItemType),
-    Block(BlockType),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Item {
-    pub stack_max: u8,
-    pub count: u8,
-    pub kind: ItemKind,
-}
+use crate::{defs, entity::Entity};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -52,43 +34,13 @@ impl Camera {
 pub struct Player {
     pub camera: Camera,
     pub entity: Entity,
-    pub inventory: Vec<Option<Item>>,
 }
 
 impl Player {
-    pub fn new(max_health: u16, slot_count: usize) -> Self {
+    pub fn new(max_health: u16) -> Self {
         Player {
             camera: Camera::new(),
-            entity: Entity::new(max_health),
-            inventory: vec![None; slot_count]
+            entity: Entity::new(max_health)
         }
-    }
-
-    pub fn add_item(&mut self, mut new_item: Item) -> Option<Item> {
-        for slot in self.inventory.iter_mut() {
-            if let Some(item) = slot {
-                if item.kind == new_item.kind {
-                    let free = item.stack_max - item.count;
-                    if free > 0 {
-                        let take = free.min(new_item.count);
-                        item.count += take;
-                        new_item.count -= take;
-
-                        if new_item.count == 0 {
-                            return None;
-                        }
-                    }
-                }
-            }
-        }
-
-        for slot in self.inventory.iter_mut() {
-            if slot.is_none() {
-                *slot = Some(new_item);
-                return None;
-            }
-        }
-
-        Some(new_item)
     }
 }

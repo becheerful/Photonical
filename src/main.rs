@@ -2,19 +2,20 @@ use std::path::PathBuf;
 
 use ggez::{
     Context, ContextBuilder, GameResult,
-    conf::{FullscreenType, WindowMode, WindowSetup},
+    conf::FullscreenType,
     event::{self, EventHandler, MouseButton},
     glam::Vec2,
-    graphics::{Canvas, Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
+    graphics::{Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::{Item, ItemKind}, res::Atlas, world::BlockType};
+use crate::res::Atlas;
 
 mod world;
 mod res;
 mod entity;
 mod player;
+mod defs;
 
 struct Settings {
     pub aspect: Vec2,
@@ -80,7 +81,7 @@ impl EventHandler for Game {
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                tile.id = world::BlockType::Stone;
+                tile.id = defs::get_block("advent:stone").unwrap();
             }
         } else if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
@@ -91,14 +92,8 @@ impl EventHandler for Game {
             let tile_y = rel_y / self.world.tile_size as f32;
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
-                let tile = self.world.get(tile_x as usize, tile_y as usize).unwrap();
-                if tile.id != BlockType::Air {
-                    self.world.player.add_item(Item {
-                        stack_max: 64, count: 7, kind: ItemKind::Block(tile.id)
-                    });
-                    let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                    tile.id = world::BlockType::Air;
-                }
+                let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
+                tile.id = defs::get_block("advent:air").unwrap();
             }
         }
 
@@ -107,13 +102,13 @@ impl EventHandler for Game {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
+        let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(Sampler::nearest_clamp());
 
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
 
         for tile in &self.world.map {
-            let rect = self.atlas.rects.get(tile.id as usize).unwrap();
+            let rect = self.atlas.rects.get(self.atlas.get_index(&tile.id)).unwrap();
             array.push(DrawParam::default().src(*rect).dest(tile.pos - self.world.player.camera.pos).scale(self.settings.aspect));
         }
 
@@ -136,11 +131,13 @@ fn main() -> GameResult {
     let sc_height: f32 = 960.0;
 
     let (mut ctx, event_loop) = ContextBuilder::new("advent", "becheerful")
-        .window_setup(WindowSetup::default().title("Advent"))
-        .window_mode(WindowMode::default().dimensions(sc_width, sc_height))
+        .window_setup(ggez::conf::WindowSetup::default().title("Advent"))
+        .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height))
         .build()
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
+
+    defs::load_all_mods();
 
     let world = world::World::new(100, 60, 64);
 

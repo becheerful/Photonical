@@ -1,21 +1,15 @@
 use ggez::{GameResult, glam::Vec2};
 
-use crate::player::Player;
+use crate::{defs, player::Player};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlockType {
-    Air = 0,
-    Stone,
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Block {
-    pub id: BlockType,
+    pub id: defs::BlockDef,
     pub pos: Vec2,
 }
 
 impl Block {
-    pub fn new(id: BlockType, pos: Vec2) -> Self {
+    pub fn new(id: defs::BlockDef, pos: Vec2) -> Self {
         Block { id, pos }
     }
 }
@@ -33,7 +27,8 @@ impl World {
     pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Block::new(
-            BlockType::Stone, Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
+            defs::get_block("advent:stone").unwrap(),
+            Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
         let width_pixels = (width * tile_size) as f32 * 0.75;
         let height_pixels = (height * tile_size) as f32 * 0.75;
@@ -43,7 +38,7 @@ impl World {
             bounds: Vec2::new(width_pixels, height_pixels),
             tile_size,
             map,
-            player: Player::new(100, 20)
+            player: Player::new(100)
         }
     }
 
