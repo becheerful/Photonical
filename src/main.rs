@@ -5,7 +5,7 @@ use ggez::{
     conf::FullscreenType,
     event::{self, EventHandler, MouseButton},
     glam::Vec2,
-    graphics::{Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
+    graphics::{Color, DrawParam, Drawable, InstanceArray, Rect, Sampler, Text},
     input::keyboard::{KeyCode, KeyInput}
 };
 
@@ -108,7 +108,7 @@ impl EventHandler for Game {
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
 
         for tile in &self.world.map {
-            let rect = self.atlas.rects.get(self.atlas.get_index(&tile.id)).unwrap();
+            let rect = self.atlas.get_uv(&tile.id);
             array.push(DrawParam::default().src(*rect).dest(tile.pos - self.world.player.camera.pos).scale(self.settings.aspect));
         }
 
@@ -139,13 +139,13 @@ fn main() -> GameResult {
 
     defs::load_all_mods();
 
+    let texture_paths = defs::get_paths();
+    let atlas = Atlas::new(&ctx, &texture_paths)?;
+
     let world = world::World::new(100, 60, 64);
 
-    let mut atlas = Atlas::new(&ctx, "/atlas.png", 16, 2, 2)?;
-    atlas.load_rects();
-
     let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.tile_size as f32 / atlas.tile_size as f32);
+    settings.aspect = Vec2::splat(world.tile_size as f32 / 16.0);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 

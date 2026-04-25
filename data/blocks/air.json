@@ -1,4 +1,5 @@
 {
     "id": "advent:air",
-    "name": "Air"
+    "name": "Air",
+    "texture": "./resources/air.png"
 }

@@ -7,12 +7,14 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 pub struct BlockDef {
     pub id: String,
     pub name: String,
+    pub texture: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ItemDef {
     pub id: String,
     pub name: String,
+    pub texture: String,
 }
 
 pub struct Registry {
@@ -99,4 +101,19 @@ pub fn get_block(id: &str) -> Option<BlockDef> {
 
 pub fn get_item(id: &str) -> Option<ItemDef> {
     REGISTRY.read().unwrap().get_item(id).cloned()
+}
+
+pub fn get_paths() -> Vec<String> {
+    let mut texture_paths = Vec::new();
+    
+    for block in REGISTRY.read().unwrap().blocks.values() {
+        texture_paths.push(block.texture.clone());
+    }
+
+    for item in REGISTRY.read().unwrap().items.values() {
+        texture_paths.push(item.texture.clone());
+    }
+
+    texture_paths.dedup();
+    texture_paths
 }

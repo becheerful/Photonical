@@ -1,43 +1,65 @@
-use std::path::PathBuf;
+use std::collections::HashMap;
 
-use ggez::{Context, GameResult, graphics::{Image, Rect}};
+use ggez::{Context, GameError, GameResult, graphics::{Image, ImageFormat, Rect}};
+use image::RgbaImage;
+use rect_packer::DensePacker;
 
 use crate::defs::BlockDef;
 
 #[derive(Debug)]
 pub struct Atlas {
     pub image: Image,
-    pub tile_size: usize,
-    rows: u8,
-    cols: u8,
-    pub rects: Vec<Rect>,
+    pub uv_map: HashMap<String, Rect>,
 }
 
 impl Atlas {
-    pub fn new(ctx: &Context, path: &str, tile_size: usize, rows: u8, cols: u8) -> GameResult<Self> {
-        let image = Image::from_path(ctx, PathBuf::from(path).as_path())?;
-        Ok(Atlas { image, tile_size, rows, cols, rects: Vec::new() })
+    pub fn new(ctx: &Context, texture_paths: &[String]) -> GameResult<Self> {
+        let (image, uv_map) = Self::pack_textures(ctx, texture_paths)?;
+        Ok(Atlas { image, uv_map })
     }
 
-    fn get(&self, id: u32) -> Rect {
-        let col = id % (self.cols as u32);
-        let row = id / (self.rows as u32);
-        let size = self.tile_size as u32;
-        self.image.uv_rect(col * size, row * size, size, size)
-    }
+    fn pack_textures(ctx: &Context, paths: &[String]) -> GameResult<(Image, HashMap<String, Rect>)> {
+        let mut packer = DensePacker::new(2048, 2048);
+        let mut loaded_images = Vec::new();
 
-    pub fn get_index(&self, bd: &BlockDef) -> usize {
-        // temporary solution
-        match bd.id.as_str() {
-            "advent:stone" => 1,
-            _ => 0,
+        for path in paths {
+            let img = image::open(path).map_err(|e| GameError::CustomError(e.to_string()))?.to_rgba8();
+            let (w, h) = img.dimensions();
+            let rect = packer.pack(w as i32, h as i32, false).ok_or_else(|| GameError::CustomError("Atlas full".into()))?;
+            loaded_images.push((rect, img, path.clone()));
         }
+        
+        let atlas_width = packer.size().0 as u32;
+        let atlas_height = packer.size().1 as u32;
+        let mut atlas_buffer = RgbaImage::new(atlas_width, atlas_height);
+
+        for (rect, img, path) in loaded_images.clone() {
+            for y in 0..rect.height {
+                for x in 0..rect.width {
+                    let px = img.get_pixel(x as u32, y as u32);
+                    atlas_buffer.put_pixel((rect.x + x) as u32, (rect.y + y) as u32, *px);
+                }
+            }
+        }
+
+        let raw = atlas_buffer.into_raw();
+        let ggez_image = Image::from_pixels(ctx, &raw, ImageFormat::Rgba8UnormSrgb, atlas_width, atlas_height);
+
+        let mut uv_map = HashMap::new();
+        for (rect, _img, path) in loaded_images.clone() {
+            let uv = Rect::new(
+                rect.x as f32 / atlas_width as f32,
+                rect.y as f32 / atlas_height as f32,
+                rect.width as f32 / atlas_width as f32,
+                rect.height as f32 / atlas_height as f32,  
+            );
+            uv_map.insert(path, uv);
+        }
+
+        Ok((ggez_image, uv_map))
     }
 
-    pub fn load_rects(&mut self) {
-        for i in 0..(self.rows * self.cols) {
-            let rect = self.get(i as u32);
-            self.rects.push(rect);
-        }
+    pub fn get_uv(&self, block_def: &BlockDef) -> &Rect {
+        self.uv_map.get(&block_def.texture).expect("Texture not found in atlas")
     }
 }
