@@ -1,6 +1,6 @@
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
-use crate::{defs, entity::Entity};
+use crate::entity::Entity;
 
 #[derive(Debug, Clone)]
 pub struct Camera {

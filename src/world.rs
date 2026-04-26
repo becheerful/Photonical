@@ -4,13 +4,13 @@ use crate::{defs, player::Player};
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub id: defs::BlockDef,
+    pub def: defs::BlockDef,
     pub pos: Vec2,
 }
 
 impl Block {
-    pub fn new(id: defs::BlockDef, pos: Vec2) -> Self {
-        Block { id, pos }
+    pub fn new(def: defs::BlockDef, pos: Vec2) -> Self {
+        Block { def, pos }
     }
 }
 

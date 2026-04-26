@@ -4,7 +4,7 @@ use ggez::{Context, GameError, GameResult, graphics::{Image, ImageFormat, Rect}}
 use image::RgbaImage;
 use rect_packer::DensePacker;
 
-use crate::defs::BlockDef;
+use crate::defs::{BlockDef, ItemDef};
 
 #[derive(Debug)]
 pub struct Atlas {
@@ -33,7 +33,7 @@ impl Atlas {
         let atlas_height = packer.size().1 as u32;
         let mut atlas_buffer = RgbaImage::new(atlas_width, atlas_height);
 
-        for (rect, img, path) in loaded_images.clone() {
+        for (rect, img, _path) in loaded_images.clone() {
             for y in 0..rect.height {
                 for x in 0..rect.width {
                     let px = img.get_pixel(x as u32, y as u32);
@@ -59,7 +59,11 @@ impl Atlas {
         Ok((ggez_image, uv_map))
     }
 
-    pub fn get_uv(&self, block_def: &BlockDef) -> &Rect {
+    pub fn get_block_uv(&self, block_def: &BlockDef) -> &Rect {
         self.uv_map.get(&block_def.texture).expect("Texture not found in atlas")
+    }
+
+    pub fn get_item_uv(&self, item_def: &ItemDef) -> &Rect {
+        self.uv_map.get(&item_def.texture).expect("Texture not found in atlas")
     }
 }

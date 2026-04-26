@@ -3,18 +3,24 @@ use std::{collections::HashMap, fs, path::Path, sync::RwLock};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+use crate::res::Atlas;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
     pub id: String,
     pub name: String,
     pub texture: String,
+    #[serde(skip)]
+    pub uv: Option<ggez::graphics::Rect>
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemDef {
     pub id: String,
     pub name: String,
     pub texture: String,
+    #[serde(skip)]
+    pub uv: Option<ggez::graphics::Rect>
 }
 
 pub struct Registry {
@@ -116,4 +122,14 @@ pub fn get_paths() -> Vec<String> {
 
     texture_paths.dedup();
     texture_paths
+}
+
+pub fn gen_uv_cache(atlas: &Atlas) {
+    for block in REGISTRY.write().unwrap().blocks.values_mut() {
+        block.uv = Some(*atlas.get_block_uv(block));
+    }
+
+    for item in REGISTRY.write().unwrap().items.values_mut() {
+        item.uv = Some(*atlas.get_item_uv(item))
+    }
 }

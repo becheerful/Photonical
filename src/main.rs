@@ -5,7 +5,7 @@ use ggez::{
     conf::FullscreenType,
     event::{self, EventHandler, MouseButton},
     glam::Vec2,
-    graphics::{Color, DrawParam, Drawable, InstanceArray, Rect, Sampler, Text},
+    graphics::{Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
     input::keyboard::{KeyCode, KeyInput}
 };
 
@@ -81,7 +81,7 @@ impl EventHandler for Game {
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                tile.id = defs::get_block("advent:stone").unwrap();
+                tile.def = defs::get_block("advent:stone").unwrap();
             }
         } else if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
@@ -93,7 +93,7 @@ impl EventHandler for Game {
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                tile.id = defs::get_block("advent:air").unwrap();
+                tile.def = defs::get_block("advent:air").unwrap();
             }
         }
 
@@ -108,8 +108,11 @@ impl EventHandler for Game {
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
 
         for tile in &self.world.map {
-            let rect = self.atlas.get_uv(&tile.id);
-            array.push(DrawParam::default().src(*rect).dest(tile.pos - self.world.player.camera.pos).scale(self.settings.aspect));
+            array.push(DrawParam::default()
+                .src(tile.def.uv.unwrap())
+                .dest(tile.pos - self.world.player.camera.pos)
+                .scale(self.settings.aspect)
+            );
         }
 
         array.draw(&mut canvas, DrawParam::default());
@@ -138,9 +141,8 @@ fn main() -> GameResult {
     ctx.fs.mount(&PathBuf::from("./resources"), true);
 
     defs::load_all_mods();
-
-    let texture_paths = defs::get_paths();
-    let atlas = Atlas::new(&ctx, &texture_paths)?;
+    let atlas = Atlas::new(&ctx, &defs::get_paths())?;
+    defs::gen_uv_cache(&atlas);
 
     let world = world::World::new(100, 60, 64);
 
