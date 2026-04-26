@@ -110,7 +110,8 @@ pub fn get_item(id: &str) -> Option<ItemDef> {
 }
 
 pub fn get_paths() -> Vec<String> {
-    let mut texture_paths = Vec::new();
+    let mut texture_paths: Vec<String> = Vec::new();
+    texture_paths.push("./resources/missing.png".to_string());
     
     for block in REGISTRY.read().unwrap().blocks.values() {
         texture_paths.push(block.texture.clone());
@@ -120,7 +121,9 @@ pub fn get_paths() -> Vec<String> {
         texture_paths.push(item.texture.clone());
     }
 
+    texture_paths.sort();
     texture_paths.dedup();
+    
     texture_paths
 }
 

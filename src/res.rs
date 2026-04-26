@@ -23,10 +23,16 @@ impl Atlas {
         let mut loaded_images = Vec::new();
 
         for path in paths {
-            let img = image::open(path).map_err(|e| GameError::CustomError(e.to_string()))?.to_rgba8();
-            let (w, h) = img.dimensions();
+            let image = match image::open(path) {
+                Ok(img) => img,
+                Err(_) => {
+                    eprintln!("Warning: texture '{}' not found", path);
+                    image::open("./resources/missing.png").unwrap()
+                }
+            }.to_rgba8();
+            let (w, h) = image.dimensions();
             let rect = packer.pack(w as i32, h as i32, false).ok_or_else(|| GameError::CustomError("Atlas full".into()))?;
-            loaded_images.push((rect, img, path.clone()));
+            loaded_images.push((rect, image, path.clone()));
         }
         
         let atlas_width = packer.size().0 as u32;
