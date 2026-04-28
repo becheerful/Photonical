@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fs, path::Path, sync::RwLock};
+use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::RwLock};
 
+use ggez::GameResult;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -85,19 +86,60 @@ fn load_defs_from_dir<T: DeserializeOwned>(
     Ok(())
 }
 
-pub fn load_all_mods() {
+pub fn load_base_data() {
     if let Err(e) = load_defs_from_dir::<BlockDef>(
-        Path::new("data/blocks"),
-        |reg, block| reg.register_block(block),
+        Path::new("./resources/data/blocks"),
+        |reg, block_def| return reg.register_block(block_def)
     ) {
         eprintln!("Failed to load blocks: {}", e);
     }
 
     if let Err(e) = load_defs_from_dir::<ItemDef>(
-        Path::new("data/items"),
-        |reg, item| reg.register_item(item),
+        Path::new("./resources/data/items"),
+        |reg, item_def| return reg.register_item(item_def)
     ) {
         eprintln!("Failed to load items: {}", e);
+    }
+}
+
+fn parse_mod(path: &PathBuf) {
+    let data_dir = path.join("resources/data");
+    // let scripts_dir = path.join("src");
+
+    let blocks_dir = data_dir.join("blocks");
+    if blocks_dir.exists() {
+        if let Err(e) = load_defs_from_dir::<BlockDef>(
+            blocks_dir.as_path(),
+            |reg, block_def| reg.register_block(block_def)
+        ) {
+            eprintln!("Failed to load items from mod: {}", e);
+        }
+    }
+
+    let items_dir = data_dir.join("items");
+    if items_dir.exists() {
+        if let Err(e) = load_defs_from_dir::<ItemDef>(
+            items_dir.as_path(),
+            |reg, item_def| reg.register_item(item_def)
+        ) {
+            eprintln!("Failed to load blocks from mod: {}", e);
+        }
+    }
+}
+
+pub fn load_mods_data() {
+    let mods_dir = Path::new("./mods/");
+    if !mods_dir.exists() {
+        return;
+    }
+
+    for entry in fs::read_dir(mods_dir).unwrap() {
+        let mod_path = entry.unwrap().path();
+        if !mod_path.is_dir() {
+            continue;
+        }
+
+        parse_mod(&mod_path);
     }
 }
 
@@ -111,7 +153,7 @@ pub fn get_item(id: &str) -> Option<ItemDef> {
 
 pub fn get_paths() -> Vec<String> {
     let mut texture_paths: Vec<String> = Vec::new();
-    texture_paths.push("./resources/missing.png".to_string());
+    texture_paths.push(crate::MISSING_TEX.to_string());
     
     for block in REGISTRY.read().unwrap().blocks.values() {
         texture_paths.push(block.texture.clone());
@@ -123,7 +165,7 @@ pub fn get_paths() -> Vec<String> {
 
     texture_paths.sort();
     texture_paths.dedup();
-    
+
     texture_paths
 }
 

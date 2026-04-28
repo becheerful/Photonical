@@ -17,6 +17,8 @@ mod entity;
 mod player;
 mod defs;
 
+const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
+
 struct Settings {
     pub aspect: Vec2,
     pub sc_width: f32,
@@ -37,12 +39,12 @@ struct Game {
 }
 
 impl Game {
-    fn new(_ctx: &mut Context, settings: Settings, atlas: res::Atlas, world: world::World) -> GameResult<Game> {
-        Ok(Game {
+    fn new(_ctx: &mut Context, settings: Settings, atlas: res::Atlas, world: world::World) -> Self {
+        Game {
             settings,
             world,
             atlas,
-        })
+        }
     }
 }
 
@@ -140,7 +142,8 @@ fn main() -> GameResult {
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
 
-    defs::load_all_mods();
+    defs::load_base_data();
+    defs::load_mods_data();
     let atlas = Atlas::new(&ctx, &defs::get_paths())?;
     defs::gen_uv_cache(&atlas);
 
@@ -151,7 +154,7 @@ fn main() -> GameResult {
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let game = Game::new(&mut ctx, settings, atlas, world)?;
+    let game = Game::new(&mut ctx, settings, atlas, world);
 
     event::run(ctx, event_loop, game);
 }

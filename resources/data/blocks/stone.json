@@ -1,0 +1,5 @@
+{
+    "id": "advent:stone",
+    "name": "Stone",
+    "texture": "./resources/assets/textures/blocks/stone.png"
+}

@@ -27,7 +27,7 @@ impl Atlas {
                 Ok(img) => img,
                 Err(_) => {
                     eprintln!("Warning: texture '{}' not found", path);
-                    image::open("./resources/missing.png").unwrap()
+                    image::open(crate::MISSING_TEX).unwrap()
                 }
             }.to_rgba8();
             let (w, h) = image.dimensions();
