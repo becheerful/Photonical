@@ -1,5 +1,5 @@
 {
     "id": "advent:air",
     "name": "Air",
-    "texture": "./resources/assets/textures/blocks/air.png"
+    "texture": "/resources/assets/textures/blocks/air.png"
 }

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::RwLock};
 
-use ggez::GameResult;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -19,6 +18,7 @@ pub struct BlockDef {
 pub struct ItemDef {
     pub id: String,
     pub name: String,
+    pub stack_size: u16,
     pub texture: String,
     #[serde(skip)]
     pub uv: Option<ggez::graphics::Rect>
@@ -34,19 +34,35 @@ impl Registry {
         Self { blocks: HashMap::new(), items: HashMap::new() }
     }
 
-    pub fn register_block(&mut self, def: BlockDef) -> Result<(), String> {
+    /// # Arguments
+    /// * `def` - block definition (id, name, path to the texture)
+    /// * `rel_path` - path to the mod folder contents
+    /// # Errors
+    /// Returns an error if a block with this id is already registered.
+    pub fn register_block(&mut self, mut def: BlockDef, rel_path: &str) -> Result<(), String> {
         if self.blocks.contains_key(&def.id) {
             return Err(format!("Block id '{}' already registered", def.id));
         }
+
+        let original = def.texture.clone();
+        def.texture = format!(r"{}{}", rel_path, original);
 
         self.blocks.insert(def.id.clone(), def);
         Ok(())
     }
 
-    pub fn register_item(&mut self, def: ItemDef) -> Result<(), String> {
+    /// # Arguments
+    /// * `def` - item definition (id, name, path to the texture)
+    /// * `rel_path` - path to the mod folder contents
+    /// # Errors
+    /// Returns an error if an item with this id is already registered.
+    pub fn register_item(&mut self, mut def: ItemDef, rel_path: &str) -> Result<(), String> {
         if self.items.contains_key(&def.id) {
             return Err(format!("Item id '{}' already registered", def.id));
         }
+
+        let original = def.texture.clone();
+        def.texture = format!(r"{}{}", rel_path, original);
 
         self.items.insert(def.id.clone(), def);
         Ok(())
@@ -61,6 +77,7 @@ impl Registry {
     }
 }
 
+/// The global registry of all game objects (blocks, items).
 pub static REGISTRY: Lazy<RwLock<Registry>> = Lazy::new(|| RwLock::new(Registry::new()));
 
 fn load_defs_from_dir<T: DeserializeOwned>(
@@ -89,14 +106,14 @@ fn load_defs_from_dir<T: DeserializeOwned>(
 pub fn load_base_data() {
     if let Err(e) = load_defs_from_dir::<BlockDef>(
         Path::new("./resources/data/blocks"),
-        |reg, block_def| return reg.register_block(block_def)
+        |reg, block_def| return reg.register_block(block_def, ".")
     ) {
         eprintln!("Failed to load blocks: {}", e);
     }
 
     if let Err(e) = load_defs_from_dir::<ItemDef>(
         Path::new("./resources/data/items"),
-        |reg, item_def| return reg.register_item(item_def)
+        |reg, item_def| return reg.register_item(item_def, ".")
     ) {
         eprintln!("Failed to load items: {}", e);
     }
@@ -110,7 +127,7 @@ fn parse_mod(path: &PathBuf) {
     if blocks_dir.exists() {
         if let Err(e) = load_defs_from_dir::<BlockDef>(
             blocks_dir.as_path(),
-            |reg, block_def| reg.register_block(block_def)
+            |reg, block_def| reg.register_block(block_def, path.to_str().unwrap())
         ) {
             eprintln!("Failed to load items from mod: {}", e);
         }
@@ -120,7 +137,7 @@ fn parse_mod(path: &PathBuf) {
     if items_dir.exists() {
         if let Err(e) = load_defs_from_dir::<ItemDef>(
             items_dir.as_path(),
-            |reg, item_def| reg.register_item(item_def)
+            |reg, item_def| reg.register_item(item_def, path.to_str().unwrap())
         ) {
             eprintln!("Failed to load blocks from mod: {}", e);
         }

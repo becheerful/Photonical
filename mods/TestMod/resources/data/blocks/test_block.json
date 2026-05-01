@@ -1,0 +1,5 @@
+{
+    "id": "test_mod:test_block",
+    "name": "Test Block",
+    "texture": "/resources/assets/textures/test_block.png"
+}
