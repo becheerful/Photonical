@@ -27,7 +27,7 @@ impl World {
     pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Block::new(
-            defs::get_block("advent:stone").unwrap(),
+            defs::get_block("photonical:stone").unwrap(),
             Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
         )).collect();
         let width_pixels = (width * tile_size) as f32 * 0.75;

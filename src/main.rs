@@ -93,7 +93,7 @@ impl EventHandler for Game {
 
             if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
                 // let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                // tile.def = defs::get_block("advent:stone").unwrap();
+                // tile.def = defs::get_block("photonical:stone").unwrap();
             }
         } else if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
@@ -108,7 +108,7 @@ impl EventHandler for Game {
                 let tile_id = self.world.get(idx.0, idx.1).unwrap().def.id.clone();
                 self.world.player.add_item(ItemStack::new(tile_id, false, 1));
                 let tile = self.world.get_mut(idx.0, idx.1).unwrap();
-                tile.def = defs::get_block("advent:air").unwrap();
+                tile.def = defs::get_block("photonical:air").unwrap();
             }
         }
 
@@ -148,8 +148,8 @@ fn main() -> GameResult {
     let sc_width: f32 = 1920.0;
     let sc_height: f32 = 1080.0;
 
-    let (mut ctx, event_loop) = ContextBuilder::new("advent", "becheerful")
-        .window_setup(ggez::conf::WindowSetup::default().title("Advent"))
+    let (mut ctx, event_loop) = ContextBuilder::new("photonical", "becheerful")
+        .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
         .build()
         .unwrap();
