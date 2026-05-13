@@ -9,11 +9,10 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::ItemStack, res::Atlas};
+use crate::{player::Camera, res::Atlas, world::World};
 
 mod world;
 mod res;
-mod entity;
 mod player;
 mod defs;
 
@@ -33,17 +32,19 @@ impl Settings {
 }
 
 struct Game {
-    pub world: world::World,
-    pub atlas: res::Atlas,
+    pub atlas: Atlas,
+    pub world: World,
+    pub camera: Camera,
     pub settings: Settings,
 }
 
 impl Game {
-    fn new(_ctx: &mut Context, settings: Settings, atlas: res::Atlas, world: world::World) -> Self {
+    fn new(_ctx: &mut Context, atlas: Atlas, world: World, camera: Camera, settings: Settings) -> Self {
         Game {
-            settings,
-            world,
             atlas,
+            world,
+            camera,
+            settings,
         }
     }
 }
@@ -61,19 +62,9 @@ impl EventHandler for Game {
                     ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
                 }
                 KeyCode::Escape => ctx.request_quit(),
-                KeyCode::Key0 => self.world.player.current_slot = 0,
-                KeyCode::Key1 => self.world.player.current_slot = 1,
-                KeyCode::Key2 => self.world.player.current_slot = 2,
-                KeyCode::Key3 => self.world.player.current_slot = 3,
-                KeyCode::Key4 => self.world.player.current_slot = 4,
-                KeyCode::Key5 => self.world.player.current_slot = 5,
-                KeyCode::Key6 => self.world.player.current_slot = 6,
-                KeyCode::Key7 => self.world.player.current_slot = 7,
-                KeyCode::Key8 => self.world.player.current_slot = 8,
-                KeyCode::Key9 => self.world.player.current_slot = 9,
                 key => {
-                    if let Some(direction) = self.world.player.camera.get_movement_vector(key) {
-                        self.world.player.camera.move_towards(direction, self.world.bounds);
+                    if let Some(direction) = self.camera.get_movement_vector(key) {
+                        self.camera.move_towards(direction, self.world.bounds);
                     }
                 }
             }
@@ -83,33 +74,13 @@ impl EventHandler for Game {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        if ctx.mouse.button_pressed(MouseButton::Right) {
+        if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
-            let rel_x = mouse_point.x + self.world.player.camera.pos.x;
-            let rel_y = mouse_point.y + self.world.player.camera.pos.y;
+            let rel_x = mouse_point.x + self.camera.pos.x;
+            let rel_y = mouse_point.y + self.camera.pos.y;
 
             let tile_x = rel_x / self.world.tile_size as f32;
             let tile_y = rel_y / self.world.tile_size as f32;
-
-            if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
-                // let tile = self.world.get_mut(tile_x as usize, tile_y as usize).unwrap();
-                // tile.def = defs::get_block("photonical:stone").unwrap();
-            }
-        } else if ctx.mouse.button_pressed(MouseButton::Left) {
-            let mouse_point = ctx.mouse.position();
-            let rel_x = mouse_point.x + self.world.player.camera.pos.x;
-            let rel_y = mouse_point.y + self.world.player.camera.pos.y;
-
-            let tile_x = rel_x / self.world.tile_size as f32;
-            let tile_y = rel_y / self.world.tile_size as f32;
-
-            if 0.0 <= mouse_point.x && mouse_point.x < self.settings.sc_width && 0.0 <= mouse_point.y && mouse_point.y < self.settings.sc_height {
-                let idx = (tile_x as usize, tile_y as usize);
-                let tile_id = self.world.get(idx.0, idx.1).unwrap().def.id.clone();
-                self.world.player.add_item(ItemStack::new(tile_id, false, 1));
-                let tile = self.world.get_mut(idx.0, idx.1).unwrap();
-                tile.def = defs::get_block("photonical:air").unwrap();
-            }
         }
 
         self.world.update()?;
@@ -125,7 +96,7 @@ impl EventHandler for Game {
         for tile in &self.world.map {
             array.push(DrawParam::default()
                 .src(tile.def.uv.unwrap())
-                .dest(tile.pos - self.world.player.camera.pos)
+                .dest(tile.pos - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
@@ -159,15 +130,17 @@ fn main() -> GameResult {
     defs::load_mods_data();
     let atlas = Atlas::new(&ctx, &defs::get_paths())?;
     defs::gen_uv_cache(&atlas);
-
+    
     let world = world::World::new(100, 60, 64);
+    
+    let camera = Camera::new();
 
     let mut settings = Settings::new();
     settings.aspect = Vec2::splat(world.tile_size as f32 / 16.0);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let game = Game::new(&mut ctx, settings, atlas, world);
+    let game = Game::new(&mut ctx, atlas, world, camera, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }

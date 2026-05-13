@@ -1,6 +1,6 @@
 use ggez::{GameResult, glam::Vec2};
 
-use crate::{defs, player::Player};
+use crate::defs;
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -20,7 +20,6 @@ pub struct World {
     pub bounds: Vec2,
     pub tile_size: usize,
     pub map: Vec<Block>,
-    pub player: Player,
 }
 
 impl World {
@@ -38,7 +37,6 @@ impl World {
             bounds: Vec2::new(width_pixels, height_pixels),
             tile_size,
             map,
-            player: Player::new(100, 20),
         }
     }
 

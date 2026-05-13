@@ -10,7 +10,9 @@ pub struct BlockDef {
     pub id: String,
     pub name: String,
     pub texture: String,
+    pub script: Option<String>,
     #[serde(skip)]
+    /// position in the dynamically stitched texture atlas
     pub uv: Option<ggez::graphics::Rect>
 }
 
@@ -18,20 +20,33 @@ pub struct BlockDef {
 pub struct ItemDef {
     pub id: String,
     pub name: String,
-    pub stack_size: u16,
     pub texture: String,
     #[serde(skip)]
+    /// position in the dynamically stitched texture atlas
     pub uv: Option<ggez::graphics::Rect>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecipeDef {
+    pub id: String,
+    pub time: f32,
+    pub inputs: Vec<(String, u32)>,
+    pub outputs: Vec<(String, u32)>,
 }
 
 pub struct Registry {
     blocks: HashMap<String, BlockDef>,
     items: HashMap<String, ItemDef>,
+    recipes: HashMap<String, RecipeDef>,
 }
 
 impl Registry {
     fn new() -> Self {
-        Self { blocks: HashMap::new(), items: HashMap::new() }
+        Self {
+            blocks: HashMap::new(),
+            items: HashMap::new(),
+            recipes: HashMap::new()
+        }
     }
 
     /// # Arguments
@@ -68,12 +83,30 @@ impl Registry {
         Ok(())
     }
 
+    /// # Arguments
+    /// * `def` - recipe definition (id, time, inputs and outputs)
+    /// * `rel_path` - path to the mod folder contents
+    /// # Errors
+    /// Returns an error if a recipe with this id is already registered.
+    pub fn register_recipe(&mut self, def: RecipeDef) -> Result<(), String> {
+        if self.recipes.contains_key(&def.id) {
+            return Err(format!("Reciped id '{}' already registered", def.id))
+        }
+
+        self.recipes.insert(def.id.clone(), def);
+        Ok(())
+    }
+
     pub fn get_block(&self, id: &str) -> Option<&BlockDef> {
         self.blocks.get(id)
     }
 
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
         self.items.get(id)
+    }
+
+    pub fn get_recipes(&self, id: &str) -> Option<&RecipeDef> {
+        self.recipes.get(id)
     }
 }
 
@@ -117,11 +150,18 @@ pub fn load_base_data() {
     ) {
         eprintln!("Failed to load items: {}", e);
     }
+
+    if let Err(e) = load_defs_from_dir::<RecipeDef>(
+        Path::new("./resources/data/recipes"),
+        |reg, recipe_def| return reg.register_recipe(recipe_def)
+    ) {
+        eprintln!("Failed to load recipes: {}", e);
+    }
 }
 
 fn parse_mod(path: &PathBuf) {
     let data_dir = path.join("resources/data");
-    // let scripts_dir = path.join("src");
+    // let scripts_dir = path.join("scripts");
 
     let blocks_dir = data_dir.join("blocks");
     if blocks_dir.exists() {
@@ -129,7 +169,7 @@ fn parse_mod(path: &PathBuf) {
             blocks_dir.as_path(),
             |reg, block_def| reg.register_block(block_def, path.to_str().unwrap())
         ) {
-            eprintln!("Failed to load items from mod: {}", e);
+            eprintln!("Failed to load blocks from mod: {}", e);
         }
     }
 
@@ -139,7 +179,7 @@ fn parse_mod(path: &PathBuf) {
             items_dir.as_path(),
             |reg, item_def| reg.register_item(item_def, path.to_str().unwrap())
         ) {
-            eprintln!("Failed to load blocks from mod: {}", e);
+            eprintln!("Failed to load items from mod: {}", e);
         }
     }
 }
