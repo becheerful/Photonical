@@ -1,4 +1,4 @@
-use ggez::{GameResult, glam::Vec2};
+use ggez::glam::Vec2;
 
 use crate::defs;
 
@@ -56,9 +56,5 @@ impl World {
         } else {
             None
         }
-    }
-
-    pub fn update(&mut self) -> GameResult {
-        Ok(())
     }
 }

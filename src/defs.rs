@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::RwLock};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::res::Atlas;
+use crate::{res::Atlas, scripts::ScriptEngine};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
@@ -61,6 +61,11 @@ impl Registry {
 
         let original = def.texture.clone();
         def.texture = format!(r"{}{}", rel_path, original);
+        
+        if let Some(script) = def.script {
+            let original = script;
+            def.script = Some(format!(r"{}{}", rel_path, original));
+        }
 
         self.blocks.insert(def.id.clone(), def);
         Ok(())
@@ -104,8 +109,8 @@ impl Registry {
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
         self.items.get(id)
     }
-
-    pub fn get_recipes(&self, id: &str) -> Option<&RecipeDef> {
+    
+    pub fn get_recipe(&self, id: &str) -> Option<&RecipeDef> {
         self.recipes.get(id)
     }
 }
@@ -137,22 +142,24 @@ fn load_defs_from_dir<T: DeserializeOwned>(
 }
 
 pub fn load_base_data() {
+    let data_dir = Path::new("./resources/data");
+
     if let Err(e) = load_defs_from_dir::<BlockDef>(
-        Path::new("./resources/data/blocks"),
+        data_dir.join("blocks").as_path(),
         |reg, block_def| return reg.register_block(block_def, ".")
     ) {
         eprintln!("Failed to load blocks: {}", e);
     }
 
     if let Err(e) = load_defs_from_dir::<ItemDef>(
-        Path::new("./resources/data/items"),
+        data_dir.join("items").as_path(),
         |reg, item_def| return reg.register_item(item_def, ".")
     ) {
         eprintln!("Failed to load items: {}", e);
     }
 
     if let Err(e) = load_defs_from_dir::<RecipeDef>(
-        Path::new("./resources/data/recipes"),
+        data_dir.join("recipes").as_path(),
         |reg, recipe_def| return reg.register_recipe(recipe_def)
     ) {
         eprintln!("Failed to load recipes: {}", e);
@@ -161,26 +168,19 @@ pub fn load_base_data() {
 
 fn parse_mod(path: &PathBuf) {
     let data_dir = path.join("resources/data");
-    // let scripts_dir = path.join("scripts");
 
-    let blocks_dir = data_dir.join("blocks");
-    if blocks_dir.exists() {
-        if let Err(e) = load_defs_from_dir::<BlockDef>(
-            blocks_dir.as_path(),
-            |reg, block_def| reg.register_block(block_def, path.to_str().unwrap())
-        ) {
-            eprintln!("Failed to load blocks from mod: {}", e);
-        }
+    if let Err(e) = load_defs_from_dir::<BlockDef>(
+        data_dir.join("blocks").as_path(),
+        |reg, block_def| reg.register_block(block_def, path.to_str().unwrap())
+    ) {
+        eprintln!("Failed to load blocks from mod: {}", e);
     }
 
-    let items_dir = data_dir.join("items");
-    if items_dir.exists() {
-        if let Err(e) = load_defs_from_dir::<ItemDef>(
-            items_dir.as_path(),
-            |reg, item_def| reg.register_item(item_def, path.to_str().unwrap())
-        ) {
-            eprintln!("Failed to load items from mod: {}", e);
-        }
+    if let Err(e) = load_defs_from_dir::<ItemDef>(
+        data_dir.join("items").as_path(),
+        |reg, item_def| reg.register_item(item_def, path.to_str().unwrap())
+    ) {
+        eprintln!("Failed to load items from mod: {}", e);
     }
 }
 
@@ -208,6 +208,14 @@ pub fn get_item(id: &str) -> Option<ItemDef> {
     REGISTRY.read().unwrap().get_item(id).cloned()
 }
 
+pub fn get_blocks() -> HashMap<String, BlockDef> {
+    REGISTRY.read().unwrap().blocks.clone()
+}
+
+pub fn get_items() -> HashMap<String, ItemDef> {
+    REGISTRY.read().unwrap().items.clone()
+}
+
 pub fn get_paths() -> Vec<String> {
     let mut texture_paths: Vec<String> = Vec::new();
     texture_paths.push(crate::MISSING_TEX.to_string());
@@ -233,5 +241,19 @@ pub fn gen_uv_cache(atlas: &Atlas) {
 
     for item in REGISTRY.write().unwrap().items.values_mut() {
         item.uv = Some(*atlas.get_item_uv(item))
+    }
+}
+
+pub fn link_scripts(script_engine: &mut ScriptEngine) {
+    for block in get_blocks() {
+        if let Some(script) = block.1.script {
+            if let Ok(code) = fs::read_to_string(script) {
+                if let Err(e) = script_engine.load_script(&block.0, &code) {
+                    eprintln!("{}", e);
+                }
+            } else {
+                eprintln!("An error occurred while reading the file");
+            }
+        }
     }
 }

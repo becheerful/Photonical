@@ -3,20 +3,22 @@ use std::path::PathBuf;
 use ggez::{
     Context, ContextBuilder, GameResult,
     conf::FullscreenType,
-    event::{EventHandler, MouseButton},
+    event::EventHandler,
     glam::Vec2,
     graphics::{Color, DrawParam, Drawable, InstanceArray, Sampler, Text},
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::Camera, res::Atlas, world::World};
+use crate::{player::Camera, res::Atlas, scripts::ScriptEngine, world::World};
 
 mod world;
 mod res;
 mod player;
 mod defs;
+mod scripts;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
+const TEXTURE_SIZE: f32 = 16.0;
 
 struct Settings {
     pub aspect: Vec2,
@@ -35,16 +37,26 @@ struct Game {
     pub atlas: Atlas,
     pub world: World,
     pub camera: Camera,
+    pub script_engine: ScriptEngine,
     pub settings: Settings,
 }
 
 impl Game {
-    fn new(_ctx: &mut Context, atlas: Atlas, world: World, camera: Camera, settings: Settings) -> Self {
+    fn new(atlas: Atlas, world: World, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
         Game {
             atlas,
             world,
             camera,
+            script_engine,
             settings,
+        }
+    }
+
+    fn update_game(&mut self, dt: f32) {
+        for block in self.world.map.iter_mut() {
+            if let Err(e) = self.script_engine.update_block(block, dt) {
+                eprintln!("{}", e);
+            }
         }
     }
 }
@@ -74,6 +86,7 @@ impl EventHandler for Game {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        /*
         if ctx.mouse.button_pressed(MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
             let rel_x = mouse_point.x + self.camera.pos.x;
@@ -82,8 +95,9 @@ impl EventHandler for Game {
             let tile_x = rel_x / self.world.tile_size as f32;
             let tile_y = rel_y / self.world.tile_size as f32;
         }
+        */
 
-        self.world.update()?;
+        self.update_game(ctx.time.delta().as_secs_f32());
         Ok(())
     }
 
@@ -102,7 +116,7 @@ impl EventHandler for Game {
         }
 
         array.draw(&mut canvas, DrawParam::default());
-        canvas.draw(&Text::new(format!("FPS: {:.0}", ctx.time.fps())), DrawParam::default().color(Color::BLACK));
+        canvas.draw(&Text::new(format!("FPS: {:.0}", ctx.time.fps())), DrawParam::default().color(Color::RED));
 
         canvas.finish(ctx)?;
         Ok(())
@@ -119,28 +133,32 @@ fn main() -> GameResult {
     let sc_width: f32 = 1920.0;
     let sc_height: f32 = 1080.0;
 
-    let (mut ctx, event_loop) = ContextBuilder::new("photonical", "becheerful")
+    let (ctx, event_loop) = ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
         .build()
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
-
+    
     defs::load_base_data();
     defs::load_mods_data();
+
     let atlas = Atlas::new(&ctx, &defs::get_paths())?;
     defs::gen_uv_cache(&atlas);
+
+    let mut script_engine = ScriptEngine::new();
+    defs::link_scripts(&mut script_engine);
     
     let world = world::World::new(100, 60, 64);
     
     let camera = Camera::new();
 
     let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.tile_size as f32 / 16.0);
+    settings.aspect = Vec2::splat(world.tile_size as f32 / TEXTURE_SIZE);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let game = Game::new(&mut ctx, atlas, world, camera, settings);
+    let game = Game::new(atlas, world, camera, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
