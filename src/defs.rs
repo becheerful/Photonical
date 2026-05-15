@@ -141,19 +141,19 @@ fn load_defs_from_dir<T: DeserializeOwned>(
     Ok(())
 }
 
-pub fn load_base_data() {
-    let data_dir = Path::new("./resources/data");
+pub fn load_data(rel_path: &str) {
+    let data_dir = PathBuf::from(format!("{}resources/data", rel_path));
 
     if let Err(e) = load_defs_from_dir::<BlockDef>(
         data_dir.join("blocks").as_path(),
-        |reg, block_def| return reg.register_block(block_def, ".")
+        |reg, block_def| return reg.register_block(block_def, rel_path)
     ) {
         eprintln!("Failed to load blocks: {}", e);
     }
 
     if let Err(e) = load_defs_from_dir::<ItemDef>(
         data_dir.join("items").as_path(),
-        |reg, item_def| return reg.register_item(item_def, ".")
+        |reg, item_def| return reg.register_item(item_def, rel_path)
     ) {
         eprintln!("Failed to load items: {}", e);
     }
@@ -163,24 +163,6 @@ pub fn load_base_data() {
         |reg, recipe_def| return reg.register_recipe(recipe_def)
     ) {
         eprintln!("Failed to load recipes: {}", e);
-    }
-}
-
-fn parse_mod(path: &PathBuf) {
-    let data_dir = path.join("resources/data");
-
-    if let Err(e) = load_defs_from_dir::<BlockDef>(
-        data_dir.join("blocks").as_path(),
-        |reg, block_def| reg.register_block(block_def, path.to_str().unwrap())
-    ) {
-        eprintln!("Failed to load blocks from mod: {}", e);
-    }
-
-    if let Err(e) = load_defs_from_dir::<ItemDef>(
-        data_dir.join("items").as_path(),
-        |reg, item_def| reg.register_item(item_def, path.to_str().unwrap())
-    ) {
-        eprintln!("Failed to load items from mod: {}", e);
     }
 }
 
@@ -196,7 +178,7 @@ pub fn load_mods_data() {
             continue;
         }
 
-        parse_mod(&mod_path);
+        load_data(mod_path.to_str().unwrap());
     }
 }
 

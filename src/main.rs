@@ -140,7 +140,7 @@ fn main() -> GameResult {
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
     
-    defs::load_base_data();
+    defs::load_data("./");
     defs::load_mods_data();
 
     let atlas = Atlas::new(&ctx, &defs::get_paths())?;
