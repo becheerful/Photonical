@@ -28,6 +28,10 @@ impl ScriptEngine {
             println!("{}", num);
         });
 
+        engine.register_fn("wr", |v: Vec2| {
+            println!("({} {})", v.x, v.y);
+        });
+
         Self { engine, scripts: HashMap::new() }
     }
 
@@ -42,7 +46,7 @@ impl ScriptEngine {
             return Ok(())
         };
 
-        self.engine.call_fn::<()>(&mut Scope::new(), ast, "on_tick", (dt,))?;
+        self.engine.call_fn::<()>(&mut Scope::new(), ast, "on_tick", (dt, block.pos))?;
         Ok(())
     }
 }

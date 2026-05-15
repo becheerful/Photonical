@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{ops::Mul, path::PathBuf};
 
 use ggez::{
     Context, ContextBuilder, GameResult,
@@ -53,7 +53,8 @@ impl Game {
     }
 
     fn update_game(&mut self, dt: f32) {
-        for block in self.world.map.iter_mut() {
+        for xy in self.world.mechanisms.clone() {
+            let block = &mut self.world.map[xy];
             if let Err(e) = self.script_engine.update_block(block, dt) {
                 eprintln!("{}", e);
             }
@@ -86,16 +87,19 @@ impl EventHandler for Game {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        /*
-        if ctx.mouse.button_pressed(MouseButton::Left) {
+        if ctx.mouse.button_pressed(ggez::event::MouseButton::Left) {
             let mouse_point = ctx.mouse.position();
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = rel_x / self.world.tile_size as f32;
-            let tile_y = rel_y / self.world.tile_size as f32;
+            let tile_x = (rel_x / self.world.tile_size as f32) as usize;
+            let tile_y = (rel_y / self.world.tile_size as f32) as usize;
+
+            let block = self.world.get_mut(tile_x, tile_y).unwrap();
+            block.def = defs::get_block("photonical:collimator").unwrap();
+
+            self.world.mechanisms.push(tile_y * self.world.width + tile_x);
         }
-        */
 
         self.update_game(ctx.time.delta().as_secs_f32());
         Ok(())
@@ -110,7 +114,7 @@ impl EventHandler for Game {
         for tile in &self.world.map {
             array.push(DrawParam::default()
                 .src(tile.def.uv.unwrap())
-                .dest(tile.pos - self.camera.pos)
+                .dest(tile.pos.mul(self.world.tile_size as f32) - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }

@@ -1,0 +1,6 @@
+{
+    "id": "photonical:collimator",
+    "name": "Collimator",
+    "texture": "/resources/assets/textures/blocks/collimator.png",
+    "script": "/scripts/collimator.rhai"
+}

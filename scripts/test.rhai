@@ -1,3 +1,0 @@
-fn on_tick(dt) {
-    // Something will be here soon...
-}

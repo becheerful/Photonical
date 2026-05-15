@@ -20,6 +20,7 @@ pub struct World {
     pub bounds: Vec2,
     pub tile_size: usize,
     pub map: Vec<Block>,
+    pub mechanisms: Vec<usize>,
 }
 
 impl World {
@@ -27,7 +28,7 @@ impl World {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Block::new(
             defs::get_block("photonical:stone").unwrap(),
-            Vec2::new(((i % width) * tile_size) as f32, ((i / width) * tile_size) as f32),
+            Vec2::new((i % width) as f32, (i / width) as f32),
         )).collect();
         let width_pixels = (width * tile_size) as f32 * 0.75;
         let height_pixels = (height * tile_size) as f32 * 0.75;
@@ -37,6 +38,7 @@ impl World {
             bounds: Vec2::new(width_pixels, height_pixels),
             tile_size,
             map,
+            mechanisms: Vec::new(),
         }
     }
 
