@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::RwLock};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::{res::Atlas, scripts::ScriptEngine};
+use crate::res::Atlas;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
@@ -226,6 +226,7 @@ pub fn gen_uv_cache(atlas: &Atlas) {
     }
 }
 
+/*
 pub fn link_scripts(script_engine: &mut ScriptEngine) {
     for block in get_blocks() {
         if let Some(script) = block.1.script {
@@ -239,3 +240,4 @@ pub fn link_scripts(script_engine: &mut ScriptEngine) {
         }
     }
 }
+*/

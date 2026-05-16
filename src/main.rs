@@ -9,13 +9,12 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::Camera, res::Atlas, scripts::ScriptEngine, world::World};
+use crate::{player::Camera, res::Atlas, world::World};
 
 mod world;
 mod res;
 mod player;
 mod defs;
-mod scripts;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
@@ -37,28 +36,21 @@ struct Game {
     pub atlas: Atlas,
     pub world: World,
     pub camera: Camera,
-    pub script_engine: ScriptEngine,
     pub settings: Settings,
 }
 
 impl Game {
-    fn new(atlas: Atlas, world: World, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
+    fn new(atlas: Atlas, world: World, camera: Camera, settings: Settings) -> Self {
         Game {
             atlas,
             world,
             camera,
-            script_engine,
             settings,
         }
     }
 
     fn update_game(&mut self, dt: f32) {
-        for xy in self.world.mechanisms.clone() {
-            let block = &mut self.world.map[xy];
-            if let Err(e) = self.script_engine.update_block(block, dt) {
-                eprintln!("{}", e);
-            }
-        }
+        
     }
 }
 
@@ -150,11 +142,10 @@ fn main() -> GameResult {
     let atlas = Atlas::new(&ctx, &defs::get_paths())?;
     defs::gen_uv_cache(&atlas);
 
-    let mut script_engine = ScriptEngine::new();
-    defs::link_scripts(&mut script_engine);
-    
     let world = world::World::new(100, 60, 64);
     
+    // defs::link_scripts(&mut script_engine);
+
     let camera = Camera::new();
 
     let mut settings = Settings::new();
@@ -162,7 +153,7 @@ fn main() -> GameResult {
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let game = Game::new(atlas, world, camera, script_engine, settings);
+    let game = Game::new(atlas, world, camera, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
