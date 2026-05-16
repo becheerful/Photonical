@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::RwLock};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::res::Atlas;
+use crate::{res::Atlas, script::ScriptEngine};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
@@ -50,7 +50,7 @@ impl Registry {
     }
 
     /// # Arguments
-    /// * `def` - block definition (id, name, path to the texture)
+    /// * `def` - block definition (id, name, path to the texture, path to the script)
     /// * `rel_path` - path to the mod folder contents
     /// # Errors
     /// Returns an error if a block with this id is already registered.
@@ -60,11 +60,11 @@ impl Registry {
         }
 
         let original = def.texture.clone();
-        def.texture = format!(r"{}{}", rel_path, original);
+        def.texture = format!(r"{}/{}", rel_path, original);
         
         if let Some(script) = def.script {
             let original = script;
-            def.script = Some(format!(r"{}{}", rel_path, original));
+            def.script = Some(format!(r"{}/{}", rel_path, original));
         }
 
         self.blocks.insert(def.id.clone(), def);
@@ -82,7 +82,7 @@ impl Registry {
         }
 
         let original = def.texture.clone();
-        def.texture = format!(r"{}{}", rel_path, original);
+        def.texture = format!(r"{}/{}", rel_path, original);
 
         self.items.insert(def.id.clone(), def);
         Ok(())
@@ -142,7 +142,7 @@ fn load_defs_from_dir<T: DeserializeOwned>(
 }
 
 pub fn load_data(rel_path: &str) {
-    let data_dir = PathBuf::from(format!("{}resources/data", rel_path));
+    let data_dir = PathBuf::from(format!("{}/resources/data", rel_path));
 
     if let Err(e) = load_defs_from_dir::<BlockDef>(
         data_dir.join("blocks").as_path(),
@@ -226,18 +226,16 @@ pub fn gen_uv_cache(atlas: &Atlas) {
     }
 }
 
-/*
 pub fn link_scripts(script_engine: &mut ScriptEngine) {
     for block in get_blocks() {
-        if let Some(script) = block.1.script {
-            if let Ok(code) = fs::read_to_string(script) {
+        if let Some(script_path) = block.1.script {
+            if let Ok(code) = fs::read_to_string(script_path.clone()) {
                 if let Err(e) = script_engine.load_script(&block.0, &code) {
                     eprintln!("{}", e);
                 }
             } else {
-                eprintln!("An error occurred while reading the file");
+                eprintln!("Script '{}' not found", script_path);
             }
         }
     }
 }
-*/
