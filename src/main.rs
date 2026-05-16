@@ -9,7 +9,7 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{player::Camera, res::Atlas, script::ScriptEngine, world::World};
+use crate::{defs::Registry, player::Camera, res::Atlas, script::ScriptEngine, world::World};
 
 mod world;
 mod res;
@@ -142,14 +142,17 @@ fn main() -> GameResult {
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
     
-    defs::load_data(".");
-    defs::load_mods_data();
+    let mut registry = Registry::new();
 
-    let atlas = Atlas::new(&ctx, &defs::get_paths())?;
-    defs::gen_uv_cache(&atlas);
+    let atlas = Atlas::new(&ctx, &defs::get_paths(&registry))?;
+    defs::gen_uv_cache(&mut registry, &atlas);
     
     let mut script_engine = ScriptEngine::new();
-    defs::link_scripts(&mut script_engine);
+    defs::link_scripts(&mut registry, &mut script_engine);
+
+    if let Err(_) = defs::REGISTRY.set(registry) {
+        eprintln!("Game registry already initialized")
+    }
     
     let world = world::World::new(100, 60, 64);
 
