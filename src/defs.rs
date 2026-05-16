@@ -35,7 +35,9 @@ pub struct RecipeDef {
 }
 
 pub struct Registry {
-    blocks: HashMap<String, BlockDef>,
+    /// Matches the block ID with its position in `Vec<BlockDef>`
+    blocks_idx: HashMap<String, u32>,
+    blocks: Vec<BlockDef>,
     items: HashMap<String, ItemDef>,
     recipes: HashMap<String, RecipeDef>,
 }
@@ -43,7 +45,8 @@ pub struct Registry {
 impl Registry {
     pub fn new() -> Self {
         let mut r = Registry {
-            blocks: HashMap::new(),
+            blocks_idx: HashMap::new(),
+            blocks: Vec::new(),
             items: HashMap::new(),
             recipes: HashMap::new()
         };
@@ -101,7 +104,7 @@ impl Registry {
     /// # Errors
     /// Returns an error if a block with this id is already registered.
     pub fn register_block(&mut self, mut def: BlockDef, rel_path: &str) -> Result<(), String> {
-        if self.blocks.contains_key(&def.id) {
+        if self.blocks_idx.contains_key(&def.id) {
             return Err(format!("Block id '{}' already registered", def.id));
         }
 
@@ -113,7 +116,10 @@ impl Registry {
             def.script = Some(format!(r"{}/{}", rel_path, original));
         }
 
-        self.blocks.insert(def.id.clone(), def);
+        let l = self.blocks_idx.len();
+        self.blocks_idx.insert(def.id.clone(), u32::try_from(l).unwrap_or(u32::MAX));
+        self.blocks.push(def);
+
         Ok(())
     }
 
@@ -148,8 +154,22 @@ impl Registry {
         Ok(())
     }
 
+    /// Searches an gets a definition of a block by given `&str` id
     pub fn get_block(&self, id: &str) -> Option<&BlockDef> {
-        self.blocks.get(id)
+        let Some(index) = self.blocks_idx.get(id) else {
+            return None;
+        };
+
+        self.blocks.get(*index as usize)
+    }
+
+    /// Returns a definition of a block directly from the `Vec<BlockDef>` by given `u32` index
+    pub fn get_block_directly(&self, index: u32) -> Option<&BlockDef> {
+        self.blocks.get(index as usize)
+    }
+
+    pub fn get_block_index(&self, id: &str) -> Option<u32> {
+        self.blocks_idx.get(id).copied()
     }
 
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
@@ -190,27 +210,11 @@ fn load_defs_from_dir<T: DeserializeOwned>(
     Ok(())
 }
 
-pub fn get_block(id: &str) -> Option<BlockDef> {
-    registry().get_block(id).cloned()
-}
-
-pub fn get_item(id: &str) -> Option<ItemDef> {
-    registry().get_item(id).cloned()
-}
-
-pub fn get_blocks() -> HashMap<String, BlockDef> {
-    registry().blocks.clone()
-}
-
-pub fn get_items() -> HashMap<String, ItemDef> {
-    registry().items.clone()
-}
-
 pub fn get_paths(registry: &Registry) -> Vec<String> {
     let mut texture_paths: Vec<String> = Vec::new();
     texture_paths.push(crate::MISSING_TEX.to_string());
     
-    for block in registry.blocks.values() {
+    for block in &registry.blocks {
         texture_paths.push(block.texture.clone());
     }
 
@@ -225,7 +229,7 @@ pub fn get_paths(registry: &Registry) -> Vec<String> {
 }
 
 pub fn gen_uv_cache(registry: &mut Registry, atlas: &Atlas) {
-    for block in registry.blocks.values_mut() {
+    for block in registry.blocks.iter_mut() {
         block.uv = Some(*atlas.get_block_uv(block));
     }
 
@@ -236,9 +240,11 @@ pub fn gen_uv_cache(registry: &mut Registry, atlas: &Atlas) {
 
 pub fn link_scripts(registry: &Registry, script_engine: &mut ScriptEngine) {
     for block in &registry.blocks {
-        if let Some(script_path) = &block.1.script {
+        if let Some(script_path) = &block.script {
             if let Ok(code) = fs::read_to_string(script_path.clone()) {
-                if let Err(e) = script_engine.load_script(&block.0, &code) {
+                // We can call `.unwrap()` here because we're working in the registry and we know what it contains
+                let id = registry.get_block_index(&block.id).unwrap();
+                if let Err(e) = script_engine.load_script(id, &code) {
                     eprintln!("{}", e);
                 }
             } else {

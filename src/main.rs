@@ -9,7 +9,7 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{defs::Registry, player::Camera, res::Atlas, script::ScriptEngine, world::World};
+use crate::{defs::{Registry, registry}, player::Camera, res::Atlas, script::ScriptEngine, world::World};
 
 mod world;
 mod res;
@@ -55,7 +55,9 @@ impl Game {
     fn update_game(&mut self, dt: f32) {
         for index in &self.world.mechanisms {
             let block = &mut self.world.map[*index];
-            self.script_engine.execute(block, dt);
+            if let Err(e) = self.script_engine.execute(block, dt) {
+                eprint!("{}", e);
+            }
         }
     }
 }
@@ -92,11 +94,18 @@ impl EventHandler for Game {
 
             let tile_x = (rel_x / self.world.tile_size as f32) as usize;
             let tile_y = (rel_y / self.world.tile_size as f32) as usize;
-
-            let block = self.world.get_mut(tile_x, tile_y).unwrap();
-            block.def = defs::get_block("photonical:collimator").unwrap();
-
-            self.world.mechanisms.push(tile_y * self.world.width + tile_x);
+            
+            if let Some(block) = self.world.get_mut(tile_x, tile_y) {
+                let block_id = "photonical:collimator";
+                if let Some(index) = registry().get_block_index(block_id) {
+                    block.id = index;
+                    self.world.mechanisms.push(tile_y * self.world.width + tile_x);
+                } else {
+                    eprintln!("Block '{}' was not found", block_id);
+                }
+            } else {
+                eprintln!("({}, {}) is an invalid position", tile_x, tile_y);
+            }
         }
 
         self.update_game(ctx.time.delta().as_secs_f32());
@@ -109,10 +118,13 @@ impl EventHandler for Game {
 
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
 
-        for tile in &self.world.map {
+        for block in &self.world.map {
+            // We can call `.unwrap()` here because a world contains this block.
+            // Since the world contains this block, therefore, this block exists in the regisry.
+            let def = registry().get_block_directly(block.id).unwrap();
             array.push(DrawParam::default()
-                .src(tile.def.uv.unwrap())
-                .dest(tile.pos.mul(self.world.tile_size as f32) - self.camera.pos)
+                .src(def.uv.unwrap())
+                .dest(block.pos.mul(self.world.tile_size as f32) - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }

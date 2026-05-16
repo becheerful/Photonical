@@ -1,16 +1,16 @@
 use ggez::glam::Vec2;
 
-use crate::defs;
+use crate::defs::registry;
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub def: defs::BlockDef,
+    pub id: u32,
     pub pos: Vec2,
 }
 
 impl Block {
-    pub fn new(def: defs::BlockDef, pos: Vec2) -> Self {
-        Block { def, pos }
+    pub fn new(id: u32, pos: Vec2) -> Self {
+        Block { id, pos }
     }
 }
 
@@ -27,7 +27,15 @@ impl World {
     pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
         let size = (width * height) as usize;
         let map = (0..size).map(|i| Block::new(
-            defs::get_block("photonical:stone").unwrap(),
+            /*
+                Nobody doesn't really know which block is indexed by 0.
+                It can be just a stone or a nuclear bomb.
+                I hope I spell the identifiers correctly...
+                                            ...or something bad will happen. 💀
+
+                TODO: rewrite for the safety of the world
+            */
+            registry().get_block_index("photonical:stone").unwrap_or(0),
             Vec2::new((i % width) as f32, (i / width) as f32),
         )).collect();
         let width_pixels = (width * tile_size) as f32 * 0.75;

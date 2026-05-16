@@ -1,3 +1,3 @@
 function update(dt)
-    print(dt)
+    -- huh
 end
