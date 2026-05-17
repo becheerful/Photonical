@@ -52,7 +52,7 @@ impl World {
 
     pub fn get(&self, x: usize, y: usize) -> Option<&Block> {
         if x < self.width && y < self.height {
-            let idx = (y * self.width + x) as usize;
+            let idx = y * self.width + x;
             self.map.get(idx)
         } else {
             None
@@ -61,7 +61,7 @@ impl World {
 
     pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Block> {
         if x < self.width && y < self.height {
-            let idx = (y * self.width + x) as usize;
+            let idx = y * self.width + x;
             self.map.get_mut(idx)
         } else {
             None
