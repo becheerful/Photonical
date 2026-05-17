@@ -94,8 +94,8 @@ impl EventHandler for Game {
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / self.world().tile_size as f32) as usize;
-            let tile_y = (rel_y / self.world().tile_size as f32) as usize;
+            let tile_x = (rel_x / self.world().tile_size) as usize;
+            let tile_y = (rel_y / self.world().tile_size) as usize;
             
             let mut world = self.world_ref.borrow_mut();
             if let Some(block) = world.get_mut(tile_x, tile_y) {
@@ -128,7 +128,7 @@ impl EventHandler for Game {
             let def = registry().get_block_directly(block.id).unwrap();
             array.push(DrawParam::default()
                 .src(def.uv.unwrap())
-                .dest(block.pos.mul(self.world().tile_size as f32) - self.camera.pos)
+                .dest(block.pos * self.world().tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
@@ -170,7 +170,7 @@ fn main() -> GameResult {
         eprintln!("Game registry already initialized")
     }
 
-    let world = Rc::new(RefCell::new(World::new(100, 60, 64))); 
+    let world = Rc::new(RefCell::new(World::new(100, 60, 64.0))); 
     if let Err(e) = script_engine.init_api(world.clone()) {
         eprintln!("{}", e);
     }
@@ -178,7 +178,7 @@ fn main() -> GameResult {
     let camera = Camera::new();
 
     let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.borrow().tile_size as f32 / TEXTURE_SIZE);
+    settings.aspect = Vec2::splat(world.borrow().tile_size / TEXTURE_SIZE);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 

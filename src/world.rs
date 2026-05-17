@@ -18,14 +18,14 @@ pub struct World {
     pub width: usize,
     pub height: usize,
     pub bounds: Vec2,
-    pub tile_size: usize,
+    pub tile_size: f32,
     pub map: Vec<Block>,
     pub mechanisms: Vec<usize>,
 }
 
 impl World {
-    pub fn new(width: usize, height: usize, tile_size: usize) -> Self {
-        let size = (width * height) as usize;
+    pub fn new(width: usize, height: usize, tile_size: f32) -> Self {
+        let size = width * height;
         let map = (0..size).map(|i| Block::new(
             /*
                 Nobody doesn't really know which block is indexed by 0.
@@ -38,8 +38,8 @@ impl World {
             registry().get_block_index("photonical:stone").unwrap_or(0),
             Vec2::new((i % width) as f32, (i / width) as f32),
         )).collect();
-        let width_pixels = (width * tile_size) as f32 * 0.75;
-        let height_pixels = (height * tile_size) as f32 * 0.75;
+        let width_pixels = (width as f32) * tile_size * 0.75;
+        let height_pixels = (height as f32) * tile_size * 0.75;
         World {
             width,
             height,
