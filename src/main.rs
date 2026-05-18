@@ -1,4 +1,4 @@
-use std::{cell::{Ref, RefCell}, ops::Mul, path::PathBuf, rc::Rc};
+use std::{cell::{Ref, RefCell}, path::PathBuf, rc::Rc};
 
 use ggez::{
     Context, ContextBuilder, GameResult,
@@ -99,13 +99,15 @@ impl EventHandler for Game {
             
             let mut world = self.world_ref.borrow_mut();
             if let Some(block) = world.get_mut(tile_x, tile_y) {
-                let block_id = "photonical:collimator";
-                if let Some(index) = registry().get_block_index(block_id) {
-                    block.id = index;
-                    let width = world.width;
-                    world.mechanisms.push(tile_y * width + tile_x);
-                } else {
-                    eprintln!("Block '{}' was not found", block_id);
+                if block.id == registry().get_block_index("photonical:stone").unwrap() {
+                    let block_id = "photonical:collimator";
+                    if let Some(index) = registry().get_block_index(block_id) {
+                        block.id = index;
+                        let width = world.width;
+                        world.mechanisms.push(tile_y * width + tile_x);
+                    } else {
+                        eprintln!("Block '{}' was not found", block_id);
+                    }
                 }
             } else {
                 eprintln!("({}, {}) is an invalid position", tile_x, tile_y);
