@@ -94,8 +94,8 @@ impl EventHandler for Game {
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / self.world().tile_size) as usize;
-            let tile_y = (rel_y / self.world().tile_size) as usize;
+            let tile_x = (rel_x / self.world().tile_size) as u16;
+            let tile_y = (rel_y / self.world().tile_size) as u16;
             
             let mut world = self.world_ref.borrow_mut();
             if let Some(block) = world.get_mut(tile_x, tile_y) {
@@ -103,8 +103,8 @@ impl EventHandler for Game {
                     let block_id = "photonical:collimator";
                     if let Some(index) = registry().get_block_index(block_id) {
                         block.id = index;
-                        let width = world.width;
-                        world.mechanisms.push(tile_y * width + tile_x);
+                        let width = world.width as u32;
+                        world.mechanisms.push(tile_y as u32 * width + tile_x as u32);
                     } else {
                         eprintln!("Block '{}' was not found", block_id);
                     }
@@ -130,7 +130,7 @@ impl EventHandler for Game {
             let def = registry().get_block_directly(block.id).unwrap();
             array.push(DrawParam::default()
                 .src(def.uv.unwrap())
-                .dest(block.pos * self.world().tile_size - self.camera.pos)
+                .dest(block.pos.as_vec2() * self.world().tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }

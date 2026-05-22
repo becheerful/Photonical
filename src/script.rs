@@ -7,7 +7,7 @@ use crate::{defs::registry, world::{Block, World}};
 pub type WorldRef = Rc<RefCell<World>>;
 
 pub struct BlockRef {
-    pub index: usize,
+    pub index: u32,
     pub world: WorldRef,
 }
 
@@ -15,7 +15,7 @@ impl UserData for BlockRef {
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("get_pos", |lua, this, ()| {
             let world = this.world.borrow();
-            let pos = world.map[this.index].pos;
+            let pos = world.map[this.index as usize].pos;
             let table = lua.create_table()?;
             table.set("x", pos.x)?;
             table.set("y", pos.y)?;
@@ -24,12 +24,12 @@ impl UserData for BlockRef {
 
         methods.add_method("get_id", |_, this, ()| {
             let world = this.world.borrow();
-            Ok(registry().get_block_directly(world.map[this.index].id).unwrap().id.to_owned())
+            Ok(registry().get_block_directly(world.map[this.index as usize].id).unwrap().id.to_owned())
         });
 
         methods.add_method("get_name", |_, this, ()| {
             let world = this.world.borrow();
-            Ok(registry().get_block_directly(world.map[this.index].id).unwrap().name.to_owned())
+            Ok(registry().get_block_directly(world.map[this.index as usize].id).unwrap().name.to_owned())
         });
     }
 }
@@ -45,9 +45,12 @@ impl ScriptEngine {
     }
 
     pub fn init_api(&self, world_ref: WorldRef) -> mlua::Result<()> {
-        let get_block_at = self.lua.create_function(move |lua, (x, y): (usize, usize)| {
+        let get_block_at = self.lua.create_function(move |lua, (x, y): (u16, u16)| {
             let world = world_ref.borrow();
-            let block_ref = BlockRef { index: y * world.width + x, world: world_ref.clone() };
+            let block_ref = BlockRef {
+                index: y as u32 * world.width as u32 + x as u32,
+                world: world_ref.clone()
+            };
             let ud = lua.create_userdata(block_ref)?;
             Ok(Some(ud))
         })?;
@@ -77,8 +80,8 @@ impl ScriptEngine {
     pub fn update(&mut self, world_ref: WorldRef, dt: f32) -> mlua::Result<()> {
         let world = &world_ref.borrow();
         for mechanism in &world.mechanisms {
-            let block = &world.map[*mechanism];
-            let index = block.pos.y as usize * world.width + block.pos.x as usize;
+            let block = &world.map[(*mechanism) as usize];
+            let index = block.pos.y * world.width as u32 + block.pos.x;
             let block_ref = BlockRef { index, world: world_ref.clone() };
             let ud = self.lua.create_userdata(block_ref)?;
             let func = self.scripts.get(&block.id).unwrap();
