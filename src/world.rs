@@ -1,4 +1,4 @@
-use ggez::glam::{UVec2, Vec2};
+use ggez::glam::UVec2;
 
 use crate::defs::registry;
 
@@ -17,7 +17,6 @@ impl Block {
 pub struct World {
     pub width: u16,
     pub height: u16,
-    pub bounds: Vec2,
     pub tile_size: f32,
     pub map: Vec<Block>,
     pub mechanisms: Vec<u32>,
@@ -38,12 +37,9 @@ impl World {
             registry().get_block_index("photonical:stone").unwrap_or(0),
             UVec2::new(i % (width as u32) , i / (width as u32)),
         )).collect();
-        let width_pixels = (width as f32) * tile_size * 0.75;
-        let height_pixels = (height as f32) * tile_size * 0.75;
         World {
             width,
             height,
-            bounds: Vec2::new(width_pixels, height_pixels),
             tile_size,
             map,
             mechanisms: Vec::new(),

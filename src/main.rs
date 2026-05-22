@@ -78,8 +78,7 @@ impl EventHandler for Game {
                 KeyCode::Escape => ctx.request_quit(),
                 key => {
                     if let Some(direction) = self.camera.get_movement_vector(key) {
-                        let bounds = self.world().bounds;
-                        self.camera.move_towards(direction, bounds);
+                        self.camera.move_towards(direction);
                     }
                 }
             }
@@ -177,12 +176,12 @@ fn main() -> GameResult {
         eprintln!("{}", e);
     }
 
-    let camera = Camera::new();
-
     let mut settings = Settings::new();
     settings.aspect = Vec2::splat(world.borrow().tile_size / TEXTURE_SIZE);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
+
+    let camera = Camera::new(world.borrow(), &settings);
 
     let game = Game::new(atlas, world, camera, script_engine, settings);
 
