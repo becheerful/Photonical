@@ -67,7 +67,7 @@ impl EventHandler for Game {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> GameResult {
         if let Some(keycode) = input.keycode {
             match keycode {
-                KeyCode::F11 => {     
+                KeyCode::F11 => {
                     self.settings.fullscreen_type = match self.settings.fullscreen_type {
                         FullscreenType::Windowed => FullscreenType::Desktop,
                         _ => FullscreenType::Windowed,
@@ -84,7 +84,7 @@ impl EventHandler for Game {
                 }
             }
         }
-    
+
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl EventHandler for Game {
 
             let tile_x = (rel_x / self.world().tile_size) as u16;
             let tile_y = (rel_y / self.world().tile_size) as u16;
-            
+
             let mut world = self.world_ref.borrow_mut();
             if let Some(block) = world.get_mut(tile_x, tile_y) {
                 if block.id == registry().get_block_index("photonical:stone").unwrap() {
@@ -159,12 +159,12 @@ fn main() -> GameResult {
         .build()
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
-    
+
     let mut registry = Registry::new();
 
     let atlas = Atlas::new(&ctx, &defs::get_paths(&registry))?;
     defs::gen_uv_cache(&mut registry, &atlas);
-    
+
     let mut script_engine = ScriptEngine::new();
     defs::link_scripts(&mut registry, &mut script_engine);
 
@@ -172,7 +172,7 @@ fn main() -> GameResult {
         eprintln!("Game registry already initialized")
     }
 
-    let world = Rc::new(RefCell::new(World::new(100, 60, 64.0))); 
+    let world = Rc::new(RefCell::new(World::new(100, 60, 64.0)));
     if let Err(e) = script_engine.init_api(world.clone()) {
         eprintln!("{}", e);
     }

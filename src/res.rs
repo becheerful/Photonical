@@ -38,7 +38,7 @@ impl Atlas {
             ).ok_or_else(|| GameError::CustomError("Atlas full".into()))?;
             loaded_images.push((rect, image, path.clone()));
         }
-        
+
         let atlas_width = u32::try_from(packer.size().0).expect("u32 can't be negative");
         let atlas_height = u32::try_from(packer.size().1).expect("u32 can't be negative");
         let mut atlas_buffer = RgbaImage::new(atlas_width, atlas_height);
@@ -65,7 +65,7 @@ impl Atlas {
                 rect.x as f32 / atlas_width as f32,
                 rect.y as f32 / atlas_height as f32,
                 rect.width as f32 / atlas_width as f32,
-                rect.height as f32 / atlas_height as f32,  
+                rect.height as f32 / atlas_height as f32,
             );
             uv_map.insert(path, uv);
         }

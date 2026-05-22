@@ -110,7 +110,7 @@ impl Registry {
 
         let original = def.texture.clone();
         def.texture = format!(r"{}/{}", rel_path, original);
-        
+
         if let Some(script) = def.script {
             let original = script;
             def.script = Some(format!(r"{}/{}", rel_path, original));
@@ -175,7 +175,7 @@ impl Registry {
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
         self.items.get(id)
     }
-    
+
     pub fn get_recipe(&self, id: &str) -> Option<&RecipeDef> {
         self.recipes.get(id)
     }
@@ -213,7 +213,7 @@ fn load_defs_from_dir<T: DeserializeOwned>(
 pub fn get_paths(registry: &Registry) -> Vec<String> {
     let mut texture_paths: Vec<String> = Vec::new();
     texture_paths.push(crate::MISSING_TEX.to_string());
-    
+
     for block in &registry.blocks {
         texture_paths.push(block.texture.clone());
     }
