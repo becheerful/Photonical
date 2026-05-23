@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use mlua::Lua;
 
-use crate::{defs::registry, world::{BlockType, Scripted, World}};
+use crate::{defs::registry, world::{BlockType, Position, Scripted, World}};
 
 pub struct ScriptEngine {
     lua: Lua,
@@ -15,6 +15,17 @@ impl ScriptEngine {
     }
 
     pub fn init_api(&self) -> mlua::Result<()> {
+        let get_name = self.lua.create_function(move |_, block_id: u32| {
+            Ok(registry().get_block_directly(block_id).unwrap().name.clone())
+        })?;
+
+        let get_block_id = self.lua.create_function(move |_, block_id: u32| {
+            Ok(registry().get_block_directly(block_id).unwrap().id.clone())
+        })?;
+
+        self.lua.globals().set("get_name", get_name)?;
+        self.lua.globals().set("get_block_id", get_block_id)?;
+
         Ok(())
     }
 
@@ -26,21 +37,27 @@ impl ScriptEngine {
     }
 
     pub fn update(&mut self, world: &mut World, dt: f32) -> mlua::Result<()> {
-        let mut groups: HashMap<u32, Vec<u32>> = HashMap::new();
+        // `u32` is an index of a block's identifier in the registry
+        // `Vec<u32>` contains an identifier of each entity of this block type
+        let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, _)) in world.ecs.query::<(&BlockType, &Scripted)>().iter() {
-            groups.entry(id.0).or_default().push(entity.id());
+        for (entity, (id, pos, _)) in world.ecs.query::<(&BlockType, &Position, &Scripted)>().iter() {
+            let table = self.lua.create_table()?;
+            table.set("entity_id", entity.id())?;
+            table.set("block_id", id.0)?;
+            table.set("pos", pos.0.to_array())?;
+            groups.entry(id.0).or_default().push(table);
         }
 
-        for (script_id, entities) in groups {
-            let func = self.scripts.get(&script_id).unwrap();
-            let table = self.lua.create_table()?;
+        for (block_id, entities) in groups {
+            let func = self.scripts.get(&block_id).unwrap();
+            let blocks = self.lua.create_table()?;
 
-            for (i, entity) in entities.iter().enumerate() {
-                table.set(i + 1, entity.to_owned())?;
+            for (i, table) in entities.iter().enumerate() {
+                blocks.set(i + 1, table)?;
             }
 
-            func.call::<()>((table, dt))?;
+            func.call::<()>((blocks, dt))?;
         }
 
         Ok(())

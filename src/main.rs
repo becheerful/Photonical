@@ -25,6 +25,7 @@ mod script;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
+const CHUNK_SIZE: usize = 16;
 
 struct Settings {
     pub aspect: Vec2,
@@ -99,11 +100,18 @@ impl EventHandler for Game {
             let tile_y = (rel_y / self.world.tile_size) as u16;
 
             if let Some(entity) = self.world.get(tile_x, tile_y) {
-                if self.world.ecs.get::<&BlockType>(entity).expect("bruh").0 == registry().get_block_index("photonical:stone").unwrap() {
-                    self.world.ecs.remove_one::<BlockType>(entity).expect("bruh 2");
+                if self.world.ecs.get::<&BlockType>(entity).expect("Block entity not found").0 == registry().get_block_index("photonical:stone").unwrap() {
+                    if let Err(e) = self.world.ecs.remove_one::<BlockType>(entity) {
+                        eprintln!("{}", e);
+                    }
 
-                    self.world.ecs.insert_one(entity, BlockType(registry().get_block_index("photonical:collimator").unwrap())).expect("bruh 3");
-                    self.world.ecs.insert_one(entity, Scripted).expect("bruh 4");
+                    if let Err(e) = self.world.ecs.insert_one(entity, BlockType(registry().get_block_index("photonical:collimator").unwrap())) {
+                        eprintln!("{}", e);
+                    }
+
+                    if let Err(e) = self.world.ecs.insert_one(entity, Scripted) {
+                        eprintln!("{}", e);
+                    }
                 }
             } else {
                 eprintln!("({}, {}) is an invalid position", tile_x, tile_y);
@@ -152,8 +160,7 @@ fn main() -> GameResult {
     let (ctx, event_loop) = ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
-        .build()
-        .unwrap();
+        .build()?;
     ctx.fs.mount(&PathBuf::from("./resources"), true);
 
     let mut reg = Registry::new();
@@ -172,6 +179,7 @@ fn main() -> GameResult {
         eprintln!("Error during Lua API initialization");
     }
 
+    // the width and height must be divisable by 16
     let world = World::new(128, 64, 64.0);
 
     let mut settings = Settings::new();

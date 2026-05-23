@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs, io, path::{Path, PathBuf}};
 
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -13,6 +13,7 @@ pub struct BlockDef {
     pub script: Option<String>,
     #[serde(skip)]
     /// position in the dynamically stitched texture atlas
+    /// it's safe to use `.unwrap()` after the atlas is initialized
     pub uv: Option<ggez::graphics::Rect>
 }
 
@@ -23,6 +24,7 @@ pub struct ItemDef {
     pub texture: String,
     #[serde(skip)]
     /// position in the dynamically stitched texture atlas
+    /// it's safe to use `.unwrap()` after the atlas is initialized
     pub uv: Option<ggez::graphics::Rect>
 }
 
@@ -52,7 +54,9 @@ impl Registry {
         };
 
         r.load_data(".");
-        r.load_mods_data();
+        if let Err(e) = r.load_mods_data() {
+            eprintln!("{}", e);
+        }
 
         r
     }
@@ -82,20 +86,24 @@ impl Registry {
         }
     }
 
-    fn load_mods_data(&mut self) {
+    fn load_mods_data(&mut self) -> io::Result<()> {
         let mods_dir = Path::new("./mods/");
         if !mods_dir.exists() {
-            return;
+            return Ok(());
         }
 
-        for entry in fs::read_dir(mods_dir).unwrap() {
-            let mod_path = entry.unwrap().path();
+        for entry in fs::read_dir(mods_dir)? {
+            let mod_path = entry?.path();
             if !mod_path.is_dir() {
                 continue;
             }
 
-            self.load_data(mod_path.to_str().unwrap());
+            if let Some(path) = mod_path.to_str() {
+                self.load_data(path);
+            }
         }
+
+        Ok(())
     }
 
     /// # Arguments

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ggez::glam::UVec2;
 use hecs::Entity;
 
-use crate::defs::registry;
+use crate::{CHUNK_SIZE, defs::registry};
 
 pub struct BlockType(pub u32);
 pub struct Position(pub UVec2);
@@ -11,7 +11,7 @@ pub struct Scripted;
 
 #[derive(Clone)]
 pub struct Chunk {
-    blocks: [[Option<Entity>; 16]; 16],
+    blocks: [[Option<Entity>; CHUNK_SIZE]; CHUNK_SIZE],
 }
 
 pub struct World {
@@ -32,10 +32,11 @@ impl World {
 
         for x in 0..u32width {
             for y in 0..u32height {
-                let chunk_x = x / 16;
-                let chunk_y = y / 16;
-                let local_x = (x % 16) as usize;
-                let local_y = (y % 16) as usize;
+                // `as` is justified, as `CHUNK_SIZE` is guaranteed to be less than 65535
+                let chunk_x = x / (CHUNK_SIZE as u32);
+                let chunk_y = y / (CHUNK_SIZE as u32);
+                let local_x = x as usize % CHUNK_SIZE;
+                let local_y = y as usize % CHUNK_SIZE;
 
                 let entity = ecs.spawn((
                     /*
@@ -52,7 +53,7 @@ impl World {
 
                 let chunk_key = UVec2::new(chunk_x, chunk_y);
                 let chunk = chunks.entry(chunk_key).or_insert_with(|| Chunk {
-                    blocks: [[None; 16]; 16]
+                    blocks: [[None; CHUNK_SIZE]; CHUNK_SIZE]
                 });
 
                 chunk.blocks[local_x][local_y] = Some(entity);
@@ -69,11 +70,12 @@ impl World {
     }
 
     pub fn get(&self, x: u16, y: u16) -> Option<Entity> {
-        let chunk_x = x.div_euclid(16);
-        let chunk_y = y.div_euclid(16);
+        // `as` is justified, as `CHUNK_SIZE` is guaranteed to be less than 65535
+        let chunk_x = x.div_euclid(CHUNK_SIZE as u16);
+        let chunk_y = y.div_euclid(CHUNK_SIZE as u16);
 
-        let local_x = x.rem_euclid(16) as usize;
-        let local_y = y.rem_euclid(16) as usize;
+        let local_x = (x as usize).rem_euclid(CHUNK_SIZE);
+        let local_y = (y as usize).rem_euclid(CHUNK_SIZE);
 
         self.chunks
             .get(&UVec2::new(chunk_x as u32, chunk_y as u32))
