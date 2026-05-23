@@ -1,5 +1,3 @@
-use std::cell::Ref;
-
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
 use crate::{Settings, world::World};
@@ -12,7 +10,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(world: Ref<'_, World>, settings: &Settings) -> Self {
+    pub fn new(world: &World, settings: &Settings) -> Self {
         Camera {
             pos: Vec2::ZERO,
             movement_speed: 10.0,

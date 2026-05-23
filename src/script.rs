@@ -1,38 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap};
 
-use mlua::{Lua, UserData};
+use mlua::Lua;
 
-use crate::{defs::registry, world::{Block, World}};
-
-pub type WorldRef = Rc<RefCell<World>>;
-
-pub struct BlockRef {
-    pub index: u32,
-    pub world: WorldRef,
-}
-
-impl UserData for BlockRef {
-    fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method("get_pos", |lua, this, ()| {
-            let world = this.world.borrow();
-            let pos = world.map[this.index as usize].pos;
-            let table = lua.create_table()?;
-            table.set("x", pos.x)?;
-            table.set("y", pos.y)?;
-            Ok(table)
-        });
-
-        methods.add_method("get_id", |_, this, ()| {
-            let world = this.world.borrow();
-            Ok(registry().get_block_directly(world.map[this.index as usize].id).unwrap().id.to_owned())
-        });
-
-        methods.add_method("get_name", |_, this, ()| {
-            let world = this.world.borrow();
-            Ok(registry().get_block_directly(world.map[this.index as usize].id).unwrap().name.to_owned())
-        });
-    }
-}
+use crate::{defs::registry, world::{BlockType, Scripted, World}};
 
 pub struct ScriptEngine {
     lua: Lua,
@@ -44,48 +14,33 @@ impl ScriptEngine {
         Self { lua: mlua::Lua::new(), scripts: HashMap::new() }
     }
 
-    pub fn init_api(&self, world_ref: WorldRef) -> mlua::Result<()> {
-        let get_block_at = self.lua.create_function(move |lua, (x, y): (u16, u16)| {
-            let world = world_ref.borrow();
-            let block_ref = BlockRef {
-                index: y as u32 * world.width as u32 + x as u32,
-                world: world_ref.clone()
-            };
-            let ud = lua.create_userdata(block_ref)?;
-            Ok(Some(ud))
-        })?;
-
-        self.lua.globals().set("get_block_at", get_block_at)?;
-
+    pub fn init_api(&self) -> mlua::Result<()> {
         Ok(())
     }
 
-    pub fn load_script(&mut self, block_id: u32, code: &str) -> Result<(), mlua::Error> {
+    pub fn load_script(&mut self, block_id: u32, code: &str) -> mlua::Result<()> {
         self.lua.load(code).exec()?;
         let func: mlua::Function = self.lua.globals().get("update")?;
         self.scripts.insert(block_id, func);
         Ok(())
     }
 
-    pub fn execute(&self, block: &mut Block, dt: f32) -> Result<(), String> {
-        // We can call `.unwrap()` here because we get a block from a world
-        // If the world contains this block, therefore, it exists in the registry
-        let script = self.scripts
-            .get(&block.id)
-            .ok_or_else(|| format!("The block '{}' has no script", block.id))?;
-        script.call::<()>((dt,)).map_err(|e| e.to_string())?;
-        Ok(())
-    }
+    pub fn update(&mut self, world: &mut World, dt: f32) -> mlua::Result<()> {
+        let mut groups: HashMap<u32, Vec<u32>> = HashMap::new();
 
-    pub fn update(&mut self, world_ref: WorldRef, dt: f32) -> mlua::Result<()> {
-        let world = &world_ref.borrow();
-        for mechanism in &world.mechanisms {
-            let block = &world.map[(*mechanism) as usize];
-            let index = block.pos.y * world.width as u32 + block.pos.x;
-            let block_ref = BlockRef { index, world: world_ref.clone() };
-            let ud = self.lua.create_userdata(block_ref)?;
-            let func = self.scripts.get(&block.id).unwrap();
-            func.call::<()>((ud, dt))?;
+        for (entity, (id, _)) in world.ecs.query::<(&BlockType, &Scripted)>().iter() {
+            groups.entry(id.0).or_default().push(entity.id());
+        }
+
+        for (script_id, entities) in groups {
+            let func = self.scripts.get(&script_id).unwrap();
+            let table = self.lua.create_table()?;
+
+            for (i, entity) in entities.iter().enumerate() {
+                table.set(i + 1, entity.to_owned())?;
+            }
+
+            func.call::<()>((table, dt))?;
         }
 
         Ok(())

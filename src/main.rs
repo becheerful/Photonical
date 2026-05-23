@@ -1,4 +1,4 @@
-use std::{cell::{Ref, RefCell}, path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use ggez::{
     Context, ContextBuilder, GameResult,
@@ -9,7 +9,13 @@ use ggez::{
     input::keyboard::{KeyCode, KeyInput}
 };
 
-use crate::{defs::{Registry, registry}, player::Camera, res::Atlas, script::{ScriptEngine, WorldRef}, world::World};
+use crate::{
+    defs::{Registry, registry},
+    player::Camera,
+    res::Atlas,
+    script::ScriptEngine,
+    world::{BlockType, Position, Scripted, World}
+};
 
 mod world;
 mod res;
@@ -35,17 +41,17 @@ impl Settings {
 
 struct Game {
     pub atlas: Atlas,
-    pub world_ref: WorldRef,
+    pub world: World,
     pub camera: Camera,
     pub script_engine: ScriptEngine,
     pub settings: Settings,
 }
 
 impl Game {
-    fn new(atlas: Atlas, world_ref: WorldRef, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
+    fn new(atlas: Atlas, world: World, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
         Game {
             atlas,
-            world_ref,
+            world,
             camera,
             script_engine,
             settings,
@@ -53,13 +59,9 @@ impl Game {
     }
 
     fn update_game(&mut self, dt: f32) {
-        if let Err(e) = self.script_engine.update(self.world_ref.clone(), dt) {
-            eprintln!("{}", e)
+        if let Err(e) = self.script_engine.update(&mut self.world, dt) {
+            eprintln!("main:57 {}", e);
         }
-    }
-
-    pub fn world(&self) -> Ref<'_, World> {
-        self.world_ref.borrow()
     }
 }
 
@@ -93,20 +95,15 @@ impl EventHandler for Game {
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / self.world().tile_size) as u16;
-            let tile_y = (rel_y / self.world().tile_size) as u16;
+            let tile_x = (rel_x / self.world.tile_size) as u16;
+            let tile_y = (rel_y / self.world.tile_size) as u16;
 
-            let mut world = self.world_ref.borrow_mut();
-            if let Some(block) = world.get_mut(tile_x, tile_y) {
-                if block.id == registry().get_block_index("photonical:stone").unwrap() {
-                    let block_id = "photonical:collimator";
-                    if let Some(index) = registry().get_block_index(block_id) {
-                        block.id = index;
-                        let width = world.width as u32;
-                        world.mechanisms.push(tile_y as u32 * width + tile_x as u32);
-                    } else {
-                        eprintln!("Block '{}' was not found", block_id);
-                    }
+            if let Some(entity) = self.world.get(tile_x, tile_y) {
+                if self.world.ecs.get::<&BlockType>(entity).expect("bruh").0 == registry().get_block_index("photonical:stone").unwrap() {
+                    self.world.ecs.remove_one::<BlockType>(entity).expect("bruh 2");
+
+                    self.world.ecs.insert_one(entity, BlockType(registry().get_block_index("photonical:collimator").unwrap())).expect("bruh 3");
+                    self.world.ecs.insert_one(entity, Scripted).expect("bruh 4");
                 }
             } else {
                 eprintln!("({}, {}) is an invalid position", tile_x, tile_y);
@@ -123,13 +120,13 @@ impl EventHandler for Game {
 
         let mut array = InstanceArray::new(ctx, self.atlas.image.clone());
 
-        for block in &self.world().map {
+        for (_, (id, pos)) in self.world.ecs.query::<(&BlockType, &Position)>().iter() {
             // We can call `.unwrap()` here because a world contains this block.
             // Since the world contains this block, therefore, this block exists in the regisry.
-            let def = registry().get_block_directly(block.id).unwrap();
+            let def = registry().get_block_directly(id.0).unwrap();
             array.push(DrawParam::default()
                 .src(def.uv.unwrap())
-                .dest(block.pos.as_vec2() * self.world().tile_size - self.camera.pos)
+                .dest(pos.0.as_vec2() * self.world.tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
@@ -159,29 +156,30 @@ fn main() -> GameResult {
         .unwrap();
     ctx.fs.mount(&PathBuf::from("./resources"), true);
 
-    let mut registry = Registry::new();
+    let mut reg = Registry::new();
 
-    let atlas = Atlas::new(&ctx, &defs::get_paths(&registry))?;
-    defs::gen_uv_cache(&mut registry, &atlas);
+    let atlas = Atlas::new(&ctx, &defs::get_paths(&reg))?;
+    defs::gen_uv_cache(&mut reg, &atlas);
 
     let mut script_engine = ScriptEngine::new();
-    defs::link_scripts(&mut registry, &mut script_engine);
+    defs::link_scripts(&mut reg, &mut script_engine);
 
-    if let Err(_) = defs::REGISTRY.set(registry) {
+    if let Err(_) = defs::REGISTRY.set(reg) {
         eprintln!("Game registry already initialized")
     }
 
-    let world = Rc::new(RefCell::new(World::new(100, 60, 64.0)));
-    if let Err(e) = script_engine.init_api(world.clone()) {
-        eprintln!("{}", e);
+    if let Err(_) = script_engine.init_api() {
+        eprintln!("Error during Lua API initialization");
     }
 
+    let world = World::new(128, 64, 64.0);
+
     let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.borrow().tile_size / TEXTURE_SIZE);
+    settings.aspect = Vec2::splat(world.tile_size / TEXTURE_SIZE);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let camera = Camera::new(world.borrow(), &settings);
+    let camera = Camera::new(&world, &settings);
 
     let game = Game::new(atlas, world, camera, script_engine, settings);
 
