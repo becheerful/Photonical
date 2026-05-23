@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use mlua::Lua;
 
-use crate::{defs::registry, world::{BlockType, Position, Scripted, World}};
+use crate::defs::registry;
 
 pub struct ScriptEngine {
     lua: Lua,
@@ -36,12 +36,14 @@ impl ScriptEngine {
         Ok(())
     }
 
-    pub fn update(&mut self, world: &mut World, dt: f32) -> mlua::Result<()> {
+    pub fn update(&mut self, world: &mut crate::world::World, dt: f32) -> mlua::Result<()> {
         // `u32` is an index of a block's identifier in the registry
         // `Vec<u32>` contains an identifier of each entity of this block type
         let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, pos, _)) in world.ecs.query::<(&BlockType, &Position, &Scripted)>().iter() {
+        for (entity, (id, pos, _)) in world.ecs.query::<(
+            &crate::world::BlockType, &crate::world::Position, &crate::world::Scripted
+        )>().iter() {
             let table = self.lua.create_table()?;
             table.set("entity_id", entity.id())?;
             table.set("block_id", id.0)?;

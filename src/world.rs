@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ggez::glam::UVec2;
 use hecs::Entity;
 
-use crate::{CHUNK_SIZE, defs::registry};
+use crate::CHUNK_SIZE;
 
 pub struct BlockType(pub u32);
 pub struct Position(pub UVec2);
@@ -47,7 +47,7 @@ impl World {
 
                         TODO: rewrite for the safety of the world
                     */
-                    BlockType(registry().get_block_index("photonical:stone").unwrap_or(0)),
+                    BlockType(crate::defs::registry().get_block_index("photonical:stone").unwrap_or(0)),
                     Position(UVec2::new(x, y)),
                 ));
 

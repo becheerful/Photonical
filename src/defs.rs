@@ -1,9 +1,6 @@
-use std::{collections::HashMap, fs, io, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs};
 
-use once_cell::sync::OnceCell;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-
-use crate::{res::Atlas, script::ScriptEngine};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
@@ -62,7 +59,7 @@ impl Registry {
     }
 
     pub fn load_data(&mut self, rel_path: &str) {
-        let data_dir = PathBuf::from(format!("{}/resources/data", rel_path));
+        let data_dir = std::path::PathBuf::from(format!("{}/resources/data", rel_path));
 
         if let Err(e) = load_defs_from_dir::<BlockDef>(
             data_dir.join("blocks").as_path(),
@@ -86,8 +83,8 @@ impl Registry {
         }
     }
 
-    fn load_mods_data(&mut self) -> io::Result<()> {
-        let mods_dir = Path::new("./mods/");
+    fn load_mods_data(&mut self) -> std::io::Result<()> {
+        let mods_dir = std::path::Path::new("./mods/");
         if !mods_dir.exists() {
             return Ok(());
         }
@@ -190,14 +187,14 @@ impl Registry {
 }
 
 /// The global registry of all game objects (blocks, items).
-pub static REGISTRY: OnceCell<Registry> = OnceCell::new();
+pub static REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
 
 pub fn registry() -> &'static Registry {
     REGISTRY.get().expect("Game registry not initialized")
 }
 
-fn load_defs_from_dir<T: DeserializeOwned>(
-    dir: &Path,
+fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
+    dir: &std::path::Path,
     mut register_fn: impl FnMut(T) -> Result<(), String>
 ) -> Result<(), String> {
     if !dir.exists() {
@@ -236,7 +233,7 @@ pub fn get_paths(registry: &Registry) -> Vec<String> {
     texture_paths
 }
 
-pub fn gen_uv_cache(registry: &mut Registry, atlas: &Atlas) {
+pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) {
     for block in registry.blocks.iter_mut() {
         block.uv = Some(*atlas.get_block_uv(block));
     }
@@ -246,7 +243,7 @@ pub fn gen_uv_cache(registry: &mut Registry, atlas: &Atlas) {
     }
 }
 
-pub fn link_scripts(registry: &Registry, script_engine: &mut ScriptEngine) {
+pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::ScriptEngine) {
     for block in &registry.blocks {
         if let Some(script_path) = &block.script {
             if let Ok(code) = fs::read_to_string(script_path.clone()) {

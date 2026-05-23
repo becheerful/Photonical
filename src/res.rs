@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use ggez::{Context, GameError, GameResult, graphics::{Image, ImageFormat, Rect}};
-use image::RgbaImage;
-use rect_packer::DensePacker;
-
-use crate::defs::{BlockDef, ItemDef};
+use ggez::{Context, GameResult, graphics::{Image, Rect}};
 
 #[derive(Debug)]
 pub struct Atlas {
@@ -19,7 +15,7 @@ impl Atlas {
     }
 
     fn pack_textures(ctx: &Context, paths: &[String]) -> GameResult<(Image, HashMap<String, Rect>)> {
-        let mut packer = DensePacker::new(2048, 2048);
+        let mut packer = rect_packer::DensePacker::new(2048, 2048);
         let mut loaded_images = Vec::new();
 
         for path in paths {
@@ -35,13 +31,13 @@ impl Atlas {
                 w.try_into().expect("The value is outside the range of i32"),
                 h.try_into().expect("The value is outside the range of i32"),
                 false
-            ).ok_or_else(|| GameError::CustomError("Atlas full".into()))?;
+            ).ok_or_else(|| ggez::GameError::CustomError("Atlas full".into()))?;
             loaded_images.push((rect, image, path.clone()));
         }
 
         let atlas_width = u32::try_from(packer.size().0).expect("u32 can't be negative");
         let atlas_height = u32::try_from(packer.size().1).expect("u32 can't be negative");
-        let mut atlas_buffer = RgbaImage::new(atlas_width, atlas_height);
+        let mut atlas_buffer = image::RgbaImage::new(atlas_width, atlas_height);
 
         for (rect, img, _path) in loaded_images.clone() {
             for y in 0..u32::try_from(rect.height).expect("u32 can't be negative") {
@@ -57,7 +53,7 @@ impl Atlas {
         }
 
         let raw = atlas_buffer.into_raw();
-        let ggez_image = Image::from_pixels(ctx, &raw, ImageFormat::Rgba8UnormSrgb, atlas_width, atlas_height);
+        let ggez_image = Image::from_pixels(ctx, &raw, ggez::graphics::ImageFormat::Rgba8UnormSrgb, atlas_width, atlas_height);
 
         let mut uv_map = HashMap::new();
         for (rect, _img, path) in loaded_images.clone() {
@@ -73,11 +69,11 @@ impl Atlas {
         Ok((ggez_image, uv_map))
     }
 
-    pub fn get_block_uv(&self, block_def: &BlockDef) -> &Rect {
+    pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> &Rect {
         self.uv_map.get(&block_def.texture).expect("Texture not found in atlas")
     }
 
-    pub fn get_item_uv(&self, item_def: &ItemDef) -> &Rect {
+    pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> &Rect {
         self.uv_map.get(&item_def.texture).expect("Texture not found in atlas")
     }
 }

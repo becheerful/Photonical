@@ -1971,7 +1971,6 @@ dependencies = [
  "hecs",
  "image",
  "mlua",
- "once_cell",
  "rect_packer",
  "serde",
  "serde_json",

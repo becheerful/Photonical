@@ -1,7 +1,5 @@
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
-use crate::{Settings, world::World};
-
 #[derive(Debug, Clone)]
 pub struct Camera {
     pub pos: Vec2,
@@ -10,7 +8,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(world: &World, settings: &Settings) -> Self {
+    pub fn new(world: &crate::world::World, settings: &crate::Settings) -> Self {
         Camera {
             pos: Vec2::ZERO,
             movement_speed: 10.0,
