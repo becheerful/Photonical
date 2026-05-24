@@ -41,30 +41,29 @@ impl ScriptEngine {
         // `Vec<u32>` contains an identifier of each entity of this block type
         let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, pos)) in world.ecs.query::<(
-            &crate::world::BlockType, &crate::world::Position
-        )>().iter() {
-            let table = self.lua.create_table()?;
-            table.set("entity_id", entity.id())?;
-            table.set("block_id", id.0)?;
-            table.set("pos", pos.0.to_array())?;
+        for (entity, (id, pos, table)) in world.ecs.query_mut::<(
+            &crate::world::BlockType, &crate::world::Position, &mut crate::world::Table,
+        )>() {
+            if let Some(key) = &table.0 {
+                groups.entry(id.0).or_default().push(self.lua.registry_value(key)?);
+            } else {
+                let block_table = self.lua.create_table()?;
+                block_table.set("entity_id", entity.id())?;
+                block_table.set("block_id", id.0)?;
+                block_table.set("pos", pos.0.to_array())?;
 
-            for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
-                table.set(key.to_owned(), value.as_f64())?;
+                for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
+                    block_table.set(key.to_owned(), value.as_f64())?;
+                }
+
+                groups.entry(id.0).or_default().push(block_table.clone());
+                table.0 = Some(self.lua.create_registry_value(block_table)?);
             }
-
-            groups.entry(id.0).or_default().push(table);
         }
 
         for (block_id, entities) in groups {
             let func = self.scripts.get(&block_id).unwrap();
-            let blocks = self.lua.create_table()?;
-
-            for (i, table) in entities.iter().enumerate() {
-                blocks.set(i + 1, table)?;
-            }
-
-            func.call::<()>((blocks, dt))?;
+            func.call::<()>((entities, dt))?;
         }
 
         Ok(())

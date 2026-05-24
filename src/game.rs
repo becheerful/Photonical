@@ -13,7 +13,7 @@ use crate::{
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, Position, World}
+    world::{BlockType, Position, Table, World}
 };
 
 pub struct Game {
@@ -80,6 +80,7 @@ impl EventHandler for Game {
                 self.world.block_entities[index] = Some(self.world.ecs.spawn((
                     BlockType(registry().get_block_index("photonical:collimator").unwrap()),
                     Position(ggez::glam::UVec2::new(tile_x as u32, tile_y as u32)),
+                    Table(None),
                 )));
             }
         }
@@ -102,7 +103,8 @@ impl EventHandler for Game {
             );
         }
 
-        for (_, (id, pos)) in self.world.ecs.query::<(&BlockType, &Position)>().iter() {
+        // using `query_mut` only beacuse it's faster than `query`
+        for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
                 .dest(pos.0.as_vec2() * self.world.tile_size - self.camera.pos)

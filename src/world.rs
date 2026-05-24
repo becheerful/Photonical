@@ -3,6 +3,7 @@ use hecs::Entity;
 
 pub struct BlockType(pub u32);
 pub struct Position(pub UVec2);
+pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub struct World {
     pub ecs: hecs::World,
