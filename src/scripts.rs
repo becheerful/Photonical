@@ -41,8 +41,8 @@ impl ScriptEngine {
         // `Vec<u32>` contains an identifier of each entity of this block type
         let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, pos, _)) in world.ecs.query::<(
-            &crate::world::BlockType, &crate::world::Position, &crate::world::Scripted
+        for (entity, (id, pos)) in world.ecs.query::<(
+            &crate::world::BlockType, &crate::world::Position
         )>().iter() {
             let table = self.lua.create_table()?;
             table.set("entity_id", entity.id())?;

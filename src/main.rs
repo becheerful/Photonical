@@ -11,7 +11,6 @@ mod scripts;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
-const CHUNK_SIZE: usize = 16;
 
 struct Settings {
     pub aspect: Vec2,

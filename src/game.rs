@@ -13,7 +13,7 @@ use crate::{
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, World}
+    world::{BlockType, Position, World}
 };
 
 pub struct Game {
@@ -75,22 +75,12 @@ impl EventHandler for Game {
             let tile_x = (rel_x / self.world.tile_size) as u16;
             let tile_y = (rel_y / self.world.tile_size) as u16;
 
-            if let Some(entity) = self.world.get(tile_x, tile_y) {
-                if self.world.ecs.get::<&BlockType>(entity).expect("Block entity not found").0 == registry().get_block_index("photonical:stone").unwrap() {
-                    if let Err(e) = self.world.ecs.remove_one::<BlockType>(entity) {
-                        eprintln!("{}", e);
-                    }
-
-                    if let Err(e) = self.world.ecs.insert_one(entity, BlockType(registry().get_block_index("photonical:collimator").unwrap())) {
-                        eprintln!("{}", e);
-                    }
-
-                    if let Err(e) = self.world.ecs.insert_one(entity, crate::world::Scripted) {
-                        eprintln!("{}", e);
-                    }
-                }
-            } else {
-                eprintln!("({}, {}) is an invalid position", tile_x, tile_y);
+            let index = self.world.index(tile_x, tile_y);
+            if self.world.get(tile_x, tile_y).is_none() {
+                self.world.block_entities[index] = Some(self.world.ecs.spawn((
+                    BlockType(registry().get_block_index("photonical:collimator").unwrap()),
+                    Position(ggez::glam::UVec2::new(tile_x as u32, tile_y as u32)),
+                )));
             }
         }
 
@@ -104,12 +94,17 @@ impl EventHandler for Game {
 
         let mut array = ggez::graphics::InstanceArray::new(ctx, self.atlas.image.clone());
 
-        for (_, (id, pos)) in self.world.ecs.query::<(&BlockType, &crate::world::Position)>().iter() {
-            // We can call `.unwrap()` here because a world contains this block.
-            // Since the world contains this block, therefore, this block exists in the regisry.
-            let def = registry().get_block_directly(id.0).unwrap();
+        for (id, pos) in self.world.static_tiles.iter() {
             array.push(DrawParam::default()
-                .src(def.uv.unwrap())
+                .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
+                .dest(pos.as_vec2() * self.world.tile_size - self.camera.pos)
+                .scale(self.settings.aspect)
+            );
+        }
+
+        for (_, (id, pos)) in self.world.ecs.query::<(&BlockType, &Position)>().iter() {
+            array.push(DrawParam::default()
+                .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
                 .dest(pos.0.as_vec2() * self.world.tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
