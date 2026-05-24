@@ -8,6 +8,7 @@ pub struct BlockDef {
     pub name: String,
     pub texture: String,
     pub script: Option<String>,
+    pub fields: serde_json::Map<String, serde_json::Value>,
     #[serde(skip)]
     /// position in the dynamically stitched texture atlas
     /// it's safe to use `.unwrap()` after the atlas is initialized

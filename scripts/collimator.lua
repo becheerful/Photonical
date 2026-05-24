@@ -1,5 +1,5 @@
 function update(collimators, dt)
     for _, collimator in ipairs(collimators) do
-        print(get_name(collimator.block_id))
+        print(collimator.light)
     end
 end

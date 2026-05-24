@@ -2,5 +2,8 @@
     "id": "photonical:collimator",
     "name": "Collimator",
     "texture": "resources/assets/textures/blocks/collimator.png",
-    "script": "scripts/collimator.lua"
+    "script": "scripts/collimator.lua",
+    "fields": {
+        "light": 0
+    }
 }

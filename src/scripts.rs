@@ -48,6 +48,11 @@ impl ScriptEngine {
             table.set("entity_id", entity.id())?;
             table.set("block_id", id.0)?;
             table.set("pos", pos.0.to_array())?;
+
+            for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
+                table.set(key.to_owned(), value.as_f64())?;
+            }
+
             groups.entry(id.0).or_default().push(table);
         }
 

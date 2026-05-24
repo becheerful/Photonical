@@ -2,5 +2,6 @@
     "id": "photonical:stone",
     "name": "Stone",
     "texture": "resources/assets/textures/blocks/stone.png",
-    "script": null
+    "script": null,
+    "fields": {}
 }
