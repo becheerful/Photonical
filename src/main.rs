@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{cell::RefCell, path::PathBuf, sync::Arc};
 
 use ggez::{conf::FullscreenType, glam::Vec2};
 
@@ -11,6 +11,12 @@ mod scripts;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
+
+const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
+const PARAM_ENTITY_ID: &str = "entity_id";
+const PARAM_POSITION: &str = "pos";
+
+pub type WorldRef = Arc<RefCell<world::World>>;
 
 struct Settings {
     pub aspect: Vec2,
@@ -47,12 +53,13 @@ fn main() -> ggez::GameResult {
         eprintln!("Game registry already initialized")
     }
 
-    if let Err(_) = script_engine.init_api() {
+    // the width and height must be divisable by 16
+    let world_ref = Arc::new(RefCell::new(world::World::new(128, 64, 64.0)));
+    let world = world_ref.borrow();
+
+    if let Err(_) = script_engine.init_api(world_ref.clone()) {
         eprintln!("Error during Lua API initialization");
     }
-
-    // the width and height must be divisable by 16
-    let world = world::World::new(128, 64, 64.0);
 
     let mut settings = Settings::new();
     settings.aspect = Vec2::splat(world.tile_size / TEXTURE_SIZE);
@@ -61,7 +68,8 @@ fn main() -> ggez::GameResult {
 
     let camera = player::Camera::new(&world, &settings);
 
-    let game = game::Game::new(atlas, world, camera, script_engine, settings);
+    drop(world);
+    let game = game::Game::new(atlas, world_ref, camera, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }

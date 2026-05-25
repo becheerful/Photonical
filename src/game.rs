@@ -9,23 +9,24 @@ use ggez::{
 
 use crate::{
     Settings,
+    WorldRef,
     defs::registry,
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, Position, Table, World}
+    world::{BlockType, Position, Table}
 };
 
 pub struct Game {
     pub atlas: Atlas,
-    pub world: World,
+    pub world: WorldRef,
     pub camera: Camera,
     pub script_engine: ScriptEngine,
     pub settings: Settings,
 }
 
 impl Game {
-    pub fn new(atlas: Atlas, world: World, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
+    pub fn new(atlas: Atlas, world: WorldRef, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
         Game {
             atlas,
             world,
@@ -36,8 +37,8 @@ impl Game {
     }
 
     fn update_game(&mut self, dt: f32) {
-        if let Err(e) = self.script_engine.update(&mut self.world, dt) {
-            eprintln!("main:57 {}", e);
+        if let Err(e) = self.script_engine.update(&self.world.borrow(), dt) {
+            eprintln!("{}", e);
         }
     }
 }
@@ -68,16 +69,19 @@ impl EventHandler for Game {
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         if ctx.mouse.button_pressed(ggez::event::MouseButton::Left) {
+            let mut world = self.world.borrow_mut();
+
             let mouse_point = ctx.mouse.position();
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / self.world.tile_size) as u16;
-            let tile_y = (rel_y / self.world.tile_size) as u16;
+            let tile_x = (rel_x / world.tile_size) as u16;
+            let tile_y = (rel_y / world.tile_size) as u16;
 
-            let index = self.world.index(tile_x, tile_y);
-            if self.world.get(tile_x, tile_y).is_none() {
-                self.world.block_entities[index] = Some(self.world.ecs.spawn((
+            let index = world.index(tile_x, tile_y);
+
+            if world.get(tile_x, tile_y).is_none() {
+                world.block_entities[index] = Some(world.ecs.spawn((
                     BlockType(registry().get_block_index("photonical:collimator").unwrap()),
                     Position(ggez::glam::UVec2::new(tile_x as u32, tile_y as u32)),
                     Table(None),
@@ -90,24 +94,25 @@ impl EventHandler for Game {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        let world = self.world.borrow();
+
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
         let mut array = ggez::graphics::InstanceArray::new(ctx, self.atlas.image.clone());
 
-        for (id, pos) in self.world.static_tiles.iter() {
+        for (id, pos) in world.static_tiles.iter() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                .dest(pos.as_vec2() * self.world.tile_size - self.camera.pos)
+                .dest(pos.as_vec2() * world.tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
 
-        // using `query_mut` only beacuse it's faster than `query`
-        for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
+        for (_, (id, pos)) in world.ecs.query::<(&BlockType, &Position)>().iter() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
-                .dest(pos.0.as_vec2() * self.world.tile_size - self.camera.pos)
+                .dest(pos.0.as_vec2() * world.tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
