@@ -19,13 +19,44 @@ impl ScriptEngine {
         Self { lua: mlua::Lua::new(), scripts: HashMap::new() }
     }
 
+    pub fn json_to_lua(&self, v: &serde_json::Value) -> mlua::Result<mlua::Value> {
+        match v {
+            serde_json::Value::Null => Ok(mlua::Value::Nil),
+            serde_json::Value::Bool(b) => Ok(mlua::Value::Boolean(*b)),
+            serde_json::Value::Number(n) => {
+                if let Some(u) = n.as_i64() {
+                    return Ok(mlua::Value::Integer(u));
+                } else {
+                    return Ok(mlua::Value::Number(n.as_f64().unwrap_or(0.0)));
+                }
+            },
+            serde_json::Value::String(s) => Ok(mlua::Value::String(self.lua.create_string(s)?)),
+            serde_json::Value::Array(v) => {
+                let table = self.lua.create_table()?;
+                for (i, item) in v.iter().enumerate() {
+                    table.set(i + 1, self.json_to_lua(item)?)?;
+                }
+
+                Ok(mlua::Value::Table(table))
+            }
+            serde_json::Value::Object(m) => {
+                let table = self.lua.create_table()?;
+                for (k, v) in m {
+                    table.set(k.to_owned(), self.json_to_lua(v)?)?;
+                }
+
+                Ok(mlua::Value::Table(table))
+            }
+        }
+    }
+
     pub fn init_api(&mut self, world_ref: crate::WorldRef) -> mlua::Result<()> {
-        let get_name = self.lua.create_function(move |_, table: mlua::Table| {
-            Ok(registry().get_block_directly(table.get(PARAM_BLOCK_INDEX_IN_REGISTRY)?).unwrap().name.clone())
+        let get_name = self.lua.create_function(move |_, index: u32| {
+            Ok(registry().get_block_directly(index).unwrap().name.clone())
         })?;
 
-        let get_block_id = self.lua.create_function(move |_, table: mlua::Table| {
-            Ok(registry().get_block_directly(table.get(PARAM_BLOCK_INDEX_IN_REGISTRY)?).unwrap().id.clone())
+        let get_block_id = self.lua.create_function(move |_, index: u32| {
+            Ok(registry().get_block_directly(index).unwrap().id.clone())
         })?;
 
         let world = world_ref.clone();
@@ -82,7 +113,7 @@ impl ScriptEngine {
                 block_table.set(PARAM_POSITION, pos.0.to_array())?;
 
                 for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
-                    block_table.set(key.to_owned(), value.as_f64())?;
+                    block_table.set(key.to_owned(), self.json_to_lua(value)?)?;
                 }
 
                 groups.entry(id.0).or_default().push(block_table.clone());
