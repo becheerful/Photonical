@@ -3,8 +3,9 @@ use ggez::{
     GameResult,
     conf::FullscreenType,
     event::EventHandler,
+    glam::UVec2,
     graphics::{Color, DrawParam, Drawable},
-    input::keyboard::KeyCode
+    input::keyboard::KeyCode,
 };
 
 use crate::{
@@ -23,6 +24,7 @@ pub struct Game {
     pub camera: Camera,
     pub script_engine: ScriptEngine,
     pub settings: Settings,
+    pub cur_block: u32,
 }
 
 impl Game {
@@ -33,6 +35,7 @@ impl Game {
             camera,
             script_engine,
             settings,
+            cur_block: registry().get_block_index("photonical:collimator").expect("Block not found"),
         }
     }
 
@@ -56,6 +59,10 @@ impl EventHandler for Game {
                     ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
                 }
                 KeyCode::Escape => ctx.request_quit(),
+                KeyCode::Key1 => self.cur_block = 0,
+                KeyCode::Key2 => self.cur_block = 1,
+                KeyCode::Key3 => self.cur_block = 2,
+                KeyCode::Key4 => self.cur_block = 3,
                 key => {
                     if let Some(direction) = self.camera.get_movement_vector(key) {
                         self.camera.move_towards(direction);
@@ -81,11 +88,36 @@ impl EventHandler for Game {
             let index = world.index(tile_x, tile_y);
 
             if world.get(tile_x, tile_y).is_none() {
-                world.block_entities[index] = Some(world.ecs.spawn((
-                    BlockType(registry().get_block_index("photonical:collimator").unwrap()),
-                    Position(ggez::glam::UVec2::new(tile_x as u32, tile_y as u32)),
-                    Table(None),
-                )));
+                if registry().get_block_directly(self.cur_block).unwrap().script.is_some() {
+                    world.block_entities[index] = Some(world.ecs.spawn((
+                        BlockType(self.cur_block),
+                        Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                        Table(None),
+                    )));
+                } else {
+                    world.static_tiles[index] = (self.cur_block, UVec2::new(tile_x as u32, tile_y as u32))
+                }
+            }
+        } else if ctx.mouse.button_pressed(ggez::event::MouseButton::Right) {
+            let mut world = self.world.borrow_mut();
+
+            let mouse_point = ctx.mouse.position();
+            let rel_x = mouse_point.x + self.camera.pos.x;
+            let rel_y = mouse_point.y + self.camera.pos.y;
+
+            let tile_x = (rel_x / world.tile_size) as u16;
+            let tile_y = (rel_y / world.tile_size) as u16;
+
+            let index = world.index(tile_x, tile_y);
+
+            if world.get(tile_x, tile_y).is_some() {
+                if let Some(entity) = world.block_entities[index] {
+                    if let Err(e) = world.ecs.despawn(entity) {
+                        eprintln!("{}", e);
+                    }
+
+                    world.block_entities[index] = None;
+                }
             }
         }
 

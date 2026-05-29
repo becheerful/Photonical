@@ -4,6 +4,7 @@
     "texture": "resources/assets/textures/blocks/collimator.png",
     "script": "scripts/collimator.lua",
     "fields": {
-        "light": 0
+        "photonic_plasma": 0,
+        "max_photonic_plasma": 1000
     }
 }

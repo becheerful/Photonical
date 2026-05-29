@@ -1,0 +1,10 @@
+{
+    "id": "photonical:plasma_vessel",
+    "name": "Plasma Vessel",
+    "texture": "resources/assets/textures/blocks/plasma_vessel.png",
+    "script": "scripts/plasma_vessel.lua",
+    "fields": {
+        "photonic_plasma": 0,
+        "max_photonic_plasma": 25000
+    }
+}
