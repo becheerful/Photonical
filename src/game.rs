@@ -104,6 +104,8 @@ impl EventHandler for Game {
                                 BlockType(self.cur_block),
                                 Position(UVec2::new(tile_x as u32, tile_y as u32)),
                             )));
+
+                            world.energy_master.add_storage();
                         } else if mask & NETWORK_MASK_CONSUMER == NETWORK_MASK_CONSUMER {
                             let e = Some(world.ecs.spawn((
                                 BlockType(self.cur_block),

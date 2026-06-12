@@ -82,12 +82,12 @@ impl ScriptEngine {
         })?;
 
         let world = world_ref.clone();
-        let get_net_imbalance = self.lua.create_function(move |_, net_id: usize| {
+        let get_imbalance = self.lua.create_function(move |_, net_id: usize| {
             let world = world.borrow();
             let net = world.energy_master.networks.get(net_id);
 
             match net {
-                Some(n) => Ok(mlua::Value::Integer(n.imbalance)),
+                Some(n) => Ok(mlua::Value::Integer(n.get_storage_imbalance())),
                 None => Ok(mlua::Value::Nil),
             }
         })?;
@@ -96,7 +96,7 @@ impl ScriptEngine {
         self.lua.globals().set("get_block_id", get_block_id)?;
         self.lua.globals().set("get_mechanism_at", get_mechanism_at)?;
         self.lua.globals().set("get_block_at", get_block_at)?;
-        self.lua.globals().set("get_net_imbalance", get_net_imbalance)?;
+        self.lua.globals().set("get_imbalance", get_imbalance)?;
 
         Ok(())
     }

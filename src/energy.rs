@@ -3,6 +3,7 @@ use hecs::Entity;
 pub struct Network {
     pub producers: Vec<Entity>,
     pub consumers: Vec<Entity>,
+    pub storages: u32,
     pub imbalance: i64,
 }
 
@@ -11,6 +12,7 @@ impl Network {
         Self {
             producers: Vec::new(),
             consumers: Vec::new(),
+            storages: 0,
             imbalance: 0,
         }
     }
@@ -28,6 +30,11 @@ impl Network {
         }
 
         self.imbalance = total_production as i64 - total_consumption as i64;
+    }
+
+    /// Returns the amount of energy that one storage should give up or consume
+    pub fn get_storage_imbalance(&self) -> i64 {
+        self.imbalance / (self.storages as i64)
     }
 }
 
@@ -61,6 +68,15 @@ impl EnergyMaster {
         } else {
             self.networks.push(Network::new());
             self.networks.get_mut(0).unwrap().consumers.push(entity);
+        }
+    }
+
+    pub fn add_storage(&mut self) {
+        if let Some(n) = self.networks.get_mut(0) {
+            n.storages += 1;
+        } else {
+            self.networks.push(Network::new());
+            self.networks.get_mut(0).unwrap().storages += 1;
         }
     }
 }
