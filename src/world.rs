@@ -1,9 +1,15 @@
 use ggez::glam::UVec2;
 use hecs::Entity;
 
+use crate::energy::EnergyMaster;
+
 pub struct BlockType(pub u32);
 pub struct Position(pub UVec2);
 pub struct Table(pub Option<mlua::RegistryKey>);
+
+pub struct PowerProducer(pub u32);
+pub struct PowerConsumer(pub u32);
+
 
 pub struct World {
     pub ecs: hecs::World,
@@ -12,6 +18,7 @@ pub struct World {
     pub tile_size: f32,
     pub static_tiles: Vec<(u32, UVec2)>,
     pub block_entities: Vec<Option<Entity>>,
+    pub energy_master: EnergyMaster,
 }
 
 impl World {
@@ -27,6 +34,7 @@ impl World {
                 UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
             )).collect(),
             block_entities: vec![None; size],
+            energy_master: EnergyMaster::new(),
         }
     }
 
@@ -36,5 +44,13 @@ impl World {
 
     pub fn get(&self, x: u16, y: u16) -> Option<Entity> {
         self.block_entities[self.index(x, y)]
+    }
+
+    pub fn get_directly(&self, index: usize) -> Option<Entity> {
+        self.block_entities[index]
+    }
+
+    pub fn update_networks(&mut self) {
+        self.energy_master.update_networks(&self.ecs);
     }
 }

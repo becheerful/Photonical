@@ -3,5 +3,6 @@
     "name": "Test Block",
     "texture": "resources/assets/textures/test_block.png",
     "script": null,
-    "fields": {}
+    "fields": {},
+    "net": {}
 }

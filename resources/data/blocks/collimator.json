@@ -2,9 +2,10 @@
     "id": "photonical:collimator",
     "name": "Collimator",
     "texture": "resources/assets/textures/blocks/collimator.png",
-    "script": "scripts/collimator.lua",
-    "fields": {
-        "photonic_plasma": 0,
-        "max_photonic_plasma": 1000
+    "script": null,
+    "fields": {},
+    "net": {
+        "power": 1,
+        "mask": 1
     }
 }

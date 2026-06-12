@@ -4,7 +4,11 @@
     "texture": "resources/assets/textures/blocks/plasma_vessel.png",
     "script": "scripts/plasma_vessel.lua",
     "fields": {
-        "photonic_plasma": 0,
-        "max_photonic_plasma": 25000
+        "stored": 0,
+        "capacity": 25000,
+        "net_id": 0
+    },
+    "net": {
+        "mask": 3
     }
 }

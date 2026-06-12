@@ -9,13 +9,18 @@ use ggez::{
 };
 
 use crate::{
+    NETWORK_MASK_CONSUMER,
+    NETWORK_MASK_STORAGE,
+    PARAM_ENERGY_DEMAND,
+    PARAM_ENERGY_MASK,
+    PARAM_ENERGY_POWER,
     Settings,
     WorldRef,
     defs::registry,
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, Position, Table}
+    world::{BlockType, Position, PowerConsumer, PowerProducer, Table}
 };
 
 pub struct Game {
@@ -88,14 +93,56 @@ impl EventHandler for Game {
             let index = world.index(tile_x, tile_y);
 
             if world.get(tile_x, tile_y).is_none() {
-                if registry().get_block_directly(self.cur_block).unwrap().script.is_some() {
-                    world.block_entities[index] = Some(world.ecs.spawn((
-                        BlockType(self.cur_block),
-                        Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                        Table(None),
-                    )));
-                } else {
-                    world.static_tiles[index] = (self.cur_block, UVec2::new(tile_x as u32, tile_y as u32))
+                let bd = registry().get_block_directly(self.cur_block).unwrap();
+                let has_network = !bd.net.is_empty();
+
+                if has_network {
+                    if let Some(net_mask) = bd.net.get(PARAM_ENERGY_MASK) {
+                        let mask = net_mask.as_u64().expect("") as u8;
+                        if mask & NETWORK_MASK_STORAGE == NETWORK_MASK_STORAGE {
+                            world.block_entities[index] = Some(world.ecs.spawn((
+                                BlockType(self.cur_block),
+                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                            )));
+                        } else if mask & NETWORK_MASK_CONSUMER == NETWORK_MASK_CONSUMER {
+                            let e = Some(world.ecs.spawn((
+                                BlockType(self.cur_block),
+                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                PowerConsumer(bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("") as u32),
+                            )));
+
+                            world.block_entities[index] = e;
+                            world.energy_master.add_consumer(e.unwrap());
+                        } else {
+                            let e = Some(world.ecs.spawn((
+                                BlockType(self.cur_block),
+                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                PowerProducer(bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("") as u32),
+                            )));
+
+                            world.block_entities[index] = e;
+                            world.energy_master.add_producer(e.unwrap());
+                        }
+
+                        world.update_networks();
+                    }
+                }
+
+                if bd.script.is_some() {
+                    if world.get_directly(index).is_none() {
+                        world.block_entities[index] = Some(world.ecs.spawn((
+                            BlockType(self.cur_block),
+                            Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                            Table(None),
+                        )));
+                    } else {
+                        let e = world.block_entities[index].unwrap();
+                        if let Err(e) = world.ecs.insert_one(e, Table(None)) {
+                            eprintln!("{}", e);
+                        }
+                    }
+                } else if !has_network {
+                    world.static_tiles[index] = (self.cur_block, UVec2::new(tile_x as u32, tile_y as u32));
                 }
             }
         } else if ctx.mouse.button_pressed(ggez::event::MouseButton::Right) {

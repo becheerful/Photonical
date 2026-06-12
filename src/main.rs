@@ -1,4 +1,4 @@
-use std::{cell::RefCell, path::PathBuf, sync::Arc};
+use std::{cell::RefCell, sync::Arc};
 
 use ggez::{conf::FullscreenType, glam::Vec2};
 
@@ -8,6 +8,7 @@ mod res;
 mod player;
 mod defs;
 mod scripts;
+mod energy;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
@@ -15,6 +16,14 @@ const TEXTURE_SIZE: f32 = 16.0;
 const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
 const PARAM_ENTITY_ID: &str = "entity_id";
 const PARAM_POSITION: &str = "pos";
+const PARAM_ENERGY_POWER: &str = "power";
+const PARAM_ENERGY_DEMAND: &str = "demand";
+const PARAM_ENERGY_MASK: &str = "mask";
+
+// const NETWORK_MASK_PRODUCER: u8 = 1;
+const NETWORK_MASK_CONSUMER: u8 = 2;
+const NETWORK_MASK_STORAGE: u8 = 3;
+
 
 pub type WorldRef = Arc<RefCell<world::World>>;
 
@@ -27,7 +36,12 @@ struct Settings {
 
 impl Settings {
     pub fn new() -> Self {
-        Settings { aspect: Vec2::ONE, sc_width: 640.0, sc_height: 480.0, fullscreen_type: FullscreenType::Windowed }
+        Settings {
+            aspect: Vec2::ONE,
+            sc_width: 640.0,
+            sc_height: 480.0,
+            fullscreen_type: FullscreenType::Windowed
+        }
     }
 }
 
@@ -39,7 +53,7 @@ fn main() -> ggez::GameResult {
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
         .build()?;
-    ctx.fs.mount(&PathBuf::from("./resources"), true);
+    ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
 
     let mut reg = defs::Registry::new();
 

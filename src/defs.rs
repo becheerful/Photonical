@@ -9,9 +9,10 @@ pub struct BlockDef {
     pub texture: String,
     pub script: Option<String>,
     pub fields: serde_json::Map<String, serde_json::Value>,
-    #[serde(skip)]
-    /// position in the dynamically stitched texture atlas
+    pub net: serde_json::Map<String, serde_json::Value>,
+    /// position in the dynamically stitched texture atlas \
     /// it's safe to use `.unwrap()` after the atlas is initialized
+    #[serde(skip)]
     pub uv: Option<ggez::graphics::Rect>
 }
 
@@ -20,9 +21,9 @@ pub struct ItemDef {
     pub id: String,
     pub name: String,
     pub texture: String,
-    #[serde(skip)]
-    /// position in the dynamically stitched texture atlas
+    /// position in the dynamically stitched texture atlas \
     /// it's safe to use `.unwrap()` after the atlas is initialized
+    #[serde(skip)]
     pub uv: Option<ggez::graphics::Rect>
 }
 
