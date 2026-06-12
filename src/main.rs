@@ -67,7 +67,6 @@ fn main() -> ggez::GameResult {
         eprintln!("Game registry already initialized")
     }
 
-    // the width and height must be divisable by 16
     let world_ref = Arc::new(RefCell::new(world::World::new(128, 64, 64.0)));
     let world = world_ref.borrow();
 
