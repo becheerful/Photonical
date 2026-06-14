@@ -5,6 +5,7 @@ use mlua::Lua;
 use crate::{
     PARAM_BLOCK_INDEX_IN_REGISTRY,
     PARAM_ENTITY_ID,
+    PARAM_NETWORK_ID,
     PARAM_POSITION,
     defs::registry
 };
@@ -113,8 +114,8 @@ impl ScriptEngine {
         // `Vec<u32>` contains an identifier of each entity of this block type
         let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, pos, table)) in world.ecs.query::<(
-            &crate::world::BlockType, &crate::world::Position, &mut crate::world::Table,
+        for (entity, (id, pos, table, network)) in world.ecs.query::<(
+            &crate::world::BlockType, &crate::world::Position, &mut crate::world::Table, Option<&crate::world::NetworkId>
         )>().iter() {
             if let Some(key) = &table.0 {
                 groups.entry(id.0).or_default().push(self.lua.registry_value(key)?);
@@ -123,6 +124,10 @@ impl ScriptEngine {
                 block_table.set(PARAM_ENTITY_ID, entity.id())?;
                 block_table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, id.0)?;
                 block_table.set(PARAM_POSITION, pos.0.to_array())?;
+
+                if network.is_some() {
+                    block_table.set(PARAM_NETWORK_ID, network.unwrap().0)?;
+                }
 
                 for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
                     block_table.set(key.to_owned(), self.json_to_lua(value)?)?;

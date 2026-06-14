@@ -35,6 +35,7 @@ pub struct RecipeDef {
     pub outputs: Vec<(String, u32)>,
 }
 
+#[derive(Debug)]
 pub struct Registry {
     /// Matches the block ID with its position in `Vec<BlockDef>`
     blocks_idx: HashMap<String, u32>,

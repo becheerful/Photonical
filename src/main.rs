@@ -15,12 +15,13 @@ const TEXTURE_SIZE: f32 = 16.0;
 
 const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
 const PARAM_ENTITY_ID: &str = "entity_id";
+const PARAM_NETWORK_ID: &str = "net_id";
 const PARAM_POSITION: &str = "pos";
 const PARAM_ENERGY_POWER: &str = "power";
 const PARAM_ENERGY_DEMAND: &str = "demand";
 const PARAM_ENERGY_MASK: &str = "mask";
 
-// const NETWORK_MASK_PRODUCER: u8 = 1;
+const NETWORK_MASK_PRODUCER: u8 = 1;
 const NETWORK_MASK_CONSUMER: u8 = 2;
 const NETWORK_MASK_STORAGE: u8 = 3;
 
@@ -63,16 +64,12 @@ fn main() -> ggez::GameResult {
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&mut reg, &mut script_engine);
 
-    if let Err(_) = defs::REGISTRY.set(reg) {
-        eprintln!("Game registry already initialized")
-    }
+    defs::REGISTRY.set(reg).expect("Game registry already initialized");
 
     let world_ref = Arc::new(RefCell::new(world::World::new(128, 64, 64.0)));
     let world = world_ref.borrow();
 
-    if let Err(_) = script_engine.init_api(world_ref.clone()) {
-        eprintln!("Error during Lua API initialization");
-    }
+    script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
 
     let mut settings = Settings::new();
     settings.aspect = Vec2::splat(world.tile_size / TEXTURE_SIZE);

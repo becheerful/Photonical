@@ -53,30 +53,33 @@ impl EnergyMaster {
         }
     }
 
-    pub fn add_producer(&mut self, entity: Entity) {
-        if let Some(n) = self.networks.get_mut(0) {
+    pub fn add_producer(&mut self, net_id: usize, entity: Entity) {
+        if let Some(n) = self.networks.get_mut(net_id) {
             n.producers.push(entity);
         } else {
             self.networks.push(Network::new());
-            self.networks.get_mut(0).unwrap().producers.push(entity);
+            let len = self.networks.len() - 1;
+            self.networks.get_mut(len).unwrap().producers.push(entity);
         }
     }
 
-    pub fn add_consumer(&mut self, entity: Entity) {
-        if let Some(n) = self.networks.get_mut(0) {
+    pub fn add_consumer(&mut self, net_id: usize, entity: Entity) {
+        if let Some(n) = self.networks.get_mut(net_id) {
             n.consumers.push(entity);
         } else {
             self.networks.push(Network::new());
-            self.networks.get_mut(0).unwrap().consumers.push(entity);
+            let len = self.networks.len() - 1;
+            self.networks.get_mut(len).unwrap().consumers.push(entity);
         }
     }
 
-    pub fn add_storage(&mut self) {
-        if let Some(n) = self.networks.get_mut(0) {
+    pub fn add_storage(&mut self, net_id: usize) {
+        if let Some(n) = self.networks.get_mut(net_id) {
             n.storages += 1;
         } else {
             self.networks.push(Network::new());
-            self.networks.get_mut(0).unwrap().storages += 1;
+            let len = self.networks.len() - 1;
+            self.networks.get_mut(len).unwrap().storages += 1;
         }
     }
 }

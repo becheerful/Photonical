@@ -5,8 +5,7 @@
     "script": "scripts/plasma_vessel.lua",
     "fields": {
         "stored": 0,
-        "capacity": 25000,
-        "net_id": 0
+        "capacity": 25000
     },
     "net": {
         "mask": 3

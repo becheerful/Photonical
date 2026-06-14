@@ -9,6 +9,7 @@ pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub struct PowerProducer(pub u32);
 pub struct PowerConsumer(pub u32);
+pub struct NetworkId(pub usize);
 
 
 pub struct World {

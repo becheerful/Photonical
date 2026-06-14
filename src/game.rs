@@ -10,6 +10,7 @@ use ggez::{
 
 use crate::{
     NETWORK_MASK_CONSUMER,
+    NETWORK_MASK_PRODUCER,
     NETWORK_MASK_STORAGE,
     PARAM_ENERGY_DEMAND,
     PARAM_ENERGY_MASK,
@@ -20,7 +21,7 @@ use crate::{
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, Position, PowerConsumer, PowerProducer, Table}
+    world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, Table}
 };
 
 pub struct Game {
@@ -30,6 +31,7 @@ pub struct Game {
     pub script_engine: ScriptEngine,
     pub settings: Settings,
     pub cur_block: u32,
+    pub cur_net: Option<usize>,
 }
 
 impl Game {
@@ -41,6 +43,7 @@ impl Game {
             script_engine,
             settings,
             cur_block: registry().get_block_index("photonical:collimator").expect("Block not found"),
+            cur_net: Some(0),
         }
     }
 
@@ -99,31 +102,49 @@ impl EventHandler for Game {
                 if has_network {
                     if let Some(net_mask) = bd.net.get(PARAM_ENERGY_MASK) {
                         let mask = net_mask.as_u64().expect("") as u8;
-                        if mask & NETWORK_MASK_STORAGE == NETWORK_MASK_STORAGE {
-                            world.block_entities[index] = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
-                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                            )));
+                        if self.cur_net.is_none() {
+                            eprintln!("Choose network first");
+                        }
 
-                            world.energy_master.add_storage();
-                        } else if mask & NETWORK_MASK_CONSUMER == NETWORK_MASK_CONSUMER {
-                            let e = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
-                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                PowerConsumer(bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("") as u32),
-                            )));
+                        match mask {
+                            NETWORK_MASK_PRODUCER => {
+                                let e = Some(world.ecs.spawn((
+                                    BlockType(self.cur_block),
+                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                    PowerProducer(bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("") as u32),
+                                    NetworkId(0)
+                                )));
 
-                            world.block_entities[index] = e;
-                            world.energy_master.add_consumer(e.unwrap());
-                        } else {
-                            let e = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
-                                Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                PowerProducer(bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("") as u32),
-                            )));
+                                world.block_entities[index] = e;
+                                world.energy_master.add_producer(0, e.unwrap());
+                            }
 
-                            world.block_entities[index] = e;
-                            world.energy_master.add_producer(e.unwrap());
+                            NETWORK_MASK_CONSUMER => {
+                                let e = Some(world.ecs.spawn((
+                                    BlockType(self.cur_block),
+                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                    PowerConsumer(bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("") as u32),
+                                    NetworkId(0)
+                                )));
+
+                                world.block_entities[index] = e;
+                                world.energy_master.add_consumer(0, e.unwrap());
+                            }
+
+                            NETWORK_MASK_STORAGE => {
+                                let e = Some(world.ecs.spawn((
+                                    BlockType(self.cur_block),
+                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                    NetworkId(0),
+                                )));
+
+                                world.block_entities[index] = e;
+                                world.energy_master.add_storage(0);
+                            }
+
+                            _ => {
+                                eprintln!("No such mask");
+                            }
                         }
 
                         world.update_networks();
