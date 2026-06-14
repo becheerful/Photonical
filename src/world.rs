@@ -47,11 +47,21 @@ impl World {
         self.block_entities[self.index(x, y)]
     }
 
-    pub fn get_directly(&self, index: usize) -> Option<Entity> {
-        self.block_entities[index]
-    }
+    pub fn em_remove(&mut self, entity: Entity) {
+        if let Ok(net_id) = self.ecs.get::<&NetworkId>(entity) {
+            if let Some(network) = self.energy_master.networks.get_mut(net_id.0) {
+                // damn borrow checker won't let me use `query_one_mut`
+                let mut query = self.ecs.query_one::<(Option<&PowerProducer>, Option<&PowerConsumer>)>(entity).unwrap();
+                let (power, demand) = query.get().unwrap();
 
-    pub fn update_networks(&mut self) {
-        self.energy_master.update_networks(&self.ecs);
+                if power.is_some() {
+                    network.imbalance -= power.unwrap().0 as i64;
+                } else if demand.is_some() {
+                    network.imbalance += demand.unwrap().0 as i64;
+                } else {
+                    network.storages -= 1;
+                }
+            }
+        }
     }
 }

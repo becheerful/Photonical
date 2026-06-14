@@ -108,27 +108,29 @@ impl EventHandler for Game {
 
                         match mask {
                             NETWORK_MASK_PRODUCER => {
+                                let power = bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("");
                                 let e = Some(world.ecs.spawn((
                                     BlockType(self.cur_block),
                                     Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                    PowerProducer(bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("") as u32),
+                                    PowerProducer(power as u32),
                                     NetworkId(0)
                                 )));
 
                                 world.block_entities[index] = e;
-                                world.energy_master.add_producer(0, e.unwrap());
+                                world.energy_master.add_producer(0, power);
                             }
 
                             NETWORK_MASK_CONSUMER => {
+                                let demand = bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("");
                                 let e = Some(world.ecs.spawn((
                                     BlockType(self.cur_block),
                                     Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                    PowerConsumer(bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("") as u32),
+                                    PowerConsumer(demand as u32),
                                     NetworkId(0)
                                 )));
 
                                 world.block_entities[index] = e;
-                                world.energy_master.add_consumer(0, e.unwrap());
+                                world.energy_master.add_consumer(0, demand);
                             }
 
                             NETWORK_MASK_STORAGE => {
@@ -146,13 +148,11 @@ impl EventHandler for Game {
                                 eprintln!("No such mask");
                             }
                         }
-
-                        world.update_networks();
                     }
                 }
 
                 if bd.script.is_some() {
-                    if world.get_directly(index).is_none() {
+                    if world.block_entities[index].is_none() {
                         world.block_entities[index] = Some(world.ecs.spawn((
                             BlockType(self.cur_block),
                             Position(UVec2::new(tile_x as u32, tile_y as u32)),
@@ -180,14 +180,14 @@ impl EventHandler for Game {
 
             let index = world.index(tile_x, tile_y);
 
-            if world.get(tile_x, tile_y).is_some() {
-                if let Some(entity) = world.block_entities[index] {
-                    if let Err(e) = world.ecs.despawn(entity) {
-                        eprintln!("{}", e);
-                    }
+            if let Some(entity) = world.block_entities[index] {
+                world.em_remove(entity);
 
-                    world.block_entities[index] = None;
+                if let Err(e) = world.ecs.despawn(entity) {
+                    eprintln!("{}", e);
                 }
+
+                world.block_entities[index] = None;
             }
         }
 
