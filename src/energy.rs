@@ -17,6 +17,10 @@ impl Network {
     pub fn get_storage_imbalance(&self) -> i64 {
         if self.storages > 0 { self.imbalance / (self.storages as i64) } else { self.imbalance }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.imbalance == 0 && self.storages == 0
+    }
 }
 
 pub struct EnergyMaster {

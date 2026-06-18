@@ -41,6 +41,10 @@ impl World {
                 } else {
                     network.storages -= 1;
                 }
+
+                if network.is_empty() {
+                    self.energy_master.networks.remove(&id.0);
+                }
             }
 
             if let Err(e) = self.ecs.despawn(entity) {
