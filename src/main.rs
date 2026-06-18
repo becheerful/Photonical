@@ -72,11 +72,11 @@ fn main() -> ggez::GameResult {
     script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
 
     let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.tile_size / TEXTURE_SIZE);
+    settings.aspect = Vec2::splat(world.map.tile_size / TEXTURE_SIZE);
     settings.sc_width = sc_width;
     settings.sc_height = sc_height;
 
-    let camera = player::Camera::new(&world, &settings);
+    let camera = player::Camera::new(&world.map, &settings);
 
     drop(world);
     let game = game::Game::new(atlas, world_ref, camera, script_engine, settings);

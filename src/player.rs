@@ -8,13 +8,13 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(world: &crate::world::World, settings: &crate::Settings) -> Self {
+    pub fn new(map: &crate::world::GridMap, settings: &crate::Settings) -> Self {
         Camera {
             pos: Vec2::ZERO,
             movement_speed: 10.0,
             screen_bounds: Vec2::new(
-                world.width as f32 * world.tile_size - settings.sc_width,
-                world.height as f32 * world.tile_size - settings.sc_height,
+                map.width as f32 * map.tile_size - settings.sc_width,
+                map.height as f32 * map.tile_size - settings.sc_height,
             ),
         }
     }

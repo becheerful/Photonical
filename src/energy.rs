@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub struct Network {
     pub storages: u32,
     pub imbalance: i64,
@@ -13,46 +15,28 @@ impl Network {
 
     /// Returns the amount of energy that one storage should give up or consume
     pub fn get_storage_imbalance(&self) -> i64 {
-        self.imbalance / (self.storages as i64)
+        if self.storages > 0 { self.imbalance / (self.storages as i64) } else { self.imbalance }
     }
 }
 
 pub struct EnergyMaster {
-    pub networks: Vec<Network>,
+    pub networks: HashMap<u32, Network>,
 }
 
 impl EnergyMaster {
     pub fn new() -> Self {
-        Self { networks: Vec::new() }
+        Self { networks: HashMap::new() }
     }
 
-    pub fn add_producer(&mut self, net_id: usize, power: i64) {
-        if let Some(n) = self.networks.get_mut(net_id) {
-            n.imbalance += power;
-        } else {
-            self.networks.push(Network::new());
-            let len = self.networks.len() - 1;
-            self.networks.get_mut(len).unwrap().imbalance += power;
-        }
+    pub fn add_producer(&mut self, net_id: u32, power: i64) {
+        self.networks.entry(net_id).or_insert(Network::new()).imbalance += power;
     }
 
-    pub fn add_consumer(&mut self, net_id: usize, demand: i64) {
-        if let Some(n) = self.networks.get_mut(net_id) {
-            n.imbalance -= demand;
-        } else {
-            self.networks.push(Network::new());
-            let len = self.networks.len() - 1;
-            self.networks.get_mut(len).unwrap().imbalance -= demand;
-        }
+    pub fn add_consumer(&mut self, net_id: u32, demand: i64) {
+        self.networks.entry(net_id).or_insert(Network::new()).imbalance -= demand;
     }
 
-    pub fn add_storage(&mut self, net_id: usize) {
-        if let Some(n) = self.networks.get_mut(net_id) {
-            n.storages += 1;
-        } else {
-            self.networks.push(Network::new());
-            let len = self.networks.len() - 1;
-            self.networks.get_mut(len).unwrap().storages += 1;
-        }
+    pub fn add_storage(&mut self, net_id: u32) {
+        self.networks.entry(net_id).or_insert(Network::new()).storages += 1;
     }
 }

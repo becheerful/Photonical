@@ -55,34 +55,34 @@ impl Registry {
 
         r.load_data(".");
         if let Err(e) = r.load_mods_data() {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
 
         r
     }
 
     pub fn load_data(&mut self, rel_path: &str) {
-        let data_dir = std::path::PathBuf::from(format!("{}/resources/data", rel_path));
+        let data_dir = std::path::PathBuf::from(format!("{rel_path}/resources/data"));
 
         if let Err(e) = load_defs_from_dir::<BlockDef>(
             data_dir.join("blocks").as_path(),
             |block_def| return self.register_block(block_def, rel_path)
         ) {
-            eprintln!("Failed to load blocks: {}", e);
+            eprintln!("Failed to load blocks: {e}");
         }
 
         if let Err(e) = load_defs_from_dir::<ItemDef>(
             data_dir.join("items").as_path(),
             |item_def| return self.register_item(item_def, rel_path)
         ) {
-            eprintln!("Failed to load items: {}", e);
+            eprintln!("Failed to load items: {e}");
         }
 
         if let Err(e) = load_defs_from_dir::<RecipeDef>(
             data_dir.join("recipes").as_path(),
             |recipe_def| return self.register_recipe(recipe_def)
         ) {
-            eprintln!("Failed to load recipes: {}", e);
+            eprintln!("Failed to load recipes: {e}");
         }
     }
 
@@ -117,11 +117,11 @@ impl Registry {
         }
 
         let original = def.texture.clone();
-        def.texture = format!(r"{}/{}", rel_path, original);
+        def.texture = format!(r"{rel_path}/{original}");
 
         if let Some(script) = def.script {
             let original = script;
-            def.script = Some(format!(r"{}/{}", rel_path, original));
+            def.script = Some(format!(r"{rel_path}/{original}"));
         }
 
         let l = self.blocks_idx.len();
@@ -142,7 +142,7 @@ impl Registry {
         }
 
         let original = def.texture.clone();
-        def.texture = format!(r"{}/{}", rel_path, original);
+        def.texture = format!(r"{rel_path}/{original}");
 
         self.items.insert(def.id.clone(), def);
         Ok(())
@@ -253,10 +253,10 @@ pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::Scr
                 // We can call `.unwrap()` here because we're working in the registry and we know what it contains
                 let id = registry.get_block_index(&block.id).unwrap();
                 if let Err(e) = script_engine.load_script(id, &code) {
-                    eprintln!("{}", e);
+                    eprintln!("{e}");
                 }
             } else {
-                eprintln!("Script '{}' not found", script_path);
+                eprintln!("Script '{script_path}' not found");
             }
         }
     }

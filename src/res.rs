@@ -22,7 +22,7 @@ impl Atlas {
             let image = match image::open(path) {
                 Ok(img) => img,
                 Err(_) => {
-                    eprintln!("Warning: texture '{}' not found", path);
+                    eprintln!("Warning: texture '{path}' not found");
                     image::open(crate::MISSING_TEX).unwrap()
                 }
             }.to_rgba8();

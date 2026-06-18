@@ -21,7 +21,7 @@ use crate::{
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, Table}
+    world::{BlockType, NetworkId, Position, PowerProducer, Table}
 };
 
 pub struct Game {
@@ -31,7 +31,7 @@ pub struct Game {
     pub script_engine: ScriptEngine,
     pub settings: Settings,
     pub cur_block: u32,
-    pub cur_net: Option<usize>,
+    pub cur_net: Option<u32>,
 }
 
 impl Game {
@@ -49,7 +49,7 @@ impl Game {
 
     fn update_game(&mut self, dt: f32) {
         if let Err(e) = self.script_engine.update(&self.world.borrow(), dt) {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
     }
 }
@@ -90,82 +90,81 @@ impl EventHandler for Game {
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / world.tile_size) as u16;
-            let tile_y = (rel_y / world.tile_size) as u16;
+            let tile_x = (rel_x / world.map.tile_size) as u16;
+            let tile_y = (rel_y / world.map.tile_size) as u16;
 
-            let index = world.index(tile_x, tile_y);
+            let index = world.map.index(tile_x, tile_y);
 
-            if world.get(tile_x, tile_y).is_none() {
+            if world.map.get(tile_x, tile_y).is_none() {
                 let bd = registry().get_block_directly(self.cur_block).unwrap();
                 let has_network = !bd.net.is_empty();
 
                 if has_network {
                     if let Some(net_mask) = bd.net.get(PARAM_ENERGY_MASK) {
                         let mask = net_mask.as_u64().expect("") as u8;
-                        if self.cur_net.is_none() {
-                            eprintln!("Choose network first");
-                        }
+                        if let Some(net_id) = self.cur_net {
+                            match mask {
+                                NETWORK_MASK_PRODUCER => {
+                                    let power = bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("");
+                                    let e = Some(world.ecs.spawn((
+                                        BlockType(self.cur_block),
+                                        Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                        PowerProducer(power as u32),
+                                        NetworkId(net_id),
+                                    )));
 
-                        match mask {
-                            NETWORK_MASK_PRODUCER => {
-                                let power = bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("");
-                                let e = Some(world.ecs.spawn((
-                                    BlockType(self.cur_block),
-                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                    PowerProducer(power as u32),
-                                    NetworkId(0)
-                                )));
+                                    world.map.block_entities[index] = e;
+                                    world.energy_master.add_producer(net_id, power);
+                                }
 
-                                world.block_entities[index] = e;
-                                world.energy_master.add_producer(0, power);
+                                NETWORK_MASK_CONSUMER => {
+                                    let demand = bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("");
+                                    let e = Some(world.ecs.spawn((
+                                        BlockType(self.cur_block),
+                                        Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                        NetworkId(net_id),
+                                    )));
+
+                                    world.map.block_entities[index] = e;
+                                    world.energy_master.add_consumer(net_id, demand);
+                                }
+
+                                NETWORK_MASK_STORAGE => {
+                                    let e = Some(world.ecs.spawn((
+                                        BlockType(self.cur_block),
+                                        Position(UVec2::new(tile_x as u32, tile_y as u32)),
+                                        NetworkId(net_id),
+                                    )));
+
+                                    world.map.block_entities[index] = e;
+                                    world.energy_master.add_storage(net_id);
+                                }
+
+                                _ => {
+                                    eprintln!("No such mask");
+                                }
                             }
-
-                            NETWORK_MASK_CONSUMER => {
-                                let demand = bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("");
-                                let e = Some(world.ecs.spawn((
-                                    BlockType(self.cur_block),
-                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                    PowerConsumer(demand as u32),
-                                    NetworkId(0)
-                                )));
-
-                                world.block_entities[index] = e;
-                                world.energy_master.add_consumer(0, demand);
-                            }
-
-                            NETWORK_MASK_STORAGE => {
-                                let e = Some(world.ecs.spawn((
-                                    BlockType(self.cur_block),
-                                    Position(UVec2::new(tile_x as u32, tile_y as u32)),
-                                    NetworkId(0),
-                                )));
-
-                                world.block_entities[index] = e;
-                                world.energy_master.add_storage(0);
-                            }
-
-                            _ => {
-                                eprintln!("No such mask");
-                            }
+                        } else {
+                            eprintln!("Choose network first")
                         }
                     }
                 }
 
                 if bd.script.is_some() {
-                    if world.block_entities[index].is_none() {
-                        world.block_entities[index] = Some(world.ecs.spawn((
+                    if world.map.block_entities[index].is_none() {
+                        world.map.block_entities[index] = Some(world.ecs.spawn((
                             BlockType(self.cur_block),
                             Position(UVec2::new(tile_x as u32, tile_y as u32)),
                             Table(None),
                         )));
                     } else {
-                        let e = world.block_entities[index].unwrap();
+                        let e = world.map.block_entities[index].unwrap();
                         if let Err(e) = world.ecs.insert_one(e, Table(None)) {
-                            eprintln!("{}", e);
+                            eprintln!("{e}");
                         }
                     }
                 } else if !has_network {
-                    world.static_tiles[index] = (self.cur_block, UVec2::new(tile_x as u32, tile_y as u32));
+                    world.map.static_tiles[index] = (self.cur_block, UVec2::new(tile_x as u32, tile_y as u32));
                 }
             }
         } else if ctx.mouse.button_pressed(ggez::event::MouseButton::Right) {
@@ -175,20 +174,11 @@ impl EventHandler for Game {
             let rel_x = mouse_point.x + self.camera.pos.x;
             let rel_y = mouse_point.y + self.camera.pos.y;
 
-            let tile_x = (rel_x / world.tile_size) as u16;
-            let tile_y = (rel_y / world.tile_size) as u16;
+            let tile_x = (rel_x / world.map.tile_size) as u16;
+            let tile_y = (rel_y / world.map.tile_size) as u16;
 
-            let index = world.index(tile_x, tile_y);
-
-            if let Some(entity) = world.block_entities[index] {
-                world.em_remove(entity);
-
-                if let Err(e) = world.ecs.despawn(entity) {
-                    eprintln!("{}", e);
-                }
-
-                world.block_entities[index] = None;
-            }
+            let index = world.map.index(tile_x, tile_y);
+            world.remove_entity(index);
         }
 
         self.update_game(ctx.time.delta().as_secs_f32());
@@ -196,25 +186,26 @@ impl EventHandler for Game {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let world = self.world.borrow();
+        let mut world = self.world.borrow_mut();
+        let tile_size = world.map.tile_size;
 
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
         let mut array = ggez::graphics::InstanceArray::new(ctx, self.atlas.image.clone());
 
-        for (id, pos) in world.static_tiles.iter() {
+        for (id, pos) in world.map.static_tiles.iter() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                .dest(pos.as_vec2() * world.tile_size - self.camera.pos)
+                .dest(pos.as_vec2() * tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
 
-        for (_, (id, pos)) in world.ecs.query::<(&BlockType, &Position)>().iter() {
+        for (_, (id, pos)) in world.ecs.query_mut::<(&BlockType, &Position)>() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
-                .dest(pos.0.as_vec2() * world.tile_size - self.camera.pos)
+                .dest(pos.0.as_vec2() * tile_size - self.camera.pos)
                 .scale(self.settings.aspect)
             );
         }

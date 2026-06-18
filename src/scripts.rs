@@ -63,7 +63,7 @@ impl ScriptEngine {
         let world = world_ref.clone();
         let get_mechanism_at = self.lua.create_function(move |lua, (x, y): (u16, u16)| {
             let world = world.borrow();
-            let entity = world.get(x, y);
+            let entity = world.map.get(x, y);
             if let Some(e) = entity {
                 if let Some(key) = &world.ecs.get::<&crate::world::Table>(e).expect("Entity not found").0 {
                     return Ok(lua.registry_value(key)?);
@@ -76,16 +76,16 @@ impl ScriptEngine {
         let get_block_at = self.lua.create_function(move |lua, (x, y): (u16, u16)| {
             let world = world.borrow();
             let table = lua.create_table()?;
-            let block = world.static_tiles[world.index(x, y)];
+            let block = world.map.static_tiles[world.map.index(x, y)];
             table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, block.0)?;
             table.set(PARAM_POSITION, block.1.to_array())?;
             Ok(table)
         })?;
 
         let world = world_ref.clone();
-        let get_imbalance = self.lua.create_function(move |_, net_id: usize| {
+        let get_imbalance = self.lua.create_function(move |_, net_id: u32| {
             let world = world.borrow();
-            let net = world.energy_master.networks.get(net_id);
+            let net = world.energy_master.networks.get(&net_id);
 
             match net {
                 Some(n) => Ok(mlua::Value::Integer(n.get_storage_imbalance())),
@@ -115,7 +115,7 @@ impl ScriptEngine {
         let mut groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
         for (entity, (id, pos, table, network)) in world.ecs.query::<(
-            &crate::world::BlockType, &crate::world::Position, &mut crate::world::Table, Option<&crate::world::NetworkId>
+            &crate::world::BlockType, &crate::world::Position, &mut crate::world::Table, Option<&crate::world::NetworkId>,
         )>().iter() {
             if let Some(key) = &table.0 {
                 groups.entry(id.0).or_default().push(self.lua.registry_value(key)?);
@@ -125,8 +125,8 @@ impl ScriptEngine {
                 block_table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, id.0)?;
                 block_table.set(PARAM_POSITION, pos.0.to_array())?;
 
-                if network.is_some() {
-                    block_table.set(PARAM_NETWORK_ID, network.unwrap().0)?;
+                if let Some(net_id) = network {
+                    block_table.set(PARAM_NETWORK_ID, net_id.0)?;
                 }
 
                 for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
