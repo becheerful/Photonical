@@ -1,17 +1,19 @@
 use ggez::{
     Context,
+    GameError,
     GameResult,
     conf::FullscreenType,
     event::EventHandler,
     glam::UVec2,
-    graphics::{Color, DrawParam, Drawable},
-    input::keyboard::KeyCode,
+    graphics::{DrawParam, Drawable},
+    input::keyboard::KeyCode
 };
 
 use crate::{
     NETWORK_MASK_CONSUMER,
     NETWORK_MASK_PRODUCER,
     NETWORK_MASK_STORAGE,
+    PARAM_ENERGY_CAPACITY,
     PARAM_ENERGY_DEMAND,
     PARAM_ENERGY_MASK,
     PARAM_ENERGY_POWER,
@@ -21,7 +23,7 @@ use crate::{
     player::Camera,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, PowerProducer, Table}
+    world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, PowerStorage, Table}
 };
 
 pub struct Game {
@@ -55,7 +57,7 @@ impl Game {
         )
     }
 
-    pub fn insert_block(&mut self, x: u16, y: u16) {
+    pub fn insert_block(&mut self, x: u16, y: u16) -> GameResult {
         let mut world = self.world.borrow_mut();
         let index = world.map.index(x, y);
 
@@ -70,7 +72,10 @@ impl Game {
 
                     match mask {
                         NETWORK_MASK_PRODUCER => {
-                            let power = bd.net.get(PARAM_ENERGY_POWER).unwrap().as_i64().expect("");
+                            let power = bd.net.get(PARAM_ENERGY_POWER).ok_or(
+                                GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
+                            )?.as_i64().expect("");
+
                             let e = Some(world.ecs.spawn((
                                 BlockType(self.cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
@@ -83,10 +88,14 @@ impl Game {
                         }
 
                         NETWORK_MASK_CONSUMER => {
-                            let demand = bd.net.get(PARAM_ENERGY_DEMAND).unwrap().as_i64().expect("");
+                            let demand = bd.net.get(PARAM_ENERGY_DEMAND).ok_or(
+                                GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
+                            )?.as_i64().expect("");
+
                             let e = Some(world.ecs.spawn((
                                 BlockType(self.cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
+                                PowerConsumer(demand as u32),
                                 NetworkId(net_id),
                             )));
 
@@ -95,9 +104,14 @@ impl Game {
                         }
 
                         NETWORK_MASK_STORAGE => {
+                            let capacity = bd.net.get(PARAM_ENERGY_CAPACITY).ok_or(
+                                GameError::ConfigError("Missing parameter `capacity` for network mask 3".to_owned())
+                            )?.as_i64().expect("");
+
                             let e = Some(world.ecs.spawn((
                                 BlockType(self.cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
+                                PowerStorage(0, capacity as u32),
                                 NetworkId(net_id),
                             )));
 
@@ -106,7 +120,7 @@ impl Game {
                         }
 
                         _ => {
-                            eprintln!("No such mask");
+                            return Err(GameError::ConfigError("No such mask".to_owned()));
                         }
                     }
 
@@ -131,6 +145,8 @@ impl Game {
                 world.map.static_tiles[index] = (self.cur_block, UVec2::new(x as u32, y as u32));
             }
         }
+
+        Ok(())
     }
 
     pub fn remove_block(&mut self, x: u16, y: u16) {
@@ -153,7 +169,10 @@ impl Game {
     }
 
     fn update_game(&mut self, dt: f32) {
-        if let Err(e) = self.script_engine.update(&self.world.borrow(), dt) {
+        let mut world = self.world.borrow_mut();
+        world.update();
+
+        if let Err(e) = self.script_engine.update(&world, dt) {
             eprintln!("{e}");
         }
     }
@@ -193,7 +212,7 @@ impl EventHandler for Game {
             if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
                 self.cur_net = self.get_block_network_id(x, y);
             } else {
-                self.insert_block(x, y);
+                self.insert_block(x, y)?;
             }
         } else if ctx.mouse.button_pressed(ggez::event::MouseButton::Right) {
             let (x, y) = self.point_to_block_pos(ctx.mouse.position());
@@ -208,7 +227,7 @@ impl EventHandler for Game {
         let mut world = self.world.borrow_mut();
         let tile_size = world.map.tile_size;
 
-        let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
+        let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
         let mut array = ggez::graphics::InstanceArray::new(ctx, self.atlas.image.clone());
@@ -232,7 +251,7 @@ impl EventHandler for Game {
         array.draw(&mut canvas, DrawParam::default());
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
-            DrawParam::default().color(Color::RED)
+            DrawParam::default().color(ggez::graphics::Color::RED)
         );
 
         canvas.finish(ctx)?;

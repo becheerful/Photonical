@@ -9,6 +9,8 @@ pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub struct PowerProducer(pub u32);
 pub struct PowerConsumer(pub u32);
+// first `u32` is for stored energy, second `u32` is for capacity
+pub struct PowerStorage(pub u32, pub u32);
 pub struct NetworkId(pub u32);
 
 
@@ -25,6 +27,10 @@ impl World {
             ecs: hecs::World::new(),
             energy_master: EnergyMaster::new(),
         }
+    }
+
+    pub fn update(&mut self) {
+        self.energy_master.update(&mut self.ecs);
     }
 
     pub fn remove_entity(&mut self, index: usize) {

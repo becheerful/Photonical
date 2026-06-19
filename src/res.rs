@@ -69,11 +69,11 @@ impl Atlas {
         Ok((ggez_image, uv_map))
     }
 
-    pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> &Rect {
-        self.uv_map.get(&block_def.texture).expect("Texture not found in atlas")
+    pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> GameResult<&Rect> {
+        self.uv_map.get(&block_def.texture).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
     }
 
-    pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> &Rect {
-        self.uv_map.get(&item_def.texture).expect("Texture not found in atlas")
+    pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> GameResult<&Rect> {
+        self.uv_map.get(&item_def.texture).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
     }
 }

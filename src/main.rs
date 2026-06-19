@@ -19,6 +19,7 @@ const PARAM_NETWORK_ID: &str = "net_id";
 const PARAM_POSITION: &str = "pos";
 const PARAM_ENERGY_POWER: &str = "power";
 const PARAM_ENERGY_DEMAND: &str = "demand";
+const PARAM_ENERGY_CAPACITY: &str = "capacity";
 const PARAM_ENERGY_MASK: &str = "mask";
 
 const NETWORK_MASK_PRODUCER: u8 = 1;
@@ -56,10 +57,10 @@ fn main() -> ggez::GameResult {
         .build()?;
     ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
 
-    let mut reg = defs::Registry::new();
+    let mut reg = defs::Registry::new()?;
 
     let atlas = res::Atlas::new(&ctx, &defs::get_paths(&reg))?;
-    defs::gen_uv_cache(&mut reg, &atlas);
+    defs::gen_uv_cache(&mut reg, &atlas)?;
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&mut reg, &mut script_engine);

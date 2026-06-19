@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs};
 
+use ggez::GameResult;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,7 +46,7 @@ pub struct Registry {
 }
 
 impl Registry {
-    pub fn new() -> Self {
+    pub fn new() -> GameResult<Self> {
         let mut r = Registry {
             blocks_idx: HashMap::new(),
             blocks: Vec::new(),
@@ -54,11 +55,9 @@ impl Registry {
         };
 
         r.load_data(".");
-        if let Err(e) = r.load_mods_data() {
-            eprintln!("{e}");
-        }
+        r.load_mods_data()?;
 
-        r
+        Ok(r)
     }
 
     pub fn load_data(&mut self, rel_path: &str) {
@@ -66,27 +65,27 @@ impl Registry {
 
         if let Err(e) = load_defs_from_dir::<BlockDef>(
             data_dir.join("blocks").as_path(),
-            |block_def| return self.register_block(block_def, rel_path)
+            |block_def| self.register_block(block_def, rel_path)
         ) {
             eprintln!("Failed to load blocks: {e}");
         }
 
         if let Err(e) = load_defs_from_dir::<ItemDef>(
             data_dir.join("items").as_path(),
-            |item_def| return self.register_item(item_def, rel_path)
+            |item_def| self.register_item(item_def, rel_path)
         ) {
             eprintln!("Failed to load items: {e}");
         }
 
         if let Err(e) = load_defs_from_dir::<RecipeDef>(
             data_dir.join("recipes").as_path(),
-            |recipe_def| return self.register_recipe(recipe_def)
+            |recipe_def| self.register_recipe(recipe_def)
         ) {
             eprintln!("Failed to load recipes: {e}");
         }
     }
 
-    fn load_mods_data(&mut self) -> std::io::Result<()> {
+    fn load_mods_data(&mut self) -> GameResult {
         let mods_dir = std::path::Path::new("./mods/");
         if !mods_dir.exists() {
             return Ok(());
@@ -236,14 +235,16 @@ pub fn get_paths(registry: &Registry) -> Vec<String> {
     texture_paths
 }
 
-pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) {
+pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) -> GameResult {
     for block in registry.blocks.iter_mut() {
-        block.uv = Some(*atlas.get_block_uv(block));
+        block.uv = Some(*atlas.get_block_uv(block)?);
     }
 
     for item in registry.items.values_mut() {
-        item.uv = Some(*atlas.get_item_uv(item))
+        item.uv = Some(*atlas.get_item_uv(item)?)
     }
+
+    Ok(())
 }
 
 pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::ScriptEngine) {
