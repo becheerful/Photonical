@@ -179,6 +179,10 @@ impl Registry {
         self.blocks_idx.get(id).copied()
     }
 
+    pub fn get_number_of_blocks(&self) -> u32 {
+        self.blocks.len() as u32
+    }
+
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
         self.items.get(id)
     }

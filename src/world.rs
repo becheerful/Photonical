@@ -21,9 +21,9 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
+    pub fn new(registry: &crate::defs::Registry, width: u16, height: u16, tile_size: f32) -> Self {
         Self {
-            map: GridMap::new(width, height, tile_size),
+            map: GridMap::new(registry, width, height, tile_size),
             ecs: hecs::World::new(),
             energy_master: EnergyMaster::new(),
         }
@@ -71,14 +71,14 @@ pub struct GridMap {
 }
 
 impl GridMap {
-    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
+    pub fn new(registry: &crate::defs::Registry, width: u16, height: u16, tile_size: f32) -> Self {
         let size = width as usize * height as usize;
         Self {
             width,
             height,
             tile_size,
             static_tiles: (0..size).map(|i| (
-                crate::defs::registry().get_block_index("photonical:stone").unwrap(),
+                registry.get_block_index("photonical:stone").unwrap(),
                 UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
             )).collect(),
             block_entities: vec![None; size],

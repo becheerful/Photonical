@@ -20,7 +20,7 @@ use crate::{
     Settings,
     WorldRef,
     defs::registry,
-    player::Camera,
+    player::Player,
     res::Atlas,
     scripts::ScriptEngine,
     world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, PowerStorage, Table}
@@ -29,7 +29,7 @@ use crate::{
 pub struct Game {
     pub atlas: Atlas,
     pub world: WorldRef,
-    pub camera: Camera,
+    pub player: Player,
     pub script_engine: ScriptEngine,
     pub settings: Settings,
     pub cur_block: u32,
@@ -37,11 +37,11 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(atlas: Atlas, world: WorldRef, camera: Camera, script_engine: ScriptEngine, settings: Settings) -> Self {
+    pub fn new(atlas: Atlas, world: WorldRef, player: Player, script_engine: ScriptEngine, settings: Settings) -> Self {
         Game {
             atlas,
             world,
-            camera,
+            player,
             script_engine,
             settings,
             cur_block: registry().get_block_index("photonical:collimator").expect("Block not found"),
@@ -52,8 +52,8 @@ impl Game {
     pub fn point_to_block_pos(&self, p: ggez::mint::Point2<f32>) -> (u16, u16) {
         let world = self.world.borrow();
         (
-            ((p.x + self.camera.pos.x) / world.map.tile_size) as u16,
-            ((p.y + self.camera.pos.y) / world.map.tile_size) as u16,
+            ((p.x + self.player.camera.pos.x) / world.map.tile_size) as u16,
+            ((p.y + self.player.camera.pos.y) / world.map.tile_size) as u16,
         )
     }
 
@@ -196,13 +196,18 @@ impl EventHandler for Game {
                 KeyCode::Key3 => self.cur_block = 2,
                 KeyCode::Key4 => self.cur_block = 3,
                 key => {
-                    if let Some(direction) = self.camera.get_movement_vector(key) {
-                        self.camera.move_towards(direction);
+                    if let Some(direction) = self.player.camera.get_movement_vector(key) {
+                        self.player.camera.move_towards(direction);
                     }
                 }
             }
         }
 
+        Ok(())
+    }
+
+    fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) -> Result<(), GameError> {
+        self.player.ui.block_list.scroll_offset += y * self.settings.mouse_wheel_sensitivity * (crate::TEXTURE_SIZE + crate::ui::BlockListUI::PADDING);
         Ok(())
     }
 
@@ -235,7 +240,7 @@ impl EventHandler for Game {
         for (id, pos) in world.map.static_tiles.iter() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                .dest(pos.as_vec2() * tile_size - self.camera.pos)
+                .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
@@ -243,12 +248,14 @@ impl EventHandler for Game {
         for (_, (id, pos)) in world.ecs.query_mut::<(&BlockType, &Position)>() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
-                .dest(pos.0.as_vec2() * tile_size - self.camera.pos)
+                .dest(pos.0.as_vec2() * tile_size - self.player.camera.pos)
                 .scale(self.settings.aspect)
             );
         }
 
         array.draw(&mut canvas, DrawParam::default());
+        self.player.draw(&mut canvas, &self.atlas)?;
+
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED)
@@ -261,6 +268,7 @@ impl EventHandler for Game {
     fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) -> GameResult {
         self.settings.sc_width = width;
         self.settings.sc_height = height;
+        self.player.ui.resize_event(width, height);
         Ok(())
     }
 }

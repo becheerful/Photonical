@@ -35,3 +35,22 @@ impl Camera {
             .min(self.screen_bounds);
     }
 }
+
+pub struct Player {
+    pub camera: Camera,
+    pub ui: crate::ui::PlayerUI,
+}
+
+impl Player {
+    pub fn new_with_ui(map: &crate::world::GridMap, settings: &crate::Settings, ui: crate::ui::PlayerUI) -> Self {
+        Self {
+            camera: Camera::new(map, settings),
+            ui,
+        }
+    }
+
+    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &crate::res::Atlas) -> ggez::GameResult {
+        self.ui.draw(canvas, atlas)?;
+        Ok(())
+    }
+}

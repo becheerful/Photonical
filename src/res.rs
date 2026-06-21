@@ -39,7 +39,7 @@ impl Atlas {
         let atlas_height = u32::try_from(packer.size().1).expect("u32 can't be negative");
         let mut atlas_buffer = image::RgbaImage::new(atlas_width, atlas_height);
 
-        for (rect, img, _path) in loaded_images.clone() {
+        for (rect, img, _) in loaded_images.clone() {
             for y in 0..u32::try_from(rect.height).expect("u32 can't be negative") {
                 for x in 0..u32::try_from(rect.width).expect("u32 can't be negative") {
                     let px = img.get_pixel(x, y);
@@ -75,5 +75,9 @@ impl Atlas {
 
     pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> GameResult<&Rect> {
         self.uv_map.get(&item_def.texture).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
+    }
+
+    pub fn get_ui_uv(&self, uv: &impl crate::ui::UI) -> GameResult<&Rect> {
+        self.uv_map.get(uv.get_texture_path()).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
     }
 }

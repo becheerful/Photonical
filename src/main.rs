@@ -1,22 +1,26 @@
 use std::{cell::RefCell, sync::Arc};
 
-use ggez::{conf::FullscreenType, glam::Vec2};
+use ggez::glam::Vec2;
 
-mod game;
-mod world;
 mod res;
-mod player;
 mod defs;
 mod scripts;
 mod energy;
+mod game;
+mod world;
+mod player;
+mod ui;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 16.0;
 
+// field names for scripts
 const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
 const PARAM_ENTITY_ID: &str = "entity_id";
 const PARAM_NETWORK_ID: &str = "net_id";
 const PARAM_POSITION: &str = "pos";
+
+// parameter names for .json block definitions
 const PARAM_ENERGY_POWER: &str = "power";
 const PARAM_ENERGY_DEMAND: &str = "demand";
 const PARAM_ENERGY_CAPACITY: &str = "capacity";
@@ -33,16 +37,19 @@ struct Settings {
     pub aspect: Vec2,
     pub sc_width: f32,
     pub sc_height: f32,
-    pub fullscreen_type: FullscreenType,
+    pub fullscreen_type: ggez::conf::FullscreenType,
+    pub mouse_wheel_sensitivity: f32,
 }
 
 impl Settings {
-    pub fn new() -> Self {
+    pub fn new(world: &crate::world::World, sc_width: f32, sc_height: f32) -> Self {
+        let aspect = Vec2::splat(world.map.tile_size / TEXTURE_SIZE);
         Settings {
-            aspect: Vec2::ONE,
-            sc_width: 640.0,
-            sc_height: 480.0,
-            fullscreen_type: FullscreenType::Windowed
+            aspect,
+            sc_width,
+            sc_height,
+            fullscreen_type: ggez::conf::FullscreenType::Windowed,
+            mouse_wheel_sensitivity: aspect.x,
         }
     }
 }
@@ -59,28 +66,29 @@ fn main() -> ggez::GameResult {
 
     let mut reg = defs::Registry::new()?;
 
-    let atlas = res::Atlas::new(&ctx, &defs::get_paths(&reg))?;
-    defs::gen_uv_cache(&mut reg, &atlas)?;
-
-    let mut script_engine = scripts::ScriptEngine::new();
-    defs::link_scripts(&mut reg, &mut script_engine);
-
-    defs::REGISTRY.set(reg).expect("Game registry already initialized");
-
-    let world_ref = Arc::new(RefCell::new(world::World::new(128, 64, 64.0)));
+    let world_ref = Arc::new(RefCell::new(world::World::new(&reg, 128, 64, 64.0)));
     let world = world_ref.borrow();
 
-    script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
+    let settings = Settings::new(&world, sc_width, sc_height);
 
-    let mut settings = Settings::new();
-    settings.aspect = Vec2::splat(world.map.tile_size / TEXTURE_SIZE);
-    settings.sc_width = sc_width;
-    settings.sc_height = sc_height;
+    let mut script_engine = scripts::ScriptEngine::new();
+    defs::link_scripts(&reg, &mut script_engine);
 
-    let camera = player::Camera::new(&world.map, &settings);
+    let mut player_ui = crate::ui::PlayerUI::new(&reg, &settings);
+    let mut paths_list = player_ui.collect_ui_paths();
+    paths_list.append(&mut defs::get_paths(&reg));
+
+    let atlas = res::Atlas::new(&ctx, &paths_list)?;
+    defs::gen_uv_cache(&mut reg, &atlas)?;
+
+    player_ui.block_list.load_atlas_rect(&atlas)?;
+    let player = player::Player::new_with_ui(&world.map, &settings, player_ui);
 
     drop(world);
-    let game = game::Game::new(atlas, world_ref, camera, script_engine, settings);
+    defs::REGISTRY.set(reg).expect("Game registry already initialized");
+    script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
+
+    let game = game::Game::new(atlas, world_ref, player, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
