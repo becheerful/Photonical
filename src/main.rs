@@ -49,7 +49,7 @@ impl Settings {
             sc_width,
             sc_height,
             fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: aspect.x,
+            mouse_wheel_sensitivity: aspect.x / 2.0,
         }
     }
 }
@@ -58,11 +58,12 @@ fn main() -> ggez::GameResult {
     let sc_width: f32 = 1920.0;
     let sc_height: f32 = 1080.0;
 
-    let (ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
+    let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
         .build()?;
     ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
+    ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
 

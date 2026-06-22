@@ -1,6 +1,6 @@
-use ggez::{GameResult, glam::Vec2, graphics::{Canvas, Rect}};
+use ggez::{GameResult, glam::Vec2, graphics::Rect};
 
-use crate::res::Atlas;
+use crate::{Settings, res::Atlas};
 
 pub trait UI {
     fn get_texture_path(&self) -> &str;
@@ -12,7 +12,7 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(registry: &crate::defs::Registry, settings: &crate::Settings) -> Self {
+    pub fn new(registry: &crate::defs::Registry, settings: &Settings) -> Self {
         Self {
             block_list: BlockListUI::new(registry, settings)
         }
@@ -24,7 +24,7 @@ impl PlayerUI {
         ]
     }
 
-    pub fn draw(&self, canvas: &mut Canvas, atlas: &Atlas) -> GameResult {
+    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
         self.block_list.draw(canvas, atlas)?;
         Ok(())
     }
@@ -41,15 +41,15 @@ pub struct BlockListUI {
     pub padding: f32,
     pub item_size: f32,
     pub scroll_offset: f32,
-    pub blocks_count: u32,
+    pub blocks: Vec<crate::defs::BlockDef>,
 }
 
 impl BlockListUI {
-    const COLS: u32 = 4;
+    const COLS: usize = 4;
     // Basically intended to be used as `u32`
     pub const PADDING: f32 = 4.0;
 
-    pub fn new(registry: &crate::defs::Registry, settings: &crate::Settings) -> Self {
+    pub fn new(registry: &crate::defs::Registry, settings: &Settings) -> Self {
         let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * settings.aspect.x;
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
@@ -58,7 +58,7 @@ impl BlockListUI {
             padding: Self::PADDING * settings.aspect.x,
             item_size: (crate::TEXTURE_SIZE + Self::COLS as f32) * settings.aspect.x,
             scroll_offset: 0.0,
-            blocks_count: registry.get_number_of_blocks(),
+            blocks: registry.get_all_blocks(),
         }
     }
 
@@ -67,7 +67,7 @@ impl BlockListUI {
         Ok(())
     }
 
-    fn draw(&self, canvas: &mut Canvas, atlas: &Atlas) -> GameResult {
+    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
         let xy = self.hitbox.point();
 
         canvas.draw(
@@ -78,11 +78,11 @@ impl BlockListUI {
                 .scale(self.aspect)
         );
 
-        for i in 0..self.blocks_count {
+        for i in 0..self.blocks.len() {
             canvas.draw(
                 &atlas.image,
                 ggez::graphics::DrawParam::default()
-                    .src(*atlas.get_block_uv(crate::defs::registry().get_block_directly(i).unwrap())?)
+                    .src(*atlas.get_block_uv(&self.blocks[i])?)
                     .dest(Vec2::new(
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
                         xy.y + (i / Self::COLS) as f32 * self.item_size + self.padding + self.scroll_offset,
@@ -92,6 +92,12 @@ impl BlockListUI {
         }
 
         Ok(())
+    }
+
+    pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, y: f32) {
+        if self.hitbox.contains(mouse_pos) {
+            self.scroll_offset += y * (crate::TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
+        }
     }
 }
 

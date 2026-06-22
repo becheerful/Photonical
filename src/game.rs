@@ -206,8 +206,8 @@ impl EventHandler for Game {
         Ok(())
     }
 
-    fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) -> Result<(), GameError> {
-        self.player.ui.block_list.scroll_offset += y * self.settings.mouse_wheel_sensitivity * (crate::TEXTURE_SIZE + crate::ui::BlockListUI::PADDING);
+    fn mouse_wheel_event(&mut self, ctx: &mut Context, _x: f32, y: f32) -> GameResult {
+        self.player.ui.block_list.scroll_event(&self.settings, ctx.mouse.position(), y);
         Ok(())
     }
 

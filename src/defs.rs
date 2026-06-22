@@ -175,12 +175,16 @@ impl Registry {
         self.blocks.get(index as usize)
     }
 
-    pub fn get_block_index(&self, id: &str) -> Option<u32> {
-        self.blocks_idx.get(id).copied()
+    pub fn get_all_blocks(&self) -> Vec<BlockDef> {
+        self.blocks.clone()
     }
 
     pub fn get_number_of_blocks(&self) -> u32 {
         self.blocks.len() as u32
+    }
+
+    pub fn get_block_index(&self, id: &str) -> Option<u32> {
+        self.blocks_idx.get(id).copied()
     }
 
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
