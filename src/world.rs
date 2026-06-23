@@ -78,7 +78,7 @@ impl GridMap {
             height,
             tile_size,
             static_tiles: (0..size).map(|i| (
-                registry.get_block_index("photonical:stone").unwrap(),
+                registry.get_block_index("photonical:sand").unwrap(),
                 UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
             )).collect(),
             block_entities: vec![None; size],
