@@ -18,6 +18,7 @@ pub struct World {
     pub map: GridMap,
     pub ecs: hecs::World,
     pub energy_master: EnergyMaster,
+    pub aspect: ggez::glam::Vec2,
 }
 
 impl World {
@@ -26,6 +27,7 @@ impl World {
             map: GridMap::new(registry, width, height, tile_size),
             ecs: hecs::World::new(),
             energy_master: EnergyMaster::new(),
+            aspect: ggez::glam::Vec2::splat(tile_size / crate::TEXTURE_SIZE),
         }
     }
 

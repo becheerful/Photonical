@@ -1,7 +1,5 @@
 use std::{cell::RefCell, sync::Arc};
 
-use ggez::glam::Vec2;
-
 mod res;
 mod defs;
 mod scripts;
@@ -12,7 +10,7 @@ mod player;
 mod ui;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
-const TEXTURE_SIZE: f32 = 16.0;
+const TEXTURE_SIZE: f32 = 32.0;
 
 // field names for scripts
 const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
@@ -34,7 +32,6 @@ const NETWORK_MASK_STORAGE: u8 = 3;
 pub type WorldRef = Arc<RefCell<world::World>>;
 
 struct Settings {
-    pub aspect: Vec2,
     pub sc_width: f32,
     pub sc_height: f32,
     pub fullscreen_type: ggez::conf::FullscreenType,
@@ -43,13 +40,11 @@ struct Settings {
 
 impl Settings {
     pub fn new(world: &crate::world::World, sc_width: f32, sc_height: f32) -> Self {
-        let aspect = Vec2::splat(world.map.tile_size / TEXTURE_SIZE);
         Settings {
-            aspect,
             sc_width,
             sc_height,
             fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: aspect.x / 2.0,
+            mouse_wheel_sensitivity: world.aspect.x / 2.0,
         }
     }
 }
@@ -67,7 +62,7 @@ fn main() -> ggez::GameResult {
 
     let mut reg = defs::Registry::new()?;
 
-    let world_ref = Arc::new(RefCell::new(world::World::new(&reg, 128, 64, 64.0)));
+    let world_ref = Arc::new(RefCell::new(world::World::new(&reg, 128, 64, 32.0)));
     let world = world_ref.borrow();
 
     let settings = Settings::new(&world, sc_width, sc_height);
@@ -75,7 +70,7 @@ fn main() -> ggez::GameResult {
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
 
-    let mut player_ui = crate::ui::PlayerUI::new(&reg, &settings);
+    let mut player_ui = crate::ui::PlayerUI::new(&reg, &world, &settings);
     let mut paths_list = player_ui.collect_ui_paths();
     paths_list.append(&mut defs::get_paths(&reg));
 

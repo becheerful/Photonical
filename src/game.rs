@@ -207,7 +207,12 @@ impl EventHandler for Game {
     }
 
     fn mouse_wheel_event(&mut self, ctx: &mut Context, _x: f32, y: f32) -> GameResult {
-        self.player.ui.block_list.scroll_event(&self.settings, ctx.mouse.position(), y);
+        if !self.player.ui.block_list.scroll_event(&self.settings, ctx.mouse.position(), y) {
+            let mut world = self.world.borrow_mut();
+            world.aspect += y * 0.1;
+            world.map.tile_size = crate::TEXTURE_SIZE * world.aspect.x;
+        }
+
         Ok(())
     }
 
@@ -231,6 +236,7 @@ impl EventHandler for Game {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut world = self.world.borrow_mut();
         let tile_size = world.map.tile_size;
+        let aspect = world.aspect;
 
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
@@ -241,7 +247,7 @@ impl EventHandler for Game {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
                 .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
-                .scale(self.settings.aspect)
+                .scale(aspect)
             );
         }
 
@@ -249,7 +255,7 @@ impl EventHandler for Game {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
                 .dest(pos.0.as_vec2() * tile_size - self.player.camera.pos)
-                .scale(self.settings.aspect)
+                .scale(aspect)
             );
         }
 

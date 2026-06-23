@@ -12,9 +12,9 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(registry: &crate::defs::Registry, settings: &Settings) -> Self {
+    pub fn new(registry: &crate::defs::Registry, world: &crate::world::World, settings: &Settings) -> Self {
         Self {
-            block_list: BlockListUI::new(registry, settings)
+            block_list: BlockListUI::new(registry, world, settings)
         }
     }
 
@@ -47,16 +47,18 @@ pub struct BlockListUI {
 impl BlockListUI {
     const COLS: usize = 4;
     // Basically intended to be used as `u32`
-    pub const PADDING: f32 = 4.0;
+    pub const PADDING: f32 = 8.0;
 
-    pub fn new(registry: &crate::defs::Registry, settings: &Settings) -> Self {
-        let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * settings.aspect.x;
+    pub fn new(registry: &crate::defs::Registry, world: &crate::world::World, settings: &Settings) -> Self {
+        let aspect = world.aspect * 2.0;
+        let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
+
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
             atlas_rect: None,
-            aspect: settings.aspect,
-            padding: Self::PADDING * settings.aspect.x,
-            item_size: (crate::TEXTURE_SIZE + Self::COLS as f32) * settings.aspect.x,
+            aspect,
+            padding: Self::PADDING * world.aspect.x,
+            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * 2.0,
             scroll_offset: 0.0,
             blocks: registry.get_all_blocks(),
         }
@@ -94,10 +96,13 @@ impl BlockListUI {
         Ok(())
     }
 
-    pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, y: f32) {
-        if self.hitbox.contains(mouse_pos) {
+    pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, y: f32) -> bool {
+        let contains = self.hitbox.contains(mouse_pos);
+        if contains {
             self.scroll_offset += y * (crate::TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
         }
+
+        contains
     }
 }
 
