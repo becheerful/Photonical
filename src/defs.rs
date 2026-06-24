@@ -256,12 +256,10 @@ pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) -> GameR
 }
 
 pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::ScriptEngine) {
-    for block in &registry.blocks {
-        if let Some(script_path) = &block.script {
+    for i in 0..registry.blocks.len() {
+        if let Some(script_path) = &registry.blocks[i].script {
             if let Ok(code) = fs::read_to_string(script_path.clone()) {
-                // We can call `.unwrap()` here because we're working in the registry and we know what it contains
-                let id = registry.get_block_index(&block.id).unwrap();
-                if let Err(e) = script_engine.load_script(id, &code) {
+                if let Err(e) = script_engine.load_scripts(i as u32, &code) {
                     eprintln!("{e}");
                 }
             } else {

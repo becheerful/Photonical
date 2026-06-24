@@ -3,10 +3,10 @@ use ggez::{
     GameError,
     GameResult,
     conf::FullscreenType,
-    event::EventHandler,
+    event::{EventHandler, MouseButton},
     glam::UVec2,
     graphics::{DrawParam, Drawable},
-    input::keyboard::KeyCode
+    input::keyboard::KeyCode,
 };
 
 use crate::{
@@ -32,7 +32,7 @@ pub struct Game {
     pub player: Player,
     pub script_engine: ScriptEngine,
     pub settings: Settings,
-    pub cur_block: u32,
+    pub cur_block: Option<u32>,
     pub cur_net: Option<u32>,
 }
 
@@ -44,25 +44,31 @@ impl Game {
             player,
             script_engine,
             settings,
-            cur_block: registry().get_block_index("photonical:collimator").expect("Block not found"),
+            cur_block: None,
             cur_net: Some(0),
         }
     }
 
-    pub fn point_to_block_pos(&self, p: ggez::mint::Point2<f32>) -> (u16, u16) {
+    pub fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
         let world = self.world.borrow();
         (
-            ((p.x + self.player.camera.pos.x) / world.map.tile_size) as u16,
-            ((p.y + self.player.camera.pos.y) / world.map.tile_size) as u16,
+            ((px + self.player.camera.pos.x) / world.map.tile_size) as u16,
+            ((py + self.player.camera.pos.y) / world.map.tile_size) as u16,
         )
     }
 
-    pub fn insert_block(&mut self, x: u16, y: u16) -> GameResult {
+    pub fn handle_click_on_block(&mut self, dt: f32, x: u16, y: u16) -> GameResult {
         let mut world = self.world.borrow_mut();
         let index = world.map.index(x, y);
 
         if world.map.block_entities[index].is_none() {
-            let bd = registry().get_block_directly(self.cur_block).unwrap();
+            if self.cur_block.is_none() {
+                return Ok(());
+            }
+
+            let cur_block = self.cur_block.unwrap();
+
+            let bd = registry().get_block_directly(cur_block).unwrap();
             let has_network = !bd.net.is_empty();
 
             if has_network {
@@ -77,7 +83,7 @@ impl Game {
                             )?.as_i64().expect("");
 
                             let e = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
+                                BlockType(cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
                                 PowerProducer(power as u32),
                                 NetworkId(net_id),
@@ -93,7 +99,7 @@ impl Game {
                             )?.as_i64().expect("");
 
                             let e = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
+                                BlockType(cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
                                 PowerConsumer(demand as u32),
                                 NetworkId(net_id),
@@ -109,7 +115,7 @@ impl Game {
                             )?.as_i64().expect("");
 
                             let e = Some(world.ecs.spawn((
-                                BlockType(self.cur_block),
+                                BlockType(cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
                                 PowerStorage(0, capacity as u32),
                                 NetworkId(net_id),
@@ -131,7 +137,7 @@ impl Game {
             if bd.script.is_some() {
                 if world.map.block_entities[index].is_none() {
                     world.map.block_entities[index] = Some(world.ecs.spawn((
-                        BlockType(self.cur_block),
+                        BlockType(cur_block),
                         Position(UVec2::new(x as u32, y as u32)),
                         Table(None),
                     )));
@@ -142,8 +148,17 @@ impl Game {
                     }
                 }
             } else if !has_network {
-                world.map.static_tiles[index] = (self.cur_block, UVec2::new(x as u32, y as u32));
+                world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
             }
+
+            self.cur_block = None;
+        } else if let Err(e) = self.script_engine.run_lua_function(
+            crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
+            &mut world,
+            index,
+            dt,
+        ) {
+            eprintln!("{e}");
         }
 
         Ok(())
@@ -172,7 +187,7 @@ impl Game {
         let mut world = self.world.borrow_mut();
         world.update();
 
-        if let Err(e) = self.script_engine.update(&world, dt) {
+        if let Err(e) = self.script_engine.update(&mut world, dt) {
             eprintln!("{e}");
         }
     }
@@ -191,15 +206,75 @@ impl EventHandler for Game {
                     ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
                 }
                 KeyCode::Escape => ctx.request_quit(),
-                KeyCode::Key1 => self.cur_block = 0,
-                KeyCode::Key2 => self.cur_block = 1,
-                KeyCode::Key3 => self.cur_block = 2,
-                KeyCode::Key4 => self.cur_block = 3,
+                KeyCode::Key1 => self.cur_block = Some(0),
+                KeyCode::Key2 => self.cur_block = Some(1),
+                KeyCode::Key3 => self.cur_block = Some(2),
+                KeyCode::Key4 => self.cur_block = Some(3),
                 key => {
                     if let Some(direction) = self.player.camera.get_movement_vector(key) {
                         self.player.camera.move_towards(direction);
                     }
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, button: ggez::event::MouseButton, mx: f32, my: f32) -> GameResult {
+        match button {
+            MouseButton::Left => {
+                if !self.player.ui.block_list.mouse_button_down_event(ggez::glam::Vec2::new(mx, my)) {
+                    let (x, y) = self.point_to_block_pos(mx, my);
+                    if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
+                        self.cur_net = self.get_block_network_id(x, y);
+                    } else {
+                        self.handle_click_on_block(ctx.time.delta().as_secs_f32(), x, y)?;
+                    }
+                }
+            }
+
+            MouseButton::Middle => {
+                let (x, y) = self.point_to_block_pos(mx, my);
+                let mut world = self.world.borrow_mut();
+
+                if let Some(entity) = world.map.get(x, y) {
+                    if let Ok((id, network)) = world.ecs.query_one_mut::<(
+                        &BlockType, Option<&NetworkId>
+                    )>(entity) {
+                        self.cur_block = Some(id.0);
+
+                        if let Some(net_id) = network {
+                            self.cur_net = Some(net_id.0)
+                        }
+                    }
+                }
+            }
+
+            MouseButton::Right => {
+                let (x, y) = self.point_to_block_pos(mx, my);
+                self.remove_block(x, y);
+            }
+
+            MouseButton::Other(_) => {}
+        }
+
+        Ok(())
+    }
+
+    fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, mx: f32, my: f32) -> GameResult {
+        if button == MouseButton::Left {
+            let (x, y) = self.point_to_block_pos(mx, my);
+            let mut world = self.world.borrow_mut();
+            let index = world.map.index(x, y);
+
+            if let Err(e) = self.script_engine.run_lua_function(
+                crate::LUA_FUNCTION_MOUSE_BUTTON_UP,
+                &mut world,
+                index,
+                ctx.time.delta().as_secs_f32(),
+            ) {
+                eprintln!("{e}")
             }
         }
 
@@ -217,18 +292,6 @@ impl EventHandler for Game {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        if ctx.mouse.button_pressed(ggez::event::MouseButton::Left) {
-            let (x, y) = self.point_to_block_pos(ctx.mouse.position());
-            if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
-                self.cur_net = self.get_block_network_id(x, y);
-            } else {
-                self.insert_block(x, y)?;
-            }
-        } else if ctx.mouse.button_pressed(ggez::event::MouseButton::Right) {
-            let (x, y) = self.point_to_block_pos(ctx.mouse.position());
-            self.remove_block(x, y);
-        }
-
         self.update_game(ctx.time.delta().as_secs_f32());
         Ok(())
     }

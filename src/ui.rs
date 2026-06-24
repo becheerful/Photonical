@@ -96,10 +96,19 @@ impl BlockListUI {
         Ok(())
     }
 
-    pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, y: f32) -> bool {
+    pub fn mouse_button_down_event(&self, mouse_pos: Vec2) -> bool {
         let contains = self.hitbox.contains(mouse_pos);
         if contains {
-            self.scroll_offset += y * (crate::TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
+            // todo: choose block
+        }
+
+        contains
+    }
+
+    pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, dy: f32) -> bool {
+        let contains = self.hitbox.contains(mouse_pos);
+        if contains {
+            self.scroll_offset += dy * (crate::TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
         }
 
         contains

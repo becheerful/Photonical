@@ -24,6 +24,10 @@ const PARAM_ENERGY_DEMAND: &str = "demand";
 const PARAM_ENERGY_CAPACITY: &str = "capacity";
 const PARAM_ENERGY_MASK: &str = "mask";
 
+const LUA_FUNCTION_UPDATE: &str = "update";
+const LUA_FUNCTION_MOUSE_BUTTON_DOWN: &str = "on_mouse_button_down";
+const LUA_FUNCTION_MOUSE_BUTTON_UP: &str = "on_mouse_button_up";
+
 const NETWORK_MASK_PRODUCER: u8 = 1;
 const NETWORK_MASK_CONSUMER: u8 = 2;
 const NETWORK_MASK_STORAGE: u8 = 3;
