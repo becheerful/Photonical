@@ -74,7 +74,7 @@ fn main() -> ggez::GameResult {
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
 
-    let mut player_ui = crate::ui::PlayerUI::new(&reg, &world, &settings);
+    let mut player_ui = crate::ui::PlayerUI::new(&reg, &world.aspect, &settings);
     let mut paths_list = player_ui.collect_ui_paths();
     paths_list.append(&mut defs::get_paths(&reg));
 

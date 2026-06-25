@@ -12,9 +12,9 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(registry: &crate::defs::Registry, world: &crate::world::World, settings: &Settings) -> Self {
+    pub fn new(registry: &crate::defs::Registry, aspect: &Vec2, settings: &Settings) -> Self {
         Self {
-            block_list: BlockListUI::new(registry, world, settings)
+            block_list: BlockListUI::new(registry, aspect, settings)
         }
     }
 
@@ -49,16 +49,16 @@ impl BlockListUI {
     // Basically intended to be used as `u32`
     pub const PADDING: f32 = 8.0;
 
-    pub fn new(registry: &crate::defs::Registry, world: &crate::world::World, settings: &Settings) -> Self {
-        let aspect = world.aspect * 2.0;
+    pub fn new(registry: &crate::defs::Registry, aspect: &Vec2, settings: &Settings) -> Self {
+        let aspect = *aspect * 2.0;
         let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
 
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
             atlas_rect: None,
             aspect,
-            padding: Self::PADDING * world.aspect.x,
-            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * 2.0,
+            padding: Self::PADDING * aspect.x,
+            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
             blocks: registry.get_all_blocks(),
         }
