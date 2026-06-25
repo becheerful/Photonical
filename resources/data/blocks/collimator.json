@@ -2,7 +2,7 @@
     "id": "photonical:collimator",
     "name": "Collimator",
     "texture": "resources/assets/textures/blocks/collimator.png",
-    "script": "scripts/collimator.lua",
+    "script": null,
     "fields": {},
     "net": {
         "power": 1,

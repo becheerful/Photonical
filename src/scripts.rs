@@ -136,7 +136,8 @@ impl ScriptEngine {
         Ok(())
     }
 
-    fn create_table(&self,
+    fn create_table(
+        &self,
         entity: &hecs::Entity,
         id: &BlockType,
         pos: &Position,

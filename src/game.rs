@@ -243,7 +243,6 @@ impl EventHandler for Game {
                         &BlockType, Option<&NetworkId>
                     )>(entity) {
                         self.cur_block = Some(id.0);
-
                         if let Some(net_id) = network {
                             self.cur_net = Some(net_id.0)
                         }

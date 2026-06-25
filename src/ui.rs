@@ -80,6 +80,8 @@ impl BlockListUI {
                 .scale(self.aspect)
         );
 
+        canvas.set_scissor_rect(self.hitbox)?;
+
         for i in 0..self.blocks.len() {
             canvas.draw(
                 &atlas.image,
