@@ -3,11 +3,17 @@ use std::{collections::HashMap, fs};
 use ggez::GameResult;
 use serde::{Deserialize, Serialize};
 
+fn get_default_size() -> u16 {
+    1
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
     pub id: String,
     pub name: String,
     pub texture: String,
+    #[serde(default = "get_default_size")]
+    pub size: u16,
     pub script: Option<String>,
     pub fields: serde_json::Map<String, serde_json::Value>,
     pub net: serde_json::Map<String, serde_json::Value>,

@@ -89,7 +89,13 @@ impl Game {
                                 NetworkId(net_id),
                             )));
 
-                            world.map.block_entities[index] = e;
+                            for col in x..(x + bd.size) {
+                                for row in y..(y + bd.size) {
+                                    let index = world.map.index(col, row);
+                                    world.map.block_entities[index] = e;
+                                }
+                            }
+
                             world.energy_master.add_producer(net_id, power);
                         }
 
@@ -105,7 +111,13 @@ impl Game {
                                 NetworkId(net_id),
                             )));
 
-                            world.map.block_entities[index] = e;
+                            for col in x..(x + bd.size) {
+                                for row in y..(y + bd.size) {
+                                    let index = world.map.index(col, row);
+                                    world.map.block_entities[index] = e;
+                                }
+                            }
+
                             world.energy_master.add_consumer(net_id, demand);
                         }
 
@@ -121,7 +133,13 @@ impl Game {
                                 NetworkId(net_id),
                             )));
 
-                            world.map.block_entities[index] = e;
+                            for col in x..(x + bd.size) {
+                                for row in y..(y + bd.size) {
+                                    let index = world.map.index(col, row);
+                                    world.map.block_entities[index] = e;
+                                }
+                            }
+
                             world.energy_master.add_storage(net_id);
                         }
 
@@ -136,11 +154,18 @@ impl Game {
 
             if bd.script.is_some() {
                 if world.map.block_entities[index].is_none() {
-                    world.map.block_entities[index] = Some(world.ecs.spawn((
+                    let e = Some(world.ecs.spawn((
                         BlockType(cur_block),
                         Position(UVec2::new(x as u32, y as u32)),
                         Table(None),
                     )));
+
+                    for col in x..(x + bd.size) {
+                        for row in y..(y + bd.size) {
+                            let index = world.map.index(col, row);
+                            world.map.block_entities[index] = e;
+                        }
+                    }
                 } else {
                     let e = world.map.block_entities[index].unwrap();
                     if let Err(e) = world.ecs.insert_one(e, Table(None)) {
@@ -166,8 +191,7 @@ impl Game {
 
     pub fn remove_block(&mut self, x: u16, y: u16) {
         let mut world = self.world.borrow_mut();
-        let index = world.map.index(x, y);
-        world.remove_entity(index);
+        world.remove_entity(x, y);
     }
 
     pub fn get_block_network_id(&self, x: u16, y: u16) -> Option<u32> {

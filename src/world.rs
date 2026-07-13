@@ -35,23 +35,29 @@ impl World {
         self.energy_master.update(&mut self.ecs);
     }
 
-    pub fn remove_entity(&mut self, index: usize) {
-        if let Some(entity) = self.map.block_entities[index] {
-            if let Ok((id, producer, consumer)) = self.ecs.query_one_mut::<(
-                &NetworkId, Option<&PowerProducer>, Option<&PowerConsumer>
+    pub fn remove_entity(&mut self, x: u16, y: u16) {
+        if let Some(entity) = self.map.block_entities[self.map.index(x, y)] {
+            let mut block_type = 0;
+
+            if let Ok((id, net, producer, consumer)) = self.ecs.query_one_mut::<(
+                &BlockType, Option<&NetworkId>, Option<&PowerProducer>, Option<&PowerConsumer>
             )>(entity) {
-                let network = self.energy_master.networks.get_mut(&id.0).unwrap();
+                block_type = id.0;
 
-                if let Some(power) = producer {
-                    network.imbalance -= power.0 as i64;
-                } else if let Some(demand) = consumer {
-                    network.imbalance += demand.0 as i64;
-                } else {
-                    network.storages -= 1;
-                }
+                if let Some(n) = net {
+                    let network = self.energy_master.networks.get_mut(&n.0).unwrap();
 
-                if network.is_empty() {
-                    self.energy_master.networks.remove(&id.0);
+                    if let Some(power) = producer {
+                        network.imbalance -= power.0 as i64;
+                    } else if let Some(demand) = consumer {
+                        network.imbalance += demand.0 as i64;
+                    } else {
+                        network.storages -= 1;
+                    }
+
+                    if network.is_empty() {
+                        self.energy_master.networks.remove(&n.0);
+                    }
                 }
             }
 
@@ -59,7 +65,14 @@ impl World {
                 eprintln!("{e}");
             }
 
-            self.map.block_entities[index] = None;
+            let size = crate::defs::registry().get_block_directly(block_type).unwrap().size;
+            for col in x..(x + size) {
+                for row in y..(y + size) {
+                    let index = self.map.index(col, row);
+                    self.map.block_entities[index] = None;
+                }
+            }
+
         }
     }
 }

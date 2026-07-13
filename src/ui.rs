@@ -41,6 +41,7 @@ pub struct BlockListUI {
     pub padding: f32,
     pub item_size: f32,
     pub scroll_offset: f32,
+    pub sizes: Vec<f32>,
     pub blocks: Vec<crate::defs::BlockDef>,
 }
 
@@ -53,6 +54,8 @@ impl BlockListUI {
         let aspect = *aspect * 2.0;
         let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
 
+        let blocks = registry.get_all_blocks();
+
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
             atlas_rect: None,
@@ -60,7 +63,8 @@ impl BlockListUI {
             padding: Self::PADDING * aspect.x,
             item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
-            blocks: registry.get_all_blocks(),
+            sizes: blocks.iter().map(|def| def.size as f32).collect(),
+            blocks,
         }
     }
 
@@ -91,7 +95,7 @@ impl BlockListUI {
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
                         xy.y + (i / Self::COLS) as f32 * self.item_size + self.padding + self.scroll_offset,
                     ))
-                    .scale(self.aspect)
+                    .scale(self.aspect / self.sizes[i])
             );
         }
 
