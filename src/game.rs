@@ -230,10 +230,6 @@ impl EventHandler for Game {
                     ctx.gfx.set_fullscreen(self.settings.fullscreen_type)?;
                 }
                 KeyCode::Escape => ctx.request_quit(),
-                KeyCode::Key1 => self.cur_block = Some(0),
-                KeyCode::Key2 => self.cur_block = Some(1),
-                KeyCode::Key3 => self.cur_block = Some(2),
-                KeyCode::Key4 => self.cur_block = Some(3),
                 key => {
                     if let Some(direction) = self.player.camera.get_movement_vector(key) {
                         self.player.camera.move_towards(direction);
@@ -248,7 +244,13 @@ impl EventHandler for Game {
     fn mouse_button_down_event(&mut self, ctx: &mut Context, button: ggez::event::MouseButton, mx: f32, my: f32) -> GameResult {
         match button {
             MouseButton::Left => {
-                if !self.player.ui.block_list.mouse_button_down_event(ggez::glam::Vec2::new(mx, my)) {
+                let index = self.player.ui.block_list.mouse_button_down_event(&self.settings, ggez::glam::Vec2::new(mx, my));
+                if index != None {
+                    self.cur_block = index;
+                    return Ok(());
+                }
+
+                if self.cur_block != None {
                     let (x, y) = self.point_to_block_pos(mx, my);
                     if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
                         self.cur_net = self.get_block_network_id(x, y);

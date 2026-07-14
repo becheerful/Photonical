@@ -41,7 +41,7 @@ pub struct BlockListUI {
     pub padding: f32,
     pub item_size: f32,
     pub scroll_offset: f32,
-    pub sizes: Vec<f32>,
+    pub sizes: Vec<Vec2>,
     pub blocks: Vec<crate::defs::BlockDef>,
 }
 
@@ -63,7 +63,7 @@ impl BlockListUI {
             padding: Self::PADDING * aspect.x,
             item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
-            sizes: blocks.iter().map(|def| def.size as f32).collect(),
+            sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
             blocks,
         }
     }
@@ -95,20 +95,21 @@ impl BlockListUI {
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
                         xy.y + (i / Self::COLS) as f32 * self.item_size + self.padding + self.scroll_offset,
                     ))
-                    .scale(self.aspect / self.sizes[i])
+                    .scale(self.sizes[i])
             );
         }
 
         Ok(())
     }
 
-    pub fn mouse_button_down_event(&self, mouse_pos: Vec2) -> bool {
-        let contains = self.hitbox.contains(mouse_pos);
-        if contains {
-            // todo: choose block
+    pub fn mouse_button_down_event(&self, settings: &Settings, mouse_pos: Vec2) -> Option<u32> {
+        if self.hitbox.contains(mouse_pos) {
+            let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as u32;
+            let y = (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as u32;
+            return Some(x / self.item_size as u32 + (y / self.item_size as u32) * Self::COLS as u32);
         }
 
-        contains
+        None
     }
 
     pub fn scroll_event(&mut self, settings: &Settings, mouse_pos: ggez::mint::Point2<f32>, dy: f32) -> bool {
