@@ -106,7 +106,8 @@ impl BlockListUI {
         if self.hitbox.contains(mouse_pos) {
             let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as u32;
             let y = (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as u32;
-            return Some(x / self.item_size as u32 + (y / self.item_size as u32) * Self::COLS as u32);
+            let index = x / self.item_size as u32 + (y / self.item_size as u32) * Self::COLS as u32;
+            return if index as usize > self.blocks.len() - 1 { None } else { Some(index) };
         }
 
         None
