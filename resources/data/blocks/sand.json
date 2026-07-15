@@ -1,6 +1,7 @@
 {
     "id": "photonical:sand",
     "name": "Sand",
+    "editor_only": true,
     "texture": "resources/assets/textures/blocks/sand.png",
     "script": null,
     "fields": {},

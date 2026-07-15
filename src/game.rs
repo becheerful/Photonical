@@ -177,13 +177,17 @@ impl Game {
             }
 
             self.cur_block = None;
-        } else if let Err(e) = self.script_engine.run_lua_function(
-            crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
-            &mut world,
-            index,
-            dt,
-        ) {
-            eprintln!("{e}");
+        } else {
+            drop(world);
+            let world = self.world.borrow();
+            if let Err(e) = self.script_engine.run_lua_function(
+                crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
+                &world,
+                index,
+                dt,
+            ) {
+                eprintln!("{e}");
+            }
         }
 
         Ok(())
@@ -250,13 +254,11 @@ impl EventHandler for Game {
                     return Ok(());
                 }
 
-                if self.cur_block != None {
-                    let (x, y) = self.point_to_block_pos(mx, my);
-                    if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
-                        self.cur_net = self.get_block_network_id(x, y);
-                    } else {
-                        self.handle_click_on_block(ctx.time.delta().as_secs_f32(), x, y)?;
-                    }
+                let (x, y) = self.point_to_block_pos(mx, my);
+                if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
+                    self.cur_net = self.get_block_network_id(x, y);
+                } else {
+                    self.handle_click_on_block(ctx.time.delta().as_secs_f32(), x, y)?;
                 }
             }
 

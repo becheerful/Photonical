@@ -11,6 +11,8 @@ fn get_default_size() -> u16 {
 pub struct BlockDef {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub editor_only: bool,
     pub texture: String,
     #[serde(default = "get_default_size")]
     pub size: u16,

@@ -98,6 +98,18 @@ impl ScriptEngine {
             }
         })?;
 
+        let world = world_ref.clone();
+        let get_stored_energy = self.lua.create_function(move |_, entity_id: u32| {
+            let world = world.borrow();
+            let e = unsafe { world.ecs.find_entity_from_id(entity_id) };
+
+            if let Ok(storage) = world.ecs.get::<&crate::world::PowerStorage>(e) {
+                return Ok(mlua::Value::Integer(storage.0 as i64));
+            }
+
+            Ok(mlua::Value::Nil)
+        })?;
+
         self.lua.globals().set("get_name", get_name)?;
         // Gets the block's string ID in the registry
         self.lua.globals().set("get_block_id", get_block_id)?;
@@ -105,6 +117,7 @@ impl ScriptEngine {
         self.lua.globals().set("get_block_at", get_block_at)?;
         // Gets the total network imbalance divided by the number of energy storages
         self.lua.globals().set("get_imbalance", get_imbalance)?;
+        self.lua.globals().set("get_stored_energy", get_stored_energy)?;
 
         Ok(())
     }
@@ -163,24 +176,23 @@ impl ScriptEngine {
         Ok(block_table)
     }
 
-    pub fn run_lua_function(&mut self, name: &str, world: &mut crate::world::World, index: usize, dt: f32) -> mlua::Result<()> {
+    pub fn run_lua_function(&mut self, name: &str, world: &crate::world::World, index: usize, dt: f32) -> mlua::Result<()> {
         if let Some(func_groups) = self.scripts.get(name) {
             let Some(entity) = world.map.block_entities[index] else {
                 return Ok(());
             };
 
-            if let Ok((id, pos, table, network)) = world.ecs.query_one_mut::<(
-                &BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>,
-            )>(entity) {
-                if let Some(func) = func_groups.get(&id.0) {
-                    let table = if let Some(key) = &table.0 {
-                        self.lua.registry_value::<mlua::Table>(&key)?
-                    } else {
-                        self.create_table(&entity, id, pos, table, network)?
-                    };
+            let mut query = world.ecs.query_one::<(&BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>,)>(entity).unwrap();
+            let (id, pos, table, network) = query.get().unwrap();
 
-                    func.call::<()>((table, dt))?;
-                }
+            if let Some(func) = func_groups.get(&id.0) {
+                let table = if let Some(key) = &table.0 {
+                    self.lua.registry_value::<mlua::Table>(&key)?
+                } else {
+                    self.create_table(&entity, id, pos, table, network)?
+                };
+
+                func.call::<()>((table, dt))?;
             }
         }
 

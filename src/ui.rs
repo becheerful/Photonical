@@ -54,7 +54,12 @@ impl BlockListUI {
         let aspect = *aspect * 2.0;
         let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
 
-        let blocks = registry.get_all_blocks();
+        let blocks: Vec<crate::defs::BlockDef> = registry.get_all_blocks()
+            // .iter()
+            // .filter(|def| !def.editor_only)
+            // .map(|def| def.to_owned())
+            // .collect()
+            ;
 
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
