@@ -13,7 +13,6 @@ use crate::{
     NETWORK_MASK_CONSUMER,
     NETWORK_MASK_PRODUCER,
     NETWORK_MASK_STORAGE,
-    PARAM_ENERGY_CAPACITY,
     PARAM_ENERGY_DEMAND,
     PARAM_ENERGY_MASK,
     PARAM_ENERGY_POWER,
@@ -23,7 +22,7 @@ use crate::{
     player::Player,
     res::Atlas,
     scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, PowerStorage, Table}
+    world::{BlockType, NetworkId, Position, PowerConsumer, PowerProducer, Table}
 };
 
 pub struct Game {
@@ -122,14 +121,9 @@ impl Game {
                         }
 
                         NETWORK_MASK_STORAGE => {
-                            let capacity = bd.net.get(PARAM_ENERGY_CAPACITY).ok_or(
-                                GameError::ConfigError("Missing parameter `capacity` for network mask 3".to_owned())
-                            )?.as_i64().expect("");
-
                             let e = Some(world.ecs.spawn((
                                 BlockType(cur_block),
                                 Position(UVec2::new(x as u32, y as u32)),
-                                PowerStorage(0, capacity as u32),
                                 NetworkId(net_id),
                             )));
 
@@ -212,10 +206,7 @@ impl Game {
     }
 
     fn update_game(&mut self, dt: f32) {
-        let mut world = self.world.borrow_mut();
-        world.update();
-
-        if let Err(e) = self.script_engine.update(&mut world, dt) {
+        if let Err(e) = self.script_engine.update(&self.world.borrow(), dt) {
             eprintln!("{e}");
         }
     }

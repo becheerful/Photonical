@@ -1,6 +1,6 @@
 function update(miners, dt)
     for _, miner in ipairs(miners) do
-        miner.timer = miner.timer + 10 * dt
+        miner.timer = miner.timer + dt
         if miner.timer >= miner.working_time then
             miner.timer = 0
             miner.stored = miner.stored + 1

@@ -98,18 +98,6 @@ impl ScriptEngine {
             }
         })?;
 
-        let world = world_ref.clone();
-        let get_stored_energy = self.lua.create_function(move |_, entity_id: u32| {
-            let world = world.borrow();
-            let e = unsafe { world.ecs.find_entity_from_id(entity_id) };
-
-            if let Ok(storage) = world.ecs.get::<&crate::world::PowerStorage>(e) {
-                return Ok(mlua::Value::Integer(storage.0 as i64));
-            }
-
-            Ok(mlua::Value::Nil)
-        })?;
-
         self.lua.globals().set("get_name", get_name)?;
         // Gets the block's string ID in the registry
         self.lua.globals().set("get_block_id", get_block_id)?;
@@ -117,7 +105,6 @@ impl ScriptEngine {
         self.lua.globals().set("get_block_at", get_block_at)?;
         // Gets the total network imbalance divided by the number of energy storages
         self.lua.globals().set("get_imbalance", get_imbalance)?;
-        self.lua.globals().set("get_stored_energy", get_stored_energy)?;
 
         Ok(())
     }
@@ -199,13 +186,13 @@ impl ScriptEngine {
         Ok(())
     }
 
-    pub fn update(&mut self, world: &mut crate::world::World, dt: f32) -> mlua::Result<()> {
+    pub fn update(&mut self, world: &crate::world::World, dt: f32) -> mlua::Result<()> {
         if let Some(func_group) = self.scripts.get(LUA_FUNCTION_UPDATE) {
             let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-            for (entity, (id, pos, table, network)) in world.ecs.query_mut::<(
+            for (entity, (id, pos, table, network)) in world.ecs.query::<(
                 &BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>
-            )>() {
+            )>().iter() {
                 if let Some(key) = &table.0 {
                     block_groups.entry(id.0).or_default().push(self.lua.registry_value(&key)?);
                 } else {

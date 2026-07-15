@@ -21,7 +21,6 @@ const PARAM_POSITION: &str = "pos";
 // parameter names for .json block definitions
 const PARAM_ENERGY_POWER: &str = "power";
 const PARAM_ENERGY_DEMAND: &str = "demand";
-const PARAM_ENERGY_CAPACITY: &str = "capacity";
 const PARAM_ENERGY_MASK: &str = "mask";
 
 const LUA_FUNCTION_UPDATE: &str = "update";

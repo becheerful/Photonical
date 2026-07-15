@@ -6,7 +6,7 @@
     "fields": {
         "resource": "photonical:diamond",
         "stored": 0,
-        "working_time": 15,
+        "working_time": 3,
         "timer": 0
     },
     "net": {}

@@ -9,8 +9,6 @@ pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub struct PowerProducer(pub u32);
 pub struct PowerConsumer(pub u32);
-// first `u32` is for stored energy, second `u32` is for capacity
-pub struct PowerStorage(pub u32, pub u32);
 pub struct NetworkId(pub u32);
 
 
@@ -29,10 +27,6 @@ impl World {
             energy_master: EnergyMaster::new(),
             aspect: ggez::glam::Vec2::splat(tile_size / crate::TEXTURE_SIZE),
         }
-    }
-
-    pub fn update(&mut self) {
-        self.energy_master.update(&mut self.ecs);
     }
 
     pub fn remove_entity(&mut self, x: u16, y: u16) {

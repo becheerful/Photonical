@@ -32,21 +32,6 @@ impl EnergyMaster {
         Self { networks: HashMap::new() }
     }
 
-    pub fn update(&mut self, ecs: &mut hecs::World) {
-        for (_, (net_id, storage)) in ecs.query_mut::<(
-            &crate::world::NetworkId, &mut crate::world::PowerStorage,
-        )>() {
-            let imbalance = self.networks.get(&net_id.0).unwrap().get_storage_imbalance();
-            let stored = &mut storage.0;
-            *stored = storage.1.min(if imbalance >= 0 {
-                *stored + (imbalance.abs() as u32)
-            } else {
-                *stored - (imbalance.abs() as u32)
-            }).max(0);
-            // println!("{}", *stored);
-        }
-    }
-
     pub fn add_producer(&mut self, net_id: u32, power: i64) {
         self.networks.entry(net_id).or_insert(Network::new()).imbalance += power;
     }

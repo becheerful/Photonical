@@ -2,10 +2,12 @@
     "id": "photonical:plasma_vessel",
     "name": "Plasma Vessel",
     "texture": "resources/assets/textures/blocks/plasma_vessel.png",
-    "script": "scripts/u_check_energy.lua",
-    "fields": {},
+    "script": "scripts/u_energy_storage.lua",
+    "fields": {
+        "stored": 0,
+        "capacity": 25000
+    },
     "net": {
-        "capacity": 25000,
         "mask": 3
     }
 }
