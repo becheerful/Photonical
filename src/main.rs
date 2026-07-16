@@ -13,6 +13,7 @@ const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 32.0;
 
 // field names for scripts
+const PARAM_STRING_ID: &str = "str_id";
 const PARAM_BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
 const PARAM_ENTITY_ID: &str = "entity_id";
 const PARAM_NETWORK_ID: &str = "net_id";

@@ -4,6 +4,7 @@
     "texture": "resources/assets/textures/blocks/vibrating_screen.png",
     "script": "scripts/u_miner.lua",
     "fields": {
+        "source": "photonical:diamond_placer",
         "resource": "photonical:diamond",
         "stored": 0,
         "working_time": 3,

@@ -8,6 +8,7 @@ use crate::{
     PARAM_ENTITY_ID,
     PARAM_NETWORK_ID,
     PARAM_POSITION,
+    PARAM_STRING_ID,
     defs::registry,
     world::{BlockType, NetworkId, Position}
 };
@@ -83,6 +84,7 @@ impl ScriptEngine {
             let table = lua.create_table()?;
             let block = world.map.static_tiles[world.map.index(x, y)];
             table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, block.0)?;
+            table.set(PARAM_STRING_ID, registry().get_block_directly(block.0).unwrap().id.to_owned())?;
             table.set(PARAM_POSITION, block.1.to_array())?;
             Ok(table)
         })?;
