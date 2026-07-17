@@ -29,14 +29,16 @@ impl World {
         }
     }
 
-    pub fn remove_entity(&mut self, x: u16, y: u16) {
-        if let Some(entity) = self.map.block_entities[self.map.index(x, y)] {
+    pub fn remove_entity(&mut self, mut x: u16, mut y: u16) {
+        if let Some(entity) = self.map.get(x, y) {
             let mut block_type = 0;
 
-            if let Ok((id, net, producer, consumer)) = self.ecs.query_one_mut::<(
-                &BlockType, Option<&NetworkId>, Option<&PowerProducer>, Option<&PowerConsumer>
+            if let Ok((id, pos, net, producer, consumer)) = self.ecs.query_one_mut::<(
+                &BlockType, &Position, Option<&NetworkId>, Option<&PowerProducer>, Option<&PowerConsumer>
             )>(entity) {
                 block_type = id.0;
+                x = pos.0.x as u16;
+                y = pos.0.y as u16;
 
                 if let Some(n) = net {
                     let network = self.energy_master.networks.get_mut(&n.0).unwrap();
@@ -66,7 +68,6 @@ impl World {
                     self.map.block_entities[index] = None;
                 }
             }
-
         }
     }
 
