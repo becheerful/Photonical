@@ -70,80 +70,78 @@ impl Game {
             let bd = registry().get_block_directly(cur_block).unwrap();
             let has_network = !bd.net.is_empty();
 
-            if has_network {
-                if let Some(net_mask) = bd.net.get(PARAM_ENERGY_MASK) {
-                    let mask = net_mask.as_u64().expect("") as u8;
-                    let net_id = self.cur_net.unwrap_or(world.energy_master.networks.len() as u32);
+            if has_network && let Some(net_mask) = bd.net.get(PARAM_ENERGY_MASK) {
+                let mask = net_mask.as_u64().expect("") as u8;
+                let net_id = self.cur_net.unwrap_or(world.energy_master.networks.len() as u32);
 
-                    match mask {
-                        NETWORK_MASK_PRODUCER => {
-                            let power = bd.net.get(PARAM_ENERGY_POWER).ok_or(
-                                GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
-                            )?.as_i64().expect("");
+                match mask {
+                    NETWORK_MASK_PRODUCER => {
+                        let power = bd.net.get(PARAM_ENERGY_POWER).ok_or(
+                            GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
+                        )?.as_i64().expect("");
 
-                            let e = Some(world.ecs.spawn((
-                                BlockType(cur_block),
-                                Position(UVec2::new(x as u32, y as u32)),
-                                PowerProducer(power as u32),
-                                NetworkId(net_id),
-                            )));
+                        let e = Some(world.ecs.spawn((
+                            BlockType(cur_block),
+                            Position(UVec2::new(x as u32, y as u32)),
+                            PowerProducer(power as u32),
+                            NetworkId(net_id),
+                        )));
 
-                            for col in x..(x + bd.size) {
-                                for row in y..(y + bd.size) {
-                                    let index = world.map.index(col, row);
-                                    world.map.block_entities[index] = e;
-                                }
+                        for col in x..(x + bd.size) {
+                            for row in y..(y + bd.size) {
+                                let index = world.map.index(col, row);
+                                world.map.block_entities[index] = e.clone();
                             }
-
-                            world.energy_master.add_producer(net_id, power);
                         }
 
-                        NETWORK_MASK_CONSUMER => {
-                            let demand = bd.net.get(PARAM_ENERGY_DEMAND).ok_or(
-                                GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
-                            )?.as_i64().expect("");
-
-                            let e = Some(world.ecs.spawn((
-                                BlockType(cur_block),
-                                Position(UVec2::new(x as u32, y as u32)),
-                                PowerConsumer(demand as u32),
-                                NetworkId(net_id),
-                            )));
-
-                            for col in x..(x + bd.size) {
-                                for row in y..(y + bd.size) {
-                                    let index = world.map.index(col, row);
-                                    world.map.block_entities[index] = e;
-                                }
-                            }
-
-                            world.energy_master.add_consumer(net_id, demand);
-                        }
-
-                        NETWORK_MASK_STORAGE => {
-                            let e = Some(world.ecs.spawn((
-                                BlockType(cur_block),
-                                Position(UVec2::new(x as u32, y as u32)),
-                                NetworkId(net_id),
-                            )));
-
-                            for col in x..(x + bd.size) {
-                                for row in y..(y + bd.size) {
-                                    let index = world.map.index(col, row);
-                                    world.map.block_entities[index] = e;
-                                }
-                            }
-
-                            world.energy_master.add_storage(net_id);
-                        }
-
-                        _ => {
-                            return Err(GameError::ConfigError("No such mask".to_owned()));
-                        }
+                        world.energy_master.add_producer(net_id, power);
                     }
 
-                    self.cur_net = None;
+                    NETWORK_MASK_CONSUMER => {
+                        let demand = bd.net.get(PARAM_ENERGY_DEMAND).ok_or(
+                            GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
+                        )?.as_i64().expect("");
+
+                        let e = Some(world.ecs.spawn((
+                            BlockType(cur_block),
+                            Position(UVec2::new(x as u32, y as u32)),
+                            PowerConsumer(demand as u32),
+                            NetworkId(net_id),
+                        )));
+
+                        for col in x..(x + bd.size) {
+                            for row in y..(y + bd.size) {
+                                let index = world.map.index(col, row);
+                                world.map.block_entities[index] = e.clone();
+                            }
+                        }
+
+                        world.energy_master.add_consumer(net_id, demand);
+                    }
+
+                    NETWORK_MASK_STORAGE => {
+                        let e = Some(world.ecs.spawn((
+                            BlockType(cur_block),
+                            Position(UVec2::new(x as u32, y as u32)),
+                            NetworkId(net_id),
+                        )));
+
+                        for col in x..(x + bd.size) {
+                            for row in y..(y + bd.size) {
+                                let index = world.map.index(col, row);
+                                world.map.block_entities[index] = e.clone();
+                            }
+                        }
+
+                        world.energy_master.add_storage(net_id);
+                    }
+
+                    _ => {
+                        return Err(GameError::ConfigError("No such mask".to_owned()));
+                    }
                 }
+
+                self.cur_net = None;
             }
 
             if bd.script.is_some() {
@@ -157,7 +155,7 @@ impl Game {
                     for col in x..(x + bd.size) {
                         for row in y..(y + bd.size) {
                             let index = world.map.index(col, row);
-                            world.map.block_entities[index] = e;
+                            world.map.block_entities[index] = e.clone();
                         }
                     }
                 } else {

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ggez::GameError;
+
 use crate::{
     LUA_FUNCTION_MOUSE_BUTTON_DOWN,
     LUA_FUNCTION_MOUSE_BUTTON_UP,
@@ -165,23 +167,26 @@ impl ScriptEngine {
         Ok(block_table)
     }
 
-    pub fn run_lua_function(&mut self, name: &str, world: &crate::world::World, index: usize, dt: f32) -> mlua::Result<()> {
+    pub fn run_lua_function(&mut self, name: &str, world: &crate::world::World, index: usize, dt: f32) -> ggez::GameResult {
         if let Some(func_groups) = self.scripts.get(name) {
             let Some(entity) = world.map.block_entities[index] else {
                 return Ok(());
             };
 
-            let mut query = world.ecs.query_one::<(&BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>,)>(entity).unwrap();
-            let (id, pos, table, network) = query.get().unwrap();
+            let mut query = world.ecs.query_one::<(
+                &BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>
+            )>(entity).map_err(|e| GameError::CustomError(e.to_string()))?;
 
-            if let Some(func) = func_groups.get(&id.0) {
-                let table = if let Some(key) = &table.0 {
-                    self.lua.registry_value::<mlua::Table>(&key)?
-                } else {
-                    self.create_table(&entity, id, pos, table, network)?
-                };
+            if let Some((id, pos, table, network)) = query.get() {
+                if let Some(func) = func_groups.get(&id.0) {
+                    let table = if let Some(key) = &table.0 {
+                        self.lua.registry_value::<mlua::Table>(&key).map_err(|e| GameError::CustomError(e.to_string()))?
+                    } else {
+                        self.create_table(&entity, id, pos, table, network).map_err(|e| GameError::CustomError(e.to_string()))?
+                    };
 
-                func.call::<()>((table, dt))?;
+                    func.call::<()>((table, dt)).map_err(|e| GameError::CustomError(e.to_string()))?;
+                }
             }
         }
 

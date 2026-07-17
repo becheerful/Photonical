@@ -54,8 +54,8 @@ impl Settings {
 }
 
 fn main() -> ggez::GameResult {
-    let sc_width: f32 = 1920.0;
-    let sc_height: f32 = 1080.0;
+    let sc_width: f32 = 640.0;
+    let sc_height: f32 = 480.0;
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
