@@ -69,6 +69,28 @@ impl World {
 
         }
     }
+
+    /// Check if there is a free space for a block. If there is, it returns `true`; otherwise, it returns `false`.
+    pub fn check_for_space(&self, x: u16, y: u16, size: u16) -> bool {
+        for col in x..(x + size) {
+            for row in y..(y + size) {
+                if self.map.get(col, row).is_some() {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    pub fn place_block(&mut self, x: u16, y: u16, size: u16, e: Option<Entity>) {
+        for col in x..(x + size) {
+            for row in y..(y + size) {
+                let index = self.map.index(col, row);
+                self.map.block_entities[index] = e.clone();
+            }
+        }
+    }
 }
 
 pub struct GridMap {

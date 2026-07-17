@@ -42,7 +42,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new_with_ui(map: &crate::world::GridMap, settings: &crate::Settings, ui: crate::ui::PlayerUI) -> Self {
+    pub fn new(map: &crate::world::GridMap, settings: &crate::Settings, ui: crate::ui::PlayerUI) -> Self {
         Self {
             camera: Camera::new(map, settings),
             ui,

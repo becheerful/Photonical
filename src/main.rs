@@ -82,7 +82,7 @@ fn main() -> ggez::GameResult {
     defs::gen_uv_cache(&mut reg, &atlas)?;
 
     player_ui.block_list.load_atlas_rect(&atlas)?;
-    let player = player::Player::new_with_ui(&world.map, &settings, player_ui);
+    let player = player::Player::new(&world.map, &settings, player_ui);
 
     drop(world);
     defs::REGISTRY.set(reg).expect("Game registry already initialized");
