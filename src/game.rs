@@ -328,12 +328,13 @@ impl EventHandler for Game {
         }
 
         array.draw(&mut canvas, DrawParam::default());
-        self.player.draw(&mut canvas, &self.atlas)?;
-
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED)
         );
+
+        // should be last because of scissors
+        self.player.draw(&mut canvas, &self.atlas)?;
 
         canvas.finish(ctx)?;
         Ok(())
