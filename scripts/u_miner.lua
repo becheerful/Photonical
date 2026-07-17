@@ -13,6 +13,6 @@ function update(miners, dt)
     end
 end
 
-function on_mouse_button_down(miner, dt)
+function on_mouse_button_down(miner, _dt)
     print("Stored: " .. miner.stored)
 end

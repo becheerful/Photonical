@@ -56,6 +56,28 @@ impl Game {
         )
     }
 
+    fn place_block(world: &mut crate::world::World, entity: Option<hecs::Entity>, x: u16, y: u16, size: u16) -> GameResult {
+        for col in x..(x + size) {
+            for row in y..(y + size) {
+                if world.map.get(col, row).is_some() {
+                    if let Some(e) = entity {
+                        world.ecs.despawn(e).map_err(|e| GameError::CustomError(e.to_string()))?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        for col in x..(x + size) {
+            for row in y..(y + size) {
+                let index = world.map.index(col, row);
+                world.map.block_entities[index] = entity.clone();
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn handle_click_on_block(&mut self, dt: f32, x: u16, y: u16) -> GameResult {
         let mut world = self.world.borrow_mut();
         let index = world.map.index(x, y);
@@ -87,13 +109,7 @@ impl Game {
                             NetworkId(net_id),
                         )));
 
-                        for col in x..(x + bd.size) {
-                            for row in y..(y + bd.size) {
-                                let index = world.map.index(col, row);
-                                world.map.block_entities[index] = e.clone();
-                            }
-                        }
-
+                        Game::place_block(&mut world, e, x, y, bd.size)?;
                         world.energy_master.add_producer(net_id, power);
                     }
 
@@ -109,13 +125,7 @@ impl Game {
                             NetworkId(net_id),
                         )));
 
-                        for col in x..(x + bd.size) {
-                            for row in y..(y + bd.size) {
-                                let index = world.map.index(col, row);
-                                world.map.block_entities[index] = e.clone();
-                            }
-                        }
-
+                        Game::place_block(&mut world, e, x, y, bd.size)?;
                         world.energy_master.add_consumer(net_id, demand);
                     }
 
@@ -126,13 +136,7 @@ impl Game {
                             NetworkId(net_id),
                         )));
 
-                        for col in x..(x + bd.size) {
-                            for row in y..(y + bd.size) {
-                                let index = world.map.index(col, row);
-                                world.map.block_entities[index] = e.clone();
-                            }
-                        }
-
+                        Game::place_block(&mut world, e, x, y, bd.size)?;
                         world.energy_master.add_storage(net_id);
                     }
 
@@ -152,12 +156,7 @@ impl Game {
                         Table(None),
                     )));
 
-                    for col in x..(x + bd.size) {
-                        for row in y..(y + bd.size) {
-                            let index = world.map.index(col, row);
-                            world.map.block_entities[index] = e.clone();
-                        }
-                    }
+                    Game::place_block(&mut world, e, x, y, bd.size)?;
                 } else {
                     let e = world.map.block_entities[index].unwrap();
                     if let Err(e) = world.ecs.insert_one(e, Table(None)) {
