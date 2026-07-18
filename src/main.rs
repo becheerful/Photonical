@@ -8,6 +8,7 @@ mod game;
 mod world;
 mod player;
 mod ui;
+mod states;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 32.0;
@@ -88,7 +89,7 @@ fn main() -> ggez::GameResult {
     defs::REGISTRY.set(reg).expect("Game registry already initialized");
     script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
 
-    let game = game::Game::new(atlas, world_ref, player, script_engine, settings);
+    let game = game::GameHandler::new(atlas, world_ref, player, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
