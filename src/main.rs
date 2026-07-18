@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 mod res;
 mod defs;
@@ -33,7 +33,7 @@ const NETWORK_MASK_CONSUMER: u8 = 2;
 const NETWORK_MASK_STORAGE: u8 = 3;
 
 
-pub type WorldRef = Arc<RefCell<world::World>>;
+pub type WorldRef = Rc<RefCell<world::World>>;
 
 struct Settings {
     pub sc_width: f32,
@@ -66,7 +66,7 @@ fn main() -> ggez::GameResult {
 
     let mut reg = defs::Registry::new()?;
 
-    let world_ref = Arc::new(RefCell::new(world::World::new(&reg, 128, 64, 32.0)));
+    let world_ref = Rc::new(RefCell::new(world::World::new(&reg, 128, 64, 32.0)));
     let world = world_ref.borrow();
 
     let settings = Settings::new(&world, sc_width, sc_height);
