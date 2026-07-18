@@ -1,6 +1,7 @@
 {
     "id": "photonical:diamond_placer",
     "name": "Diamond Placer",
+    "editor_only": true,
     "texture": "resources/assets/textures/blocks/diamond_placer.png",
     "script": null,
     "fields": {},

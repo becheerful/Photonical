@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ggez::{GameResult, glam::Vec2, graphics::Rect};
 
 use crate::{Settings, res::Atlas};
@@ -42,7 +44,7 @@ pub struct BlockListUI {
     pub item_size: f32,
     pub scroll_offset: f32,
     pub sizes: Vec<Vec2>,
-    pub blocks: Vec<crate::defs::BlockDef>,
+    pub blocks: HashMap<usize, crate::defs::BlockDef>,
 }
 
 impl BlockListUI {
@@ -54,12 +56,12 @@ impl BlockListUI {
         let aspect = *aspect * 2.0;
         let width = ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
 
-        let blocks: Vec<crate::defs::BlockDef> = registry.get_all_blocks()
-            // .iter()
-            // .filter(|def| !def.editor_only)
-            // .map(|def| def.to_owned())
-            // .collect()
-            ;
+        let blocks: HashMap<usize, crate::defs::BlockDef> = registry.get_all_blocks()
+            .iter()
+            .filter(|def| !def.editor_only)
+            .enumerate()
+            .map(|(i, def)| (i, def.clone()))
+            .collect();
 
         Self {
             hitbox: Rect::new(settings.sc_width - width, settings.sc_height - width, width, width),
@@ -68,7 +70,7 @@ impl BlockListUI {
             padding: Self::PADDING * aspect.x,
             item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
-            sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
+            sizes: blocks.values().map(|def| aspect / def.size as f32).collect(),
             blocks,
         }
     }
@@ -95,7 +97,7 @@ impl BlockListUI {
             canvas.draw(
                 &atlas.image,
                 ggez::graphics::DrawParam::default()
-                    .src(*atlas.get_block_uv(&self.blocks[i])?)
+                    .src(*atlas.get_block_uv(self.blocks.get(&i).unwrap())?)
                     .dest(Vec2::new(
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
                         xy.y + (i / Self::COLS) as f32 * self.item_size + self.padding + self.scroll_offset,
@@ -111,8 +113,12 @@ impl BlockListUI {
         if self.hitbox.contains(mouse_pos) {
             let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as u32;
             let y = (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as u32;
+            
             let index = x / self.item_size as u32 + (y / self.item_size as u32) * Self::COLS as u32;
-            return if index as usize > self.blocks.len() - 1 { None } else { Some(index) };
+
+            if let Some(def) = self.blocks.get(&(index as usize)) {
+                return crate::defs::registry().get_block_index(&def.id);
+            }
         }
 
         None
