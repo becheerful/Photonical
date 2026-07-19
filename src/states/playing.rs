@@ -10,24 +10,23 @@ use ggez::{
 };
 
 use crate::{
-    WorldRef,
     defs::registry,
     game::SharedData,
     player::Player,
     scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, Table}
+    world::{BlockType, NetworkId, Position, Table, World}
 };
 
 
 pub struct PlayingState {
-    pub world: WorldRef,
+    pub world: World,
     pub player: Player,
     pub cur_block: Option<u32>,
     pub cur_net: Option<u32>,
 }
 
 impl PlayingState {
-    pub fn new(world: WorldRef, player: Player) -> Self {
+    pub fn new(world: World, player: Player) -> Self {
         Self {
             world,
             player,
@@ -37,24 +36,21 @@ impl PlayingState {
     }
 
     pub fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
-        let world = self.world.borrow();
         (
-            ((px + self.player.camera.pos.x) / world.map.tile_size) as u16,
-            ((py + self.player.camera.pos.y) / world.map.tile_size) as u16,
+            ((px + self.player.camera.pos.x) / self.world.map.tile_size) as u16,
+            ((py + self.player.camera.pos.y) / self.world.map.tile_size) as u16,
         )
     }
 
     pub fn remove_block(&mut self, x: u16, y: u16) {
-        let mut world = self.world.borrow_mut();
-        world.remove_entity(x, y);
+        self.world.remove_entity(x, y);
     }
 
     pub fn get_block_network_id(&self, x: u16, y: u16) -> Option<u32> {
-        let world = self.world.borrow();
-        let index = world.map.index(x, y);
+        let index = self.world.map.index(x, y);
 
-        if let Some(entity) = world.map.block_entities[index] {
-            if let Ok(id) = world.ecs.get::<&NetworkId>(entity) {
+        if let Some(entity) = self.world.map.block_entities[index] {
+            if let Ok(id) = self.world.ecs.get::<&NetworkId>(entity) {
                 return Some(id.0);
             }
         }
@@ -63,10 +59,9 @@ impl PlayingState {
     }
 
     pub fn handle_click_on_block(&mut self, x: u16, y: u16, dt: f32, script_engine: &mut ScriptEngine) -> GameResult {
-        let mut world = self.world.borrow_mut();
-        let index = world.map.index(x, y);
+        let index = self.world.map.index(x, y);
 
-        if world.map.block_entities[index].is_none() {
+        if self.world.map.block_entities[index].is_none() {
             if self.cur_block.is_none() {
                 return Ok(());
             }
@@ -78,7 +73,7 @@ impl PlayingState {
 
             if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
                 let mask = net_mask.as_u64().expect("") as u8;
-                let net_id = self.cur_net.unwrap_or(world.energy_master.networks.len() as u32);
+                let net_id = self.cur_net.unwrap_or(self.world.energy_master.networks.len() as u32);
 
                 match mask {
                     crate::NETWORK_MASK_PRODUCER => {
@@ -86,19 +81,19 @@ impl PlayingState {
                             GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
                         )?.as_i64().expect("");
 
-                        if !world.check_for_space(x, y, bd.size) {
+                        if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
                         }
 
-                        let e = Some(world.ecs.spawn((
+                        let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
                             Position(UVec2::new(x as u32, y as u32)),
                             crate::world::PowerProducer(power as u32),
                             NetworkId(net_id),
                         )));
 
-                        world.place_block(x, y, bd.size, e);
-                        world.energy_master.add_producer(net_id, power);
+                        self.world.place_block(x, y, bd.size, e);
+                        self.world.energy_master.add_producer(net_id, power);
                     }
 
                     crate::NETWORK_MASK_CONSUMER => {
@@ -106,34 +101,34 @@ impl PlayingState {
                             GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
                         )?.as_i64().expect("");
 
-                        if !world.check_for_space(x, y, bd.size) {
+                        if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
                         }
 
-                        let e = Some(world.ecs.spawn((
+                        let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
                             Position(UVec2::new(x as u32, y as u32)),
                             crate::world::PowerConsumer(demand as u32),
                             NetworkId(net_id),
                         )));
 
-                        world.place_block(x, y, bd.size, e);
-                        world.energy_master.add_consumer(net_id, demand);
+                        self.world.place_block(x, y, bd.size, e);
+                        self.world.energy_master.add_consumer(net_id, demand);
                     }
 
                     crate::NETWORK_MASK_STORAGE => {
-                        if !world.check_for_space(x, y, bd.size) {
+                        if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
                         }
 
-                        let e = Some(world.ecs.spawn((
+                        let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
                             Position(UVec2::new(x as u32, y as u32)),
                             NetworkId(net_id),
                         )));
 
-                        world.place_block(x, y, bd.size, e);
-                        world.energy_master.add_storage(net_id);
+                        self.world.place_block(x, y, bd.size, e);
+                        self.world.energy_master.add_storage(net_id);
                     }
 
                     _ => {
@@ -145,31 +140,29 @@ impl PlayingState {
             }
 
             if bd.script.is_some() {
-                if world.map.block_entities[index].is_none() {
-                    let e = Some(world.ecs.spawn((
+                if self.world.map.block_entities[index].is_none() {
+                    let e = Some(self.world.ecs.spawn((
                         BlockType(cur_block),
                         Position(UVec2::new(x as u32, y as u32)),
                         Table(None),
                     )));
 
-                    world.place_block(x, y, bd.size, e);
+                    self.world.place_block(x, y, bd.size, e);
                 } else {
-                    let e = world.map.block_entities[index].unwrap();
-                    if let Err(e) = world.ecs.insert_one(e, Table(None)) {
+                    let e = self.world.map.block_entities[index].unwrap();
+                    if let Err(e) = self.world.ecs.insert_one(e, Table(None)) {
                         eprintln!("{e}");
                     }
                 }
             } else if !has_network {
-                world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
+                self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
             }
 
             self.cur_block = None;
         } else {
-            drop(world);
-            let world = self.world.borrow();
             if let Err(e) = script_engine.run_lua_function(
                 crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
-                &world,
+                &mut self.world,
                 index,
                 dt,
             ) {
@@ -183,24 +176,23 @@ impl PlayingState {
 
 impl crate::game::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
-        if let Err(e) = data.script_engine.update(&self.world.borrow(), ctx.time.delta().as_secs_f32()) {
+        if let Err(e) = data.script_engine.update(&mut self.world, ctx.time.delta().as_secs_f32()) {
             eprintln!("{e}");
         }
 
         Ok(())
     }
 
-    fn draw(&self, data: &SharedData, ctx: &mut Context) -> GameResult {
-        let mut world = self.world.borrow_mut();
-        let tile_size = world.map.tile_size;
-        let aspect = world.aspect;
+    fn draw(&mut self, data: &SharedData, ctx: &mut Context) -> GameResult {
+        let tile_size = self.world.map.tile_size;
+        let aspect = self.world.aspect;
 
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
         let mut array = ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone());
 
-        for (id, pos) in world.map.static_tiles.iter() {
+        for (id, pos) in self.world.map.static_tiles.iter() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
                 .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
@@ -208,7 +200,7 @@ impl crate::game::State for PlayingState {
             );
         }
 
-        for (_, (id, pos)) in world.ecs.query_mut::<(&BlockType, &Position)>() {
+        for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
                 .dest(pos.0.as_vec2() * tile_size - self.player.camera.pos)
@@ -292,10 +284,9 @@ impl crate::game::State for PlayingState {
 
             MouseButton::Middle => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                let mut world = self.world.borrow_mut();
 
-                if let Some(entity) = world.map.get(x, y) {
-                    if let Ok((id, network)) = world.ecs.query_one_mut::<(
+                if let Some(entity) = self.world.map.get(x, y) {
+                    if let Ok((id, network)) = self.world.ecs.query_one_mut::<(
                         &BlockType, Option<&NetworkId>
                     )>(entity) {
                         self.cur_block = Some(id.0);
@@ -320,12 +311,11 @@ impl crate::game::State for PlayingState {
     fn mouse_button_up_event(&mut self, data: &mut SharedData, ctx: &mut Context, button: MouseButton, mx: f32, my: f32) -> GameResult {
         if button == MouseButton::Left {
             let (x, y) = self.point_to_block_pos(mx, my);
-            let mut world = self.world.borrow_mut();
-            let index = world.map.index(x, y);
+            let index = self.world.map.index(x, y);
 
             if let Err(e) = data.script_engine.run_lua_function(
                 crate::LUA_FUNCTION_MOUSE_BUTTON_UP,
-                &mut world,
+                &mut self.world,
                 index,
                 ctx.time.delta().as_secs_f32(),
             ) {
@@ -344,9 +334,8 @@ impl crate::game::State for PlayingState {
         y: f32
     ) -> GameResult {
         if !self.player.ui.block_list.scroll_event(&data.settings, ctx.mouse.position(), y) {
-            let mut world = self.world.borrow_mut();
-            world.aspect += y * 0.1;
-            world.map.tile_size = crate::TEXTURE_SIZE * world.aspect.x;
+            self.world.aspect += y * 0.1;
+            self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
         }
 
         Ok(())

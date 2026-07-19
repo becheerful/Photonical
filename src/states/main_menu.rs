@@ -14,7 +14,7 @@ impl State for MainMenuState {
     }
 
     fn draw(
-        &self,
+        &mut self,
         _data: &SharedData,
         _ctx: &mut Context,
     ) -> GameResult {

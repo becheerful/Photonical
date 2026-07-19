@@ -1,6 +1,6 @@
-function update(miners, dt)
+function update(world, miners, dt)
     for _, miner in ipairs(miners) do
-        if get_block_at(miner.pos[1], miner.pos[2]).str_id ~= miner.source then
+        if get_block_at(world, miner.pos[1], miner.pos[2]).str_id ~= miner.source then
             goto continue
         end
 
@@ -13,6 +13,6 @@ function update(miners, dt)
     end
 end
 
-function on_mouse_button_down(miner, _dt)
+function on_mouse_button_down(_world, miner, _dt)
     print("Stored: " .. miner.stored)
 end

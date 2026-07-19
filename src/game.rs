@@ -7,7 +7,6 @@ use ggez::{
 
 use crate::{
     Settings,
-    WorldRef,
     player::Player,
     res::Atlas,
     scripts::ScriptEngine,
@@ -21,7 +20,7 @@ pub trait State {
     ) -> GameResult;
 
     fn draw(
-        &self,
+        &mut self,
         data: &SharedData,
         ctx: &mut Context,
     ) -> GameResult;
@@ -83,7 +82,7 @@ pub struct GameHandler {
 impl GameHandler {
     pub fn new(
         atlas: Atlas,
-        world: WorldRef,
+        world: crate::world::World,
         player: Player,
         script_engine: ScriptEngine,
         settings: Settings,

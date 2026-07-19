@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 mod res;
 mod defs;
 mod scripts;
@@ -34,8 +32,6 @@ const NETWORK_MASK_CONSUMER: u8 = 2;
 const NETWORK_MASK_STORAGE: u8 = 3;
 
 
-pub type WorldRef = Rc<RefCell<world::World>>;
-
 struct Settings {
     pub sc_width: f32,
     pub sc_height: f32,
@@ -44,12 +40,12 @@ struct Settings {
 }
 
 impl Settings {
-    pub fn new(world: &crate::world::World, sc_width: f32, sc_height: f32) -> Self {
+    pub fn new(aspect: f32, sc_width: f32, sc_height: f32) -> Self {
         Settings {
             sc_width,
             sc_height,
             fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: world.aspect.x / 2.0,
+            mouse_wheel_sensitivity: aspect / 2.0,
         }
     }
 }
@@ -67,13 +63,13 @@ fn main() -> ggez::GameResult {
 
     let mut reg = defs::Registry::new()?;
 
-    let world_ref = Rc::new(RefCell::new(world::World::new(&reg, 128, 64, 32.0)));
-    let world = world_ref.borrow();
+    let world = world::World::new(&reg, 128, 64, 32.0);
 
-    let settings = Settings::new(&world, sc_width, sc_height);
+    let settings = Settings::new(world.aspect.x, sc_width, sc_height);
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
+    script_engine.init_api().expect("Error during Lua API initialization");
 
     let mut player_ui = crate::ui::PlayerUI::new(&reg, &world.aspect, &settings);
     let mut paths_list = player_ui.collect_ui_paths();
@@ -85,11 +81,9 @@ fn main() -> ggez::GameResult {
     player_ui.block_list.load_atlas_rect(&atlas)?;
     let player = player::Player::new(&world.map, &settings, player_ui);
 
-    drop(world);
     defs::REGISTRY.set(reg).expect("Game registry already initialized");
-    script_engine.init_api(world_ref.clone()).expect("Error during Lua API initialization");
 
-    let game = game::GameHandler::new(atlas, world_ref, player, script_engine, settings);
+    let game = game::GameHandler::new(atlas, world, player, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
