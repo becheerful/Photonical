@@ -206,9 +206,9 @@ impl ScriptEngine {
         if let Some(func_group) = self.scripts.get(LUA_FUNCTION_UPDATE) {
             let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-            for (entity, (id, pos, table, network)) in world.ecs.query::<(
+            for (entity, (id, pos, table, network)) in world.ecs.query_mut::<(
                 &BlockType, &Position, &mut crate::world::Table, Option<&NetworkId>
-            )>().iter() {
+            )>() {
                 if let Some(key) = &table.0 {
                     block_groups.entry(id.0).or_default().push(self.lua.registry_value(&key)?);
                 } else {
