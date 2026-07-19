@@ -59,6 +59,7 @@ fn main() -> ggez::GameResult {
         .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
         .build()?;
     ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
+    // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
