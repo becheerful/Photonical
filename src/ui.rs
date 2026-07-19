@@ -90,11 +90,11 @@ impl BlockListUI {
 
         canvas.set_scissor_rect(self.hitbox)?;
 
-        for i in 0..self.blocks.len() {
+        for (i, def) in self.blocks.iter().enumerate() {
             canvas.draw(
                 &atlas.image,
                 ggez::graphics::DrawParam::default()
-                    .src(*atlas.get_block_uv(&self.blocks[i])?)
+                    .src(def.uv.unwrap())
                     .dest(Vec2::new(
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
                         xy.y + (i / Self::COLS) as f32 * self.item_size + self.padding + self.scroll_offset,
