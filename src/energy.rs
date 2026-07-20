@@ -2,24 +2,24 @@ use std::collections::HashMap;
 
 pub struct Network {
     pub storages: u32,
-    pub imbalance: i64,
+    pub imbalance: f32,
 }
 
 impl Network {
     pub fn new() -> Self {
         Self {
             storages: 0,
-            imbalance: 0,
+            imbalance: 0.0,
         }
     }
 
     /// Returns the amount of energy that one storage should give up or consume
-    pub fn get_storage_imbalance(&self) -> i64 {
-        if self.storages > 0 { self.imbalance / (self.storages as i64) } else { self.imbalance }
+    pub fn get_storage_imbalance(&self) -> f32 {
+        if self.storages > 0 { self.imbalance / (self.storages as f32) } else { self.imbalance }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.imbalance == 0 && self.storages == 0
+        self.imbalance == 0.0 && self.storages == 0
     }
 }
 
@@ -32,11 +32,11 @@ impl EnergyMaster {
         Self { networks: HashMap::new() }
     }
 
-    pub fn add_producer(&mut self, net_id: u32, power: i64) {
+    pub fn add_producer(&mut self, net_id: u32, power: f32) {
         self.networks.entry(net_id).or_insert(Network::new()).imbalance += power;
     }
 
-    pub fn add_consumer(&mut self, net_id: u32, demand: i64) {
+    pub fn add_consumer(&mut self, net_id: u32, demand: f32) {
         self.networks.entry(net_id).or_insert(Network::new()).imbalance -= demand;
     }
 

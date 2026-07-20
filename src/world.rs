@@ -7,8 +7,8 @@ pub struct BlockType(pub u32);
 pub struct Position(pub UVec2);
 pub struct Table(pub Option<mlua::RegistryKey>);
 
-pub struct PowerProducer(pub u32);
-pub struct PowerConsumer(pub u32);
+pub struct PowerProducer(pub f32);
+pub struct PowerConsumer(pub f32);
 pub struct NetworkId(pub u32);
 
 
@@ -44,9 +44,9 @@ impl World {
                     let network = self.energy_master.networks.get_mut(&n.0).unwrap();
 
                     if let Some(power) = producer {
-                        network.imbalance -= power.0 as i64;
+                        network.imbalance -= power.0;
                     } else if let Some(demand) = consumer {
-                        network.imbalance += demand.0 as i64;
+                        network.imbalance += demand.0;
                     } else {
                         network.storages -= 1;
                     }

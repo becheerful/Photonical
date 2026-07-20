@@ -79,7 +79,7 @@ impl PlayingState {
                     crate::NETWORK_MASK_PRODUCER => {
                         let power = bd.net.get(crate::PARAM_ENERGY_POWER).ok_or(
                             GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
-                        )?.as_i64().expect("");
+                        )?.as_f64().expect("") as f32;
 
                         if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
@@ -88,7 +88,7 @@ impl PlayingState {
                         let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
                             Position(UVec2::new(x as u32, y as u32)),
-                            crate::world::PowerProducer(power as u32),
+                            crate::world::PowerProducer(power),
                             NetworkId(net_id),
                         )));
 
@@ -99,7 +99,7 @@ impl PlayingState {
                     crate::NETWORK_MASK_CONSUMER => {
                         let demand = bd.net.get(crate::PARAM_ENERGY_DEMAND).ok_or(
                             GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
-                        )?.as_i64().expect("");
+                        )?.as_f64().expect("") as f32;
 
                         if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
@@ -108,7 +108,7 @@ impl PlayingState {
                         let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
                             Position(UVec2::new(x as u32, y as u32)),
-                            crate::world::PowerConsumer(demand as u32),
+                            crate::world::PowerConsumer(demand),
                             NetworkId(net_id),
                         )));
 

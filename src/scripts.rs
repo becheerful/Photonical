@@ -103,7 +103,7 @@ impl ScriptEngine {
             world.borrow_scoped(|world: &World| {
                 let net = world.energy_master.networks.get(&net_id);
                 match net {
-                    Some(n) => Ok(mlua::Value::Integer(n.get_storage_imbalance())),
+                    Some(n) => Ok(mlua::Value::Number(n.get_storage_imbalance() as f64)),
                     None => Ok(mlua::Value::Nil),
                 }
             })?
