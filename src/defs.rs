@@ -264,8 +264,8 @@ pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) -> GameR
 }
 
 pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::ScriptEngine) {
-    for i in 0..registry.blocks.len() {
-        if let Some(script_path) = &registry.blocks[i].script {
+    for (i, def) in registry.blocks.iter().enumerate() {
+        if let Some(script_path) = &def.script {
             if let Ok(code) = fs::read_to_string(script_path.clone()) {
                 if let Err(e) = script_engine.load_scripts(i as u32, &code) {
                     eprintln!("{e}");

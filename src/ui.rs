@@ -35,14 +35,14 @@ impl PlayerUI {
 }
 
 pub struct BlockListUI {
-    pub hitbox: Rect,
-    pub atlas_rect: Option<Rect>,
-    pub aspect: Vec2,
-    pub padding: f32,
-    pub item_size: f32,
-    pub scroll_offset: f32,
-    pub sizes: Vec<Vec2>,
-    pub blocks: Vec<crate::defs::BlockDef>,
+    hitbox: Rect,
+    atlas_rect: Option<Rect>,
+    aspect: Vec2,
+    padding: f32,
+    item_size: f32,
+    scroll_offset: f32,
+    sizes: Vec<Vec2>,
+    blocks: Vec<crate::defs::BlockDef>,
 }
 
 impl BlockListUI {
@@ -72,8 +72,11 @@ impl BlockListUI {
         }
     }
 
-    pub fn load_atlas_rect(&mut self, atlas: &Atlas) -> GameResult {
+    pub fn gen_cache(&mut self, atlas: &Atlas, registry: &crate::defs::Registry) -> GameResult {
         self.atlas_rect = Some(*atlas.get_ui_uv(self)?);
+        for block in &mut self.blocks {
+            block.uv = registry.get_block(&block.id).unwrap().uv;
+        }
         Ok(())
     }
 

@@ -19,10 +19,10 @@ use crate::{
 
 
 pub struct PlayingState {
-    pub world: World,
-    pub player: Player,
-    pub cur_block: Option<u32>,
-    pub cur_net: Option<u32>,
+    world: World,
+    player: Player,
+    cur_block: Option<u32>,
+    cur_net: Option<u32>,
 }
 
 impl PlayingState {
@@ -35,18 +35,18 @@ impl PlayingState {
         }
     }
 
-    pub fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
+    fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
         (
             ((px + self.player.camera.pos.x) / self.world.map.tile_size) as u16,
             ((py + self.player.camera.pos.y) / self.world.map.tile_size) as u16,
         )
     }
 
-    pub fn remove_block(&mut self, x: u16, y: u16) {
+    fn remove_block(&mut self, x: u16, y: u16) {
         self.world.remove_entity(x, y);
     }
 
-    pub fn get_block_network_id(&self, x: u16, y: u16) -> Option<u32> {
+    fn get_block_network_id(&self, x: u16, y: u16) -> Option<u32> {
         let index = self.world.map.index(x, y);
 
         if let Some(entity) = self.world.map.block_entities[index] {
@@ -58,7 +58,7 @@ impl PlayingState {
         None
     }
 
-    pub fn handle_click_on_block(&mut self, x: u16, y: u16, dt: f32, script_engine: &mut ScriptEngine) -> GameResult {
+    fn handle_click_on_block(&mut self, x: u16, y: u16, dt: f32, script_engine: &mut ScriptEngine) -> GameResult {
         let index = self.world.map.index(x, y);
 
         if self.world.map.block_entities[index].is_none() {
