@@ -160,7 +160,7 @@ impl ScriptEngine {
 
         block_table.set(PARAM_ENTITY_ID, entity.id())?;
         block_table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, id.0)?;
-        block_table.set(PARAM_POSITION, pos.0.to_array())?;
+        block_table.set(PARAM_POSITION, vec![pos.0, pos.1])?;
 
         if let Some(net_id) = network {
             block_table.set(PARAM_NETWORK_ID, net_id.0)?;

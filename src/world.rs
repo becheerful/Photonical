@@ -4,7 +4,7 @@ use hecs::Entity;
 use crate::energy::EnergyMaster;
 
 pub struct BlockType(pub u32);
-pub struct Position(pub UVec2);
+pub struct Position(pub u16, pub u16);
 pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub struct PowerProducer(pub f32);
@@ -37,8 +37,8 @@ impl World {
                 &BlockType, &Position, Option<&NetworkId>, Option<&PowerProducer>, Option<&PowerConsumer>
             )>(entity) {
                 block_type = id.0;
-                x = pos.0.x as u16;
-                y = pos.0.y as u16;
+                x = pos.0;
+                y = pos.1;
 
                 if let Some(n) = net {
                     let network = self.energy_master.networks.get_mut(&n.0).unwrap();

@@ -87,7 +87,7 @@ impl PlayingState {
 
                         let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
-                            Position(UVec2::new(x as u32, y as u32)),
+                            Position(x, y),
                             crate::world::PowerProducer(power),
                             NetworkId(net_id),
                         )));
@@ -107,7 +107,7 @@ impl PlayingState {
 
                         let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
-                            Position(UVec2::new(x as u32, y as u32)),
+                            Position(x, y),
                             crate::world::PowerConsumer(demand),
                             NetworkId(net_id),
                         )));
@@ -123,7 +123,7 @@ impl PlayingState {
 
                         let e = Some(self.world.ecs.spawn((
                             BlockType(cur_block),
-                            Position(UVec2::new(x as u32, y as u32)),
+                            Position(x, y),
                             NetworkId(net_id),
                         )));
 
@@ -143,7 +143,7 @@ impl PlayingState {
                 if self.world.map.block_entities[index].is_none() {
                     let e = Some(self.world.ecs.spawn((
                         BlockType(cur_block),
-                        Position(UVec2::new(x as u32, y as u32)),
+                        Position(x, y),
                         Table(None),
                     )));
 
@@ -203,7 +203,7 @@ impl crate::game::State for PlayingState {
         for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
             array.push(DrawParam::default()
                 .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
-                .dest(pos.0.as_vec2() * tile_size - self.player.camera.pos)
+                .dest(ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size - self.player.camera.pos)
                 .scale(aspect)
             );
         }
