@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ggez = "0.9.3"
-serde = "1.0.228"
-serde_json = "1.0.149"
-rect_packer = "0.2.1"
-image = "0.24"
+ggez = "0.9"
+serde = "1.0"
+serde_json = "1.0"
+rect_packer = "0.2"
+image = "0.25"
 mlua = { version = "0.10", default-features = false, features = ["lua54", "vendored"] }
-hecs = "0.10.5"
+hecs = "0.10"
