@@ -11,7 +11,6 @@ pub struct PowerProducer(pub f32);
 pub struct PowerConsumer(pub f32);
 pub struct NetworkId(pub u32);
 
-
 pub struct World {
     pub map: GridMap,
     pub ecs: hecs::World,
@@ -34,8 +33,13 @@ impl World {
             let mut block_type = 0;
 
             if let Ok((id, pos, net, producer, consumer)) = self.ecs.query_one_mut::<(
-                &BlockType, &Position, Option<&NetworkId>, Option<&PowerProducer>, Option<&PowerConsumer>
-            )>(entity) {
+                &BlockType,
+                &Position,
+                Option<&NetworkId>,
+                Option<&PowerProducer>,
+                Option<&PowerConsumer>,
+            )>(entity)
+            {
                 block_type = id.0;
                 x = pos.0;
                 y = pos.1;
@@ -61,7 +65,10 @@ impl World {
                 eprintln!("{e}");
             }
 
-            let size = crate::defs::registry().get_block_directly(block_type).unwrap().size;
+            let size = crate::defs::registry()
+                .get_block_directly(block_type)
+                .unwrap()
+                .size;
             for col in x..(x + size) {
                 for row in y..(y + size) {
                     let index = self.map.index(col, row);
@@ -109,10 +116,14 @@ impl GridMap {
             width,
             height,
             tile_size,
-            static_tiles: (0..size).map(|i| (
-                registry.get_block_index("photonical:sand").unwrap(),
-                UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
-            )).collect(),
+            static_tiles: (0..size)
+                .map(|i| {
+                    (
+                        registry.get_block_index("photonical:sand").unwrap(),
+                        UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
+                    )
+                })
+                .collect(),
             block_entities: vec![None; size],
         }
     }

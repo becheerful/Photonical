@@ -1,12 +1,12 @@
-mod res;
 mod defs;
-mod scripts;
 mod energy;
 mod game;
-mod world;
 mod player;
-mod ui;
+mod res;
+mod scripts;
 mod states;
+mod ui;
+mod world;
 
 const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
 const TEXTURE_SIZE: f32 = 32.0;
@@ -30,7 +30,6 @@ const LUA_FUNCTION_MOUSE_BUTTON_UP: &str = "on_mouse_button_up";
 const NETWORK_MASK_PRODUCER: u8 = 1;
 const NETWORK_MASK_CONSUMER: u8 = 2;
 const NETWORK_MASK_STORAGE: u8 = 3;
-
 
 struct Settings {
     pub sc_width: f32,
@@ -56,7 +55,11 @@ fn main() -> ggez::GameResult {
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
-        .window_mode(ggez::conf::WindowMode::default().dimensions(sc_width, sc_height).resizable(true))
+        .window_mode(
+            ggez::conf::WindowMode::default()
+                .dimensions(sc_width, sc_height)
+                .resizable(true),
+        )
         .build()?;
     ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
     // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
@@ -70,7 +73,9 @@ fn main() -> ggez::GameResult {
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
-    script_engine.init_api().expect("Error during Lua API initialization");
+    script_engine
+        .init_api()
+        .expect("Error during Lua API initialization");
 
     let mut player_ui = crate::ui::PlayerUI::new(&reg, &world.aspect, &settings);
     let mut paths_list = player_ui.collect_ui_paths();
@@ -82,7 +87,9 @@ fn main() -> ggez::GameResult {
     player_ui.block_list.gen_cache(&atlas, &reg)?;
     let player = player::Player::new(&world.map, &settings, player_ui);
 
-    defs::REGISTRY.set(reg).expect("Game registry already initialized");
+    defs::REGISTRY
+        .set(reg)
+        .expect("Game registry already initialized");
 
     let game = game::GameHandler::new(atlas, world, player, script_engine, settings);
 

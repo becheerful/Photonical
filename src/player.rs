@@ -21,10 +21,10 @@ impl Camera {
 
     pub fn get_movement_vector(&mut self, keycode: KeyCode) -> Option<Vec2> {
         match keycode {
-            KeyCode::W => Some(Vec2 { x:  0.0, y: -1.0 }),
-            KeyCode::A => Some(Vec2 { x: -1.0, y:  0.0 }),
-            KeyCode::S => Some(Vec2 { x:  0.0, y:  1.0 }),
-            KeyCode::D => Some(Vec2 { x:  1.0, y:  0.0 }),
+            KeyCode::W => Some(Vec2 { x: 0.0, y: -1.0 }),
+            KeyCode::A => Some(Vec2 { x: -1.0, y: 0.0 }),
+            KeyCode::S => Some(Vec2 { x: 0.0, y: 1.0 }),
+            KeyCode::D => Some(Vec2 { x: 1.0, y: 0.0 }),
             _ => None,
         }
     }
@@ -42,14 +42,22 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(map: &crate::world::GridMap, settings: &crate::Settings, ui: crate::ui::PlayerUI) -> Self {
+    pub fn new(
+        map: &crate::world::GridMap,
+        settings: &crate::Settings,
+        ui: crate::ui::PlayerUI,
+    ) -> Self {
         Self {
             camera: Camera::new(map, settings),
             ui,
         }
     }
 
-    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &crate::res::Atlas) -> ggez::GameResult {
+    pub fn draw(
+        &self,
+        canvas: &mut ggez::graphics::Canvas,
+        atlas: &crate::res::Atlas,
+    ) -> ggez::GameResult {
         self.ui.draw(canvas, atlas)?;
         Ok(())
     }

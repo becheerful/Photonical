@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use ggez::{Context, GameResult, graphics::{Image, Rect}};
+use ggez::{
+    Context, GameResult,
+    graphics::{Image, Rect},
+};
 
 #[derive(Debug)]
 pub struct Atlas {
@@ -14,7 +17,10 @@ impl Atlas {
         Ok(Atlas { image, uv_map })
     }
 
-    fn pack_textures(ctx: &Context, paths: &[String]) -> GameResult<(Image, HashMap<String, Rect>)> {
+    fn pack_textures(
+        ctx: &Context,
+        paths: &[String],
+    ) -> GameResult<(Image, HashMap<String, Rect>)> {
         let mut packer = rect_packer::DensePacker::new(2048, 2048);
         let mut loaded_images = Vec::new();
 
@@ -25,13 +31,16 @@ impl Atlas {
                     eprintln!("Warning: texture '{path}' not found");
                     image::open(crate::MISSING_TEX).unwrap()
                 }
-            }.to_rgba8();
+            }
+            .to_rgba8();
             let (w, h) = image.dimensions();
-            let rect = packer.pack(
-                w.try_into().expect("The value is outside the range of i32"),
-                h.try_into().expect("The value is outside the range of i32"),
-                false
-            ).ok_or_else(|| ggez::GameError::CustomError("Atlas full".into()))?;
+            let rect = packer
+                .pack(
+                    w.try_into().expect("The value is outside the range of i32"),
+                    h.try_into().expect("The value is outside the range of i32"),
+                    false,
+                )
+                .ok_or_else(|| ggez::GameError::CustomError("Atlas full".into()))?;
             loaded_images.push((rect, image, path.clone()));
         }
 
@@ -46,14 +55,20 @@ impl Atlas {
                     atlas_buffer.put_pixel(
                         u32::try_from(rect.x).expect("u32 can't be negative") + x,
                         u32::try_from(rect.y).expect("u32 can't be negative") + y,
-                        *px
+                        *px,
                     );
                 }
             }
         }
 
         let raw = atlas_buffer.into_raw();
-        let ggez_image = Image::from_pixels(ctx, &raw, ggez::graphics::ImageFormat::Rgba8UnormSrgb, atlas_width, atlas_height);
+        let ggez_image = Image::from_pixels(
+            ctx,
+            &raw,
+            ggez::graphics::ImageFormat::Rgba8UnormSrgb,
+            atlas_width,
+            atlas_height,
+        );
 
         let mut uv_map = HashMap::new();
         for (rect, _img, path) in loaded_images.clone() {
@@ -70,14 +85,29 @@ impl Atlas {
     }
 
     pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> GameResult<&Rect> {
-        self.uv_map.get(&block_def.texture).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
+        self.uv_map
+            .get(&block_def.texture)
+            .ok_or(ggez::GameError::ResourceNotFound(
+                "Texture not found in atlas".to_owned(),
+                vec![],
+            ))
     }
 
     pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> GameResult<&Rect> {
-        self.uv_map.get(&item_def.texture).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
+        self.uv_map
+            .get(&item_def.texture)
+            .ok_or(ggez::GameError::ResourceNotFound(
+                "Texture not found in atlas".to_owned(),
+                vec![],
+            ))
     }
 
     pub fn get_ui_uv(&self, uv: &impl crate::ui::UI) -> GameResult<&Rect> {
-        self.uv_map.get(uv.get_texture_path()).ok_or(ggez::GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]))
+        self.uv_map
+            .get(uv.get_texture_path())
+            .ok_or(ggez::GameError::ResourceNotFound(
+                "Texture not found in atlas".to_owned(),
+                vec![],
+            ))
     }
 }

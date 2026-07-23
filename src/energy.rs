@@ -15,7 +15,11 @@ impl Network {
 
     /// Returns the amount of energy that one storage should give up or consume
     pub fn get_storage_imbalance(&self) -> f32 {
-        if self.storages > 0 { self.imbalance / (self.storages as f32) } else { self.imbalance }
+        if self.storages > 0 {
+            self.imbalance / (self.storages as f32)
+        } else {
+            self.imbalance
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -29,18 +33,29 @@ pub struct EnergyMaster {
 
 impl EnergyMaster {
     pub fn new() -> Self {
-        Self { networks: HashMap::new() }
+        Self {
+            networks: HashMap::new(),
+        }
     }
 
     pub fn add_producer(&mut self, net_id: u32, power: f32) {
-        self.networks.entry(net_id).or_insert(Network::new()).imbalance += power;
+        self.networks
+            .entry(net_id)
+            .or_insert(Network::new())
+            .imbalance += power;
     }
 
     pub fn add_consumer(&mut self, net_id: u32, demand: f32) {
-        self.networks.entry(net_id).or_insert(Network::new()).imbalance -= demand;
+        self.networks
+            .entry(net_id)
+            .or_insert(Network::new())
+            .imbalance -= demand;
     }
 
     pub fn add_storage(&mut self, net_id: u32) {
-        self.networks.entry(net_id).or_insert(Network::new()).storages += 1;
+        self.networks
+            .entry(net_id)
+            .or_insert(Network::new())
+            .storages += 1;
     }
 }

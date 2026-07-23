@@ -22,7 +22,7 @@ pub struct BlockDef {
     /// position in the dynamically stitched texture atlas \
     /// it's safe to use `.unwrap()` after the atlas is initialized
     #[serde(skip)]
-    pub uv: Option<ggez::graphics::Rect>
+    pub uv: Option<ggez::graphics::Rect>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ pub struct ItemDef {
     /// position in the dynamically stitched texture atlas \
     /// it's safe to use `.unwrap()` after the atlas is initialized
     #[serde(skip)]
-    pub uv: Option<ggez::graphics::Rect>
+    pub uv: Option<ggez::graphics::Rect>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +59,7 @@ impl Registry {
             blocks_idx: HashMap::new(),
             blocks: Vec::new(),
             items: HashMap::new(),
-            recipes: HashMap::new()
+            recipes: HashMap::new(),
         };
 
         r.load_data(".");
@@ -71,24 +71,27 @@ impl Registry {
     pub fn load_data(&mut self, rel_path: &str) {
         let data_dir = std::path::PathBuf::from(format!("{rel_path}/resources/data"));
 
-        if let Err(e) = load_defs_from_dir::<BlockDef>(
-            data_dir.join("blocks").as_path(),
-            |block_def| self.register_block(block_def, rel_path)
-        ) {
+        if let Err(e) =
+            load_defs_from_dir::<BlockDef>(data_dir.join("blocks").as_path(), |block_def| {
+                self.register_block(block_def, rel_path)
+            })
+        {
             eprintln!("Failed to load blocks: {e}");
         }
 
-        if let Err(e) = load_defs_from_dir::<ItemDef>(
-            data_dir.join("items").as_path(),
-            |item_def| self.register_item(item_def, rel_path)
-        ) {
+        if let Err(e) =
+            load_defs_from_dir::<ItemDef>(data_dir.join("items").as_path(), |item_def| {
+                self.register_item(item_def, rel_path)
+            })
+        {
             eprintln!("Failed to load items: {e}");
         }
 
-        if let Err(e) = load_defs_from_dir::<RecipeDef>(
-            data_dir.join("recipes").as_path(),
-            |recipe_def| self.register_recipe(recipe_def)
-        ) {
+        if let Err(e) =
+            load_defs_from_dir::<RecipeDef>(data_dir.join("recipes").as_path(), |recipe_def| {
+                self.register_recipe(recipe_def)
+            })
+        {
             eprintln!("Failed to load recipes: {e}");
         }
     }
@@ -132,7 +135,8 @@ impl Registry {
         }
 
         let l = self.blocks_idx.len();
-        self.blocks_idx.insert(def.id.clone(), u32::try_from(l).unwrap_or(u32::MAX));
+        self.blocks_idx
+            .insert(def.id.clone(), u32::try_from(l).unwrap_or(u32::MAX));
         self.blocks.push(def);
 
         Ok(())
@@ -162,7 +166,7 @@ impl Registry {
     /// Returns an error if a recipe with this id is already registered.
     pub fn register_recipe(&mut self, def: RecipeDef) -> Result<(), String> {
         if self.recipes.contains_key(&def.id) {
-            return Err(format!("Reciped id '{}' already registered", def.id))
+            return Err(format!("Reciped id '{}' already registered", def.id));
         }
 
         self.recipes.insert(def.id.clone(), def);
@@ -213,7 +217,7 @@ pub fn registry() -> &'static Registry {
 
 fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
     dir: &std::path::Path,
-    mut register_fn: impl FnMut(T) -> Result<(), String>
+    mut register_fn: impl FnMut(T) -> Result<(), String>,
 ) -> Result<(), String> {
     if !dir.exists() {
         return Ok(());

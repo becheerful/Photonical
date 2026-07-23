@@ -1,12 +1,6 @@
 use ggez::{
-    Context,
-    GameError,
-    GameResult,
-    conf::FullscreenType,
-    event::MouseButton,
-    glam::UVec2,
-    graphics::DrawParam,
-    input::keyboard::KeyCode
+    Context, GameError, GameResult, conf::FullscreenType, event::MouseButton, glam::UVec2,
+    graphics::DrawParam, input::keyboard::KeyCode,
 };
 
 use crate::{
@@ -14,9 +8,8 @@ use crate::{
     game::SharedData,
     player::Player,
     scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, Table, World}
+    world::{BlockType, NetworkId, Position, Table, World},
 };
-
 
 pub struct PlayingState {
     world: World,
@@ -58,7 +51,13 @@ impl PlayingState {
         None
     }
 
-    fn handle_click_on_block(&mut self, x: u16, y: u16, dt: f32, script_engine: &mut ScriptEngine) -> GameResult {
+    fn handle_click_on_block(
+        &mut self,
+        x: u16,
+        y: u16,
+        dt: f32,
+        script_engine: &mut ScriptEngine,
+    ) -> GameResult {
         let index = self.world.map.index(x, y);
 
         if self.world.map.block_entities[index].is_none() {
@@ -73,13 +72,20 @@ impl PlayingState {
 
             if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
                 let mask = net_mask.as_u64().expect("") as u8;
-                let net_id = self.cur_net.unwrap_or(self.world.energy_master.networks.len() as u32);
+                let net_id = self
+                    .cur_net
+                    .unwrap_or(self.world.energy_master.networks.len() as u32);
 
                 match mask {
                     crate::NETWORK_MASK_PRODUCER => {
-                        let power = bd.net.get(crate::PARAM_ENERGY_POWER).ok_or(
-                            GameError::ConfigError("Missing parameter `power` for network mask 1".to_owned())
-                        )?.as_f64().expect("") as f32;
+                        let power = bd
+                            .net
+                            .get(crate::PARAM_ENERGY_POWER)
+                            .ok_or(GameError::ConfigError(
+                                "Missing parameter `power` for network mask 1".to_owned(),
+                            ))?
+                            .as_f64()
+                            .expect("") as f32;
 
                         if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
@@ -97,9 +103,14 @@ impl PlayingState {
                     }
 
                     crate::NETWORK_MASK_CONSUMER => {
-                        let demand = bd.net.get(crate::PARAM_ENERGY_DEMAND).ok_or(
-                            GameError::ConfigError("Missing parameter `demand` for network mask 2".to_owned())
-                        )?.as_f64().expect("") as f32;
+                        let demand = bd
+                            .net
+                            .get(crate::PARAM_ENERGY_DEMAND)
+                            .ok_or(GameError::ConfigError(
+                                "Missing parameter `demand` for network mask 2".to_owned(),
+                            ))?
+                            .as_f64()
+                            .expect("") as f32;
 
                         if !self.world.check_for_space(x, y, bd.size) {
                             return Ok(());
@@ -176,7 +187,10 @@ impl PlayingState {
 
 impl crate::game::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
-        if let Err(e) = data.script_engine.update(&mut self.world, ctx.time.delta().as_secs_f32()) {
+        if let Err(e) = data
+            .script_engine
+            .update(&mut self.world, ctx.time.delta().as_secs_f32())
+        {
             eprintln!("{e}");
         }
 
@@ -193,25 +207,30 @@ impl crate::game::State for PlayingState {
         let mut array = ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone());
 
         for (id, pos) in self.world.map.static_tiles.iter() {
-            array.push(DrawParam::default()
-                .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
-                .scale(aspect)
+            array.push(
+                DrawParam::default()
+                    .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
+                    .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
+                    .scale(aspect),
             );
         }
 
         for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
-            array.push(DrawParam::default()
-                .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
-                .dest(ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size - self.player.camera.pos)
-                .scale(aspect)
+            array.push(
+                DrawParam::default()
+                    .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
+                    .dest(
+                        ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size
+                            - self.player.camera.pos,
+                    )
+                    .scale(aspect),
             );
         }
 
         ggez::graphics::Drawable::draw(&array, &mut canvas, DrawParam::default());
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
-            DrawParam::default().color(ggez::graphics::Color::RED)
+            DrawParam::default().color(ggez::graphics::Color::RED),
         );
 
         // should be last because of scissors
@@ -226,7 +245,7 @@ impl crate::game::State for PlayingState {
         _data: &mut SharedData,
         _ctx: &mut Context,
         new_width: f32,
-        new_height: f32
+        new_height: f32,
     ) -> GameResult {
         self.player.ui.resize_event(new_width, new_height);
         Ok(())
@@ -261,13 +280,21 @@ impl crate::game::State for PlayingState {
         Ok(())
     }
 
-    fn mouse_button_down_event(&mut self, data: &mut SharedData, ctx: &mut Context, button: MouseButton, mx: f32, my: f32) -> GameResult {
+    fn mouse_button_down_event(
+        &mut self,
+        data: &mut SharedData,
+        ctx: &mut Context,
+        button: MouseButton,
+        mx: f32,
+        my: f32,
+    ) -> GameResult {
         match button {
             MouseButton::Left => {
-                let index = self.player.ui.block_list.mouse_button_down_event(
-                    &data.settings,
-                    ggez::glam::Vec2::new(mx, my)
-                );
+                let index = self
+                    .player
+                    .ui
+                    .block_list
+                    .mouse_button_down_event(&data.settings, ggez::glam::Vec2::new(mx, my));
 
                 if index != None {
                     self.cur_block = index;
@@ -275,10 +302,17 @@ impl crate::game::State for PlayingState {
                 }
 
                 let (x, y) = self.point_to_block_pos(mx, my);
-                if ctx.keyboard.is_key_pressed(KeyCode::RShift) || ctx.keyboard.is_key_pressed(KeyCode::LShift) {
+                if ctx.keyboard.is_key_pressed(KeyCode::RShift)
+                    || ctx.keyboard.is_key_pressed(KeyCode::LShift)
+                {
                     self.cur_net = self.get_block_network_id(x, y);
                 } else {
-                    self.handle_click_on_block(x, y, ctx.time.delta().as_secs_f32(), &mut data.script_engine)?;
+                    self.handle_click_on_block(
+                        x,
+                        y,
+                        ctx.time.delta().as_secs_f32(),
+                        &mut data.script_engine,
+                    )?;
                 }
             }
 
@@ -286,9 +320,11 @@ impl crate::game::State for PlayingState {
                 let (x, y) = self.point_to_block_pos(mx, my);
 
                 if let Some(entity) = self.world.map.get(x, y) {
-                    if let Ok((id, network)) = self.world.ecs.query_one_mut::<(
-                        &BlockType, Option<&NetworkId>
-                    )>(entity) {
+                    if let Ok((id, network)) = self
+                        .world
+                        .ecs
+                        .query_one_mut::<(&BlockType, Option<&NetworkId>)>(entity)
+                    {
                         self.cur_block = Some(id.0);
                         if let Some(net_id) = network {
                             self.cur_net = Some(net_id.0)
@@ -308,7 +344,14 @@ impl crate::game::State for PlayingState {
         Ok(())
     }
 
-    fn mouse_button_up_event(&mut self, data: &mut SharedData, ctx: &mut Context, button: MouseButton, mx: f32, my: f32) -> GameResult {
+    fn mouse_button_up_event(
+        &mut self,
+        data: &mut SharedData,
+        ctx: &mut Context,
+        button: MouseButton,
+        mx: f32,
+        my: f32,
+    ) -> GameResult {
         if button == MouseButton::Left {
             let (x, y) = self.point_to_block_pos(mx, my);
             let index = self.world.map.index(x, y);
@@ -331,9 +374,14 @@ impl crate::game::State for PlayingState {
         data: &mut SharedData,
         ctx: &mut Context,
         _x: f32,
-        y: f32
+        y: f32,
     ) -> GameResult {
-        if !self.player.ui.block_list.scroll_event(&data.settings, ctx.mouse.position(), y) {
+        if !self
+            .player
+            .ui
+            .block_list
+            .scroll_event(&data.settings, ctx.mouse.position(), y)
+        {
             self.world.aspect += y * 0.1;
             self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
         }
