@@ -79,15 +79,14 @@ fn main() -> ggez::GameResult {
         .init_api()
         .expect("Error during Lua API initialization");
 
-    let mut player_ui = crate::ui::PlayerUI::new(&reg, &world.aspect, &settings);
-    let mut paths_list = player_ui.collect_ui_paths();
-    paths_list.append(&mut defs::get_paths(&reg));
+    let mut player = player::Player::new(&world, &reg, &settings);
 
+    let mut paths_list = defs::get_paths(&reg);
+    paths_list.append(&mut player.ui.collect_ui_paths());
     let atlas = res::Atlas::new(&ctx, &paths_list)?;
-    defs::gen_uv_cache(&mut reg, &atlas)?;
 
-    player_ui.block_list.gen_cache(&atlas, &reg)?;
-    let player = player::Player::new(&world.map, &settings, player_ui);
+    defs::gen_uv_cache(&mut reg, &atlas)?;
+    player.ui.block_list.gen_cache(&atlas, &reg)?;
 
     defs::REGISTRY
         .set(reg)

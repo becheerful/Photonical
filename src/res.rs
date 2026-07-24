@@ -13,23 +13,17 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn new(ctx: &Context, texture_paths: &[String]) -> GameResult<Self> {
-        let (image, uv_map) = Self::pack_textures(ctx, texture_paths)?;
-        Ok(Atlas { image, uv_map })
-    }
-
-    fn pack_textures(
-        ctx: &Context,
-        paths: &[String],
-    ) -> GameResult<(Image, HashMap<String, Rect>)> {
-        let mut packer = rect_packer::DensePacker::new(2048, 2048);
+        let mut packer = rect_packer::DensePacker::new(4096, 4096);
         let mut loaded_images = Vec::new();
 
-        for path in paths {
+        for path in texture_paths {
             let image = match image::open(path) {
                 Ok(img) => img,
                 Err(_) => {
                     eprintln!("Warning: texture '{path}' not found");
-                    image::open(crate::MISSING_TEX).unwrap()
+                    image::open(crate::MISSING_TEX).or(Err(ggez::GameError::CustomError(
+                        "No textures found".to_owned(),
+                    )))?
                 }
             }
             .to_rgba8();
@@ -40,12 +34,13 @@ impl Atlas {
                     h.try_into().expect("The value is outside the range of i32"),
                     false,
                 )
-                .ok_or_else(|| ggez::GameError::CustomError("Atlas full".into()))?;
+                .ok_or(ggez::GameError::CustomError("Atlas full".to_owned()))?;
             loaded_images.push((rect, image, path.clone()));
         }
 
         let atlas_width = u32::try_from(packer.size().0).expect("u32 can't be negative");
         let atlas_height = u32::try_from(packer.size().1).expect("u32 can't be negative");
+
         let mut atlas_buffer = image::RgbaImage::new(atlas_width, atlas_height);
 
         for (rect, img, _) in loaded_images.clone() {
@@ -62,7 +57,7 @@ impl Atlas {
         }
 
         let raw = atlas_buffer.into_raw();
-        let ggez_image = Image::from_pixels(
+        let image = Image::from_pixels(
             ctx,
             &raw,
             ggez::graphics::ImageFormat::Rgba8UnormSrgb,
@@ -81,7 +76,7 @@ impl Atlas {
             uv_map.insert(path, uv);
         }
 
-        Ok((ggez_image, uv_map))
+        Ok(Self { image, uv_map })
     }
 
     pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> GameResult<&Rect> {
