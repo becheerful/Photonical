@@ -27,6 +27,13 @@ pub trait State {
         repeated: bool,
     ) -> GameResult;
 
+    fn key_up_event(
+        &mut self,
+        data: &mut SharedData,
+        ctx: &mut Context,
+        input: KeyInput,
+    ) -> GameResult;
+
     fn mouse_button_down_event(
         &mut self,
         data: &mut SharedData,
@@ -85,14 +92,14 @@ impl GameHandler {
 }
 
 impl EventHandler for GameHandler {
-    fn key_down_event(
-        &mut self,
-        ctx: &mut Context,
-        input: ggez::input::keyboard::KeyInput,
-        repeated: bool,
-    ) -> GameResult {
+    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, repeated: bool) -> GameResult {
         self.state
             .key_down_event(&mut self.data, ctx, input, repeated)?;
+        Ok(())
+    }
+
+    fn key_up_event(&mut self, ctx: &mut Context, input: KeyInput) -> GameResult {
+        self.state.key_up_event(&mut self.data, ctx, input)?;
         Ok(())
     }
 

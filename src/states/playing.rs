@@ -187,6 +187,8 @@ impl PlayingState {
 
 impl crate::game::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
+        self.player.camera.update();
+
         if let Err(e) = data
             .script_engine
             .update(&mut self.world, ctx.time.delta().as_secs_f32())
@@ -242,12 +244,13 @@ impl crate::game::State for PlayingState {
 
     fn window_resize(
         &mut self,
-        _data: &mut SharedData,
+        data: &mut SharedData,
         _ctx: &mut Context,
         new_width: f32,
         new_height: f32,
     ) -> GameResult {
-        self.player.ui.resize_event(new_width, new_height);
+        self.player
+            .resize_event(&self.world.map, data, new_width, new_height);
         Ok(())
     }
 
@@ -258,23 +261,32 @@ impl crate::game::State for PlayingState {
         input: ggez::input::keyboard::KeyInput,
         _repeated: bool,
     ) -> GameResult {
-        if let Some(keycode) = input.keycode {
-            match keycode {
-                KeyCode::F11 => {
-                    data.settings.fullscreen_type = match data.settings.fullscreen_type {
-                        FullscreenType::Windowed => FullscreenType::Desktop,
-                        _ => FullscreenType::Windowed,
-                    };
+        match input.keycode {
+            Some(KeyCode::F11) => {
+                data.settings.fullscreen_type = match data.settings.fullscreen_type {
+                    FullscreenType::Windowed => FullscreenType::Desktop,
+                    _ => FullscreenType::Windowed,
+                };
 
-                    ctx.gfx.set_fullscreen(data.settings.fullscreen_type)?;
-                }
-                KeyCode::Escape => ctx.request_quit(),
-                key => {
-                    if let Some(direction) = self.player.camera.get_movement_vector(key) {
-                        self.player.camera.move_towards(direction);
-                    }
-                }
+                ctx.gfx.set_fullscreen(data.settings.fullscreen_type)?;
             }
+            Some(KeyCode::Escape) => ctx.request_quit(),
+            Some(key) => self.player.camera.key_down_event(key),
+            None => {}
+        }
+
+        Ok(())
+    }
+
+    fn key_up_event(
+        &mut self,
+        _data: &mut SharedData,
+        _ctx: &mut Context,
+        input: ggez::input::keyboard::KeyInput,
+    ) -> GameResult {
+        match input.keycode {
+            Some(key) => self.player.camera.key_up_event(key),
+            None => {}
         }
 
         Ok(())
@@ -384,6 +396,14 @@ impl crate::game::State for PlayingState {
         {
             self.world.aspect += y * 0.1;
             self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
+            data.settings.tile_size = self.world.map.tile_size;
+
+            self.player.camera.resize_event(
+                &self.world.map,
+                data,
+                data.settings.sc_width,
+                data.settings.sc_height,
+            );
         }
 
         Ok(())

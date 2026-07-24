@@ -124,7 +124,9 @@ impl ScriptEngine {
 
         self.lua.globals().set("get_name", get_name)?;
         // Gets the block's string ID in the registry
-        self.lua.globals().set("get_block_str_id", get_block_str_id)?;
+        self.lua
+            .globals()
+            .set("get_block_str_id", get_block_str_id)?;
         self.lua.globals().set("get_size", get_size)?;
         self.lua.globals().set("get_entity_at", get_entity_at)?;
         self.lua.globals().set("get_block_at", get_block_at)?;

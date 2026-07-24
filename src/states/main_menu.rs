@@ -32,6 +32,15 @@ impl State for MainMenuState {
         Ok(())
     }
 
+    fn key_up_event(
+        &mut self,
+        _data: &mut SharedData,
+        _ctx: &mut Context,
+        _input: ggez::input::keyboard::KeyInput,
+    ) -> GameResult {
+        Ok(())
+    }
+
     fn mouse_button_down_event(
         &mut self,
         _data: &mut SharedData,
