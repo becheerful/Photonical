@@ -80,6 +80,10 @@ impl World {
 
     /// Check if there is a free space for a block. If there is, it returns `true`; otherwise, it returns `false`.
     pub fn check_for_space(&self, x: u16, y: u16, size: u16) -> bool {
+        if x + size > self.map.width || y + size > self.map.height {
+            return false;
+        }
+
         for col in x..(x + size) {
             for row in y..(y + size) {
                 if self.map.get(col, row).is_some() {
