@@ -7,10 +7,15 @@ pub struct Camera {
     pub pos: Vec2,
     pub movement_speed: f32,
     pub screen_bounds: Vec2,
-    pub direction: Vec2,
+    pub directions: [bool; 4],
 }
 
 impl Camera {
+    const UP: usize = 0;
+    const LEFT: usize = 1;
+    const DOWN: usize = 2;
+    const RIGHT: usize = 3;
+
     pub fn new(map: &GridMap, settings: &Settings) -> Self {
         Camera {
             pos: Vec2::ZERO,
@@ -19,14 +24,31 @@ impl Camera {
                 map.width as f32 * map.tile_size - settings.sc_width,
                 map.height as f32 * map.tile_size - settings.sc_height,
             ),
-            direction: Vec2::ZERO,
+            directions: [false; 4],
         }
     }
 
     pub fn update(&mut self) {
-        self.pos = (self.pos + self.direction * self.movement_speed)
-            .max(Vec2::ZERO)
-            .min(self.screen_bounds);
+        let mut dir = Vec2::ZERO;
+
+        if self.directions[Self::UP] {
+            dir.y -= 1.0;
+        }
+
+        if self.directions[Self::LEFT] {
+            dir.x -= 1.0;
+        }
+
+        if self.directions[Self::DOWN] {
+            dir.y += 1.0;
+        }
+
+        if self.directions[Self::RIGHT] {
+            dir.x += 1.0;
+        }
+
+        self.pos = (self.pos + dir.normalize_or_zero() * self.movement_speed)
+            .clamp(Vec2::ZERO, self.screen_bounds);
     }
 
     pub fn resize_event(
@@ -42,20 +64,20 @@ impl Camera {
 
     pub fn key_down_event(&mut self, keycode: KeyCode) {
         match keycode {
-            KeyCode::W => self.direction.y = -1.0,
-            KeyCode::A => self.direction.x = -1.0,
-            KeyCode::S => self.direction.y = 1.0,
-            KeyCode::D => self.direction.x = 1.0,
+            KeyCode::W => self.directions[Self::UP] = true,
+            KeyCode::A => self.directions[Self::LEFT] = true,
+            KeyCode::S => self.directions[Self::DOWN] = true,
+            KeyCode::D => self.directions[Self::RIGHT] = true,
             _ => {}
         }
     }
 
     pub fn key_up_event(&mut self, keycode: KeyCode) {
         match keycode {
-            KeyCode::W => self.direction.y = 0.0,
-            KeyCode::A => self.direction.x = 0.0,
-            KeyCode::S => self.direction.y = 0.0,
-            KeyCode::D => self.direction.x = 0.0,
+            KeyCode::W => self.directions[Self::UP] = false,
+            KeyCode::A => self.directions[Self::LEFT] = false,
+            KeyCode::S => self.directions[Self::DOWN] = false,
+            KeyCode::D => self.directions[Self::RIGHT] = false,
             _ => {}
         }
     }
