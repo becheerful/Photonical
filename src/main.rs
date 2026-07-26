@@ -1,4 +1,5 @@
 mod defs;
+mod ecs;
 mod energy;
 mod game;
 mod player;

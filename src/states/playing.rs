@@ -1,14 +1,18 @@
 use ggez::{
-    Context, GameError, GameResult, conf::FullscreenType, event::MouseButton, glam::UVec2,
-    graphics::DrawParam, input::keyboard::KeyCode,
+    Context, GameError, GameResult,
+    conf::FullscreenType,
+    event::MouseButton,
+    glam::UVec2,
+    graphics::{DrawParam, Drawable},
+    input::keyboard::KeyCode,
 };
 
 use crate::{
     defs::registry,
+    ecs::{BlockType, ECS, NetworkId, Position, Table},
     game::SharedData,
     player::Player,
-    scripts::ScriptEngine,
-    world::{BlockType, NetworkId, Position, Table, World},
+    world::World,
 };
 
 pub struct PlayingState {
@@ -35,15 +39,15 @@ impl PlayingState {
         )
     }
 
-    fn remove_block(&mut self, x: u16, y: u16) {
-        self.world.remove_entity(x, y);
+    fn remove_block(&mut self, ecs: &mut ECS, x: u16, y: u16) {
+        self.world.remove_entity(ecs, x, y);
     }
 
-    fn get_block_network_id(&self, x: u16, y: u16) -> Option<u32> {
+    fn get_block_network_id(&self, ecs: &mut ECS, x: u16, y: u16) -> Option<u32> {
         let index = self.world.map.index(x, y);
 
         if let Some(entity) = self.world.map.block_entities[index] {
-            if let Ok(id) = self.world.ecs.get::<&NetworkId>(entity) {
+            if let Ok(id) = ecs.get::<&NetworkId>(entity) {
                 return Some(id.0);
             }
         }
@@ -53,10 +57,10 @@ impl PlayingState {
 
     fn handle_click_on_block(
         &mut self,
+        data: &mut SharedData,
         x: u16,
         y: u16,
         dt: f32,
-        script_engine: &mut ScriptEngine,
     ) -> GameResult {
         let index = self.world.map.index(x, y);
 
@@ -91,10 +95,13 @@ impl PlayingState {
                             return Ok(());
                         }
 
-                        let e = Some(self.world.ecs.spawn((
+                        let e = Some(data.ecs.spawn((
+                            data.atlas.make_texture_rect(
+                                &registry().get_block_directly(cur_block).unwrap().texture,
+                            )?,
                             BlockType(cur_block),
                             Position(x, y),
-                            crate::world::PowerProducer(power),
+                            crate::ecs::PowerProducer(power),
                             NetworkId(net_id),
                         )));
 
@@ -116,10 +123,13 @@ impl PlayingState {
                             return Ok(());
                         }
 
-                        let e = Some(self.world.ecs.spawn((
+                        let e = Some(data.ecs.spawn((
+                            data.atlas.make_texture_rect(
+                                &registry().get_block_directly(cur_block).unwrap().texture,
+                            )?,
                             BlockType(cur_block),
                             Position(x, y),
-                            crate::world::PowerConsumer(demand),
+                            crate::ecs::PowerConsumer(demand),
                             NetworkId(net_id),
                         )));
 
@@ -132,7 +142,10 @@ impl PlayingState {
                             return Ok(());
                         }
 
-                        let e = Some(self.world.ecs.spawn((
+                        let e = Some(data.ecs.spawn((
+                            data.atlas.make_texture_rect(
+                                &registry().get_block_directly(cur_block).unwrap().texture,
+                            )?,
                             BlockType(cur_block),
                             Position(x, y),
                             NetworkId(net_id),
@@ -152,7 +165,10 @@ impl PlayingState {
 
             if bd.script.is_some() {
                 if self.world.map.block_entities[index].is_none() {
-                    let e = Some(self.world.ecs.spawn((
+                    let e = Some(data.ecs.spawn((
+                        data.atlas.make_texture_rect(
+                            &registry().get_block_directly(cur_block).unwrap().texture,
+                        )?,
                         BlockType(cur_block),
                         Position(x, y),
                         Table(None),
@@ -161,7 +177,7 @@ impl PlayingState {
                     self.world.place_block(x, y, bd.size, e);
                 } else {
                     let e = self.world.map.block_entities[index].unwrap();
-                    if let Err(e) = self.world.ecs.insert_one(e, Table(None)) {
+                    if let Err(e) = data.ecs.insert_one(e, Table(None)) {
                         eprintln!("{e}");
                     }
                 }
@@ -171,7 +187,8 @@ impl PlayingState {
 
             self.cur_block = None;
         } else {
-            if let Err(e) = script_engine.run_lua_function(
+            if let Err(e) = data.script_engine.run_lua_function(
+                &mut data.ecs,
                 crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
                 &mut self.world,
                 index,
@@ -189,17 +206,18 @@ impl crate::game::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         self.player.camera.update();
 
-        if let Err(e) = data
-            .script_engine
-            .update(&mut self.world, ctx.time.delta().as_secs_f32())
-        {
+        if let Err(e) = data.script_engine.update(
+            &mut data.ecs,
+            &mut self.world,
+            ctx.time.delta().as_secs_f32(),
+        ) {
             eprintln!("{e}");
         }
 
         Ok(())
     }
 
-    fn draw(&mut self, data: &SharedData, ctx: &mut Context) -> GameResult {
+    fn draw(&self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         let tile_size = self.world.map.tile_size;
         let aspect = self.world.aspect;
 
@@ -217,10 +235,10 @@ impl crate::game::State for PlayingState {
             );
         }
 
-        for (_, (id, pos)) in self.world.ecs.query_mut::<(&BlockType, &Position)>() {
+        for (_, (trect, pos)) in data.ecs.query_mut::<(&crate::ecs::Textured, &Position)>() {
             array.push(
                 DrawParam::default()
-                    .src(registry().get_block_directly(id.0).unwrap().uv.unwrap())
+                    .src(trect.0)
                     .dest(
                         ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size
                             - self.player.camera.pos,
@@ -229,7 +247,7 @@ impl crate::game::State for PlayingState {
             );
         }
 
-        ggez::graphics::Drawable::draw(&array, &mut canvas, DrawParam::default());
+        array.draw(&mut canvas, DrawParam::default());
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED),
@@ -317,14 +335,9 @@ impl crate::game::State for PlayingState {
                 if ctx.keyboard.is_key_pressed(KeyCode::RShift)
                     || ctx.keyboard.is_key_pressed(KeyCode::LShift)
                 {
-                    self.cur_net = self.get_block_network_id(x, y);
+                    self.cur_net = self.get_block_network_id(&mut data.ecs, x, y);
                 } else {
-                    self.handle_click_on_block(
-                        x,
-                        y,
-                        ctx.time.delta().as_secs_f32(),
-                        &mut data.script_engine,
-                    )?;
+                    self.handle_click_on_block(data, x, y, ctx.time.delta().as_secs_f32())?;
                 }
             }
 
@@ -332,8 +345,7 @@ impl crate::game::State for PlayingState {
                 let (x, y) = self.point_to_block_pos(mx, my);
 
                 if let Some(entity) = self.world.map.get(x, y) {
-                    if let Ok((id, network)) = self
-                        .world
+                    if let Ok((id, network)) = data
                         .ecs
                         .query_one_mut::<(&BlockType, Option<&NetworkId>)>(entity)
                     {
@@ -347,7 +359,7 @@ impl crate::game::State for PlayingState {
 
             MouseButton::Right => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.remove_block(x, y);
+                self.remove_block(&mut data.ecs, x, y);
             }
 
             MouseButton::Other(_) => {}
@@ -369,6 +381,7 @@ impl crate::game::State for PlayingState {
             let index = self.world.map.index(x, y);
 
             if let Err(e) = data.script_engine.run_lua_function(
+                &mut data.ecs,
                 crate::LUA_FUNCTION_MOUSE_BUTTON_UP,
                 &mut self.world,
                 index,

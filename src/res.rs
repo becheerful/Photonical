@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ggez::{
-    Context, GameResult,
+    Context, GameError, GameResult,
     graphics::{Image, Rect},
 };
 
@@ -79,10 +79,16 @@ impl Atlas {
         Ok(Self { image, uv_map })
     }
 
+    pub fn make_texture_rect(&self, texture_path: &str) -> GameResult<crate::ecs::Textured> {
+        Ok(crate::ecs::Textured(*self.uv_map.get(texture_path).ok_or(
+            GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]),
+        )?))
+    }
+
     pub fn get_block_uv(&self, block_def: &crate::defs::BlockDef) -> GameResult<&Rect> {
         self.uv_map
             .get(&block_def.texture)
-            .ok_or(ggez::GameError::ResourceNotFound(
+            .ok_or(GameError::ResourceNotFound(
                 "Texture not found in atlas".to_owned(),
                 vec![],
             ))
@@ -91,7 +97,7 @@ impl Atlas {
     pub fn get_item_uv(&self, item_def: &crate::defs::ItemDef) -> GameResult<&Rect> {
         self.uv_map
             .get(&item_def.texture)
-            .ok_or(ggez::GameError::ResourceNotFound(
+            .ok_or(GameError::ResourceNotFound(
                 "Texture not found in atlas".to_owned(),
                 vec![],
             ))
@@ -100,7 +106,7 @@ impl Atlas {
     pub fn get_ui_uv(&self, uv: &impl crate::ui::UI) -> GameResult<&Rect> {
         self.uv_map
             .get(uv.get_texture_path())
-            .ok_or(ggez::GameError::ResourceNotFound(
+            .ok_or(GameError::ResourceNotFound(
                 "Texture not found in atlas".to_owned(),
                 vec![],
             ))

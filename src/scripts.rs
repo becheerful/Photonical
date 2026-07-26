@@ -7,7 +7,8 @@ use crate::{
     PARAM_BLOCK_INDEX_IN_REGISTRY, PARAM_ENTITY_ID, PARAM_NETWORK_ID, PARAM_POSITION,
     PARAM_STRING_ID,
     defs::registry,
-    world::{BlockType, NetworkId, Position, World},
+    ecs::{BlockType, ECS, NetworkId, Position},
+    world::World,
 };
 
 pub struct ScriptEngine {
@@ -67,6 +68,7 @@ impl ScriptEngine {
             Ok(registry().get_block_directly(raw_id).unwrap().size.clone())
         })?;
 
+        /*
         let get_entity_at =
             self.lua
                 .create_function(move |lua, (world, x, y): (AnyUserData, u16, u16)| {
@@ -76,7 +78,7 @@ impl ScriptEngine {
                         if let Some(e) = entity {
                             if let Some(key) = &world
                                 .ecs
-                                .get::<&crate::world::Table>(e)
+                                .get::<&crate::ecs::Table>(e)
                                 .expect("Entity not found")
                                 .0
                             {
@@ -87,6 +89,7 @@ impl ScriptEngine {
                         Ok(mlua::Value::Nil)
                     })?
                 })?;
+        */
 
         let get_block_at =
             self.lua
@@ -128,7 +131,7 @@ impl ScriptEngine {
             .globals()
             .set("get_block_str_id", get_block_str_id)?;
         self.lua.globals().set("get_size", get_size)?;
-        self.lua.globals().set("get_entity_at", get_entity_at)?;
+        // self.lua.globals().set("get_entity_at", get_entity_at)?;
         self.lua.globals().set("get_block_at", get_block_at)?;
         // Gets the total network imbalance divided by the number of energy storages
         self.lua.globals().set("get_imbalance", get_imbalance)?;
@@ -168,7 +171,7 @@ impl ScriptEngine {
         entity: &hecs::Entity,
         id: &BlockType,
         pos: &Position,
-        table: &mut crate::world::Table,
+        table: &mut crate::ecs::Table,
         network: Option<&NetworkId>,
     ) -> mlua::Result<mlua::Table> {
         let block_table = self.lua.create_table()?;
@@ -192,6 +195,7 @@ impl ScriptEngine {
 
     pub fn run_lua_function(
         &mut self,
+        ecs: &mut ECS,
         name: &str,
         world: &mut crate::world::World,
         index: usize,
@@ -202,10 +206,10 @@ impl ScriptEngine {
                 return Ok(());
             };
 
-            if let Ok((id, pos, table, network)) = world.ecs.query_one_mut::<(
+            if let Ok((id, pos, table, network)) = ecs.query_one_mut::<(
                 &BlockType,
                 &Position,
-                &mut crate::world::Table,
+                &mut crate::ecs::Table,
                 Option<&NetworkId>,
             )>(entity)
             {
@@ -227,14 +231,14 @@ impl ScriptEngine {
         Ok(())
     }
 
-    pub fn update(&mut self, world: &mut World, dt: f32) -> mlua::Result<()> {
+    pub fn update(&mut self, ecs: &mut ECS, world: &mut World, dt: f32) -> mlua::Result<()> {
         if let Some(func_group) = self.scripts.get(LUA_FUNCTION_UPDATE) {
             let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-            for (entity, (id, pos, table, network)) in world.ecs.query_mut::<(
+            for (entity, (id, pos, table, network)) in ecs.query_mut::<(
                 &BlockType,
                 &Position,
-                &mut crate::world::Table,
+                &mut crate::ecs::Table,
                 Option<&NetworkId>,
             )>() {
                 if let Some(key) = &table.0 {

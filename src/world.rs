@@ -1,19 +1,13 @@
 use ggez::glam::UVec2;
 use hecs::Entity;
 
-use crate::energy::EnergyMaster;
-
-pub struct BlockType(pub u32);
-pub struct Position(pub u16, pub u16);
-pub struct Table(pub Option<mlua::RegistryKey>);
-
-pub struct PowerProducer(pub f32);
-pub struct PowerConsumer(pub f32);
-pub struct NetworkId(pub u32);
+use crate::{
+    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer},
+    energy::EnergyMaster,
+};
 
 pub struct World {
     pub map: GridMap,
-    pub ecs: hecs::World,
     pub energy_master: EnergyMaster,
     pub aspect: ggez::glam::Vec2,
 }
@@ -22,17 +16,16 @@ impl World {
     pub fn new(registry: &crate::defs::Registry, width: u16, height: u16, tile_size: f32) -> Self {
         Self {
             map: GridMap::new(registry, width, height, tile_size),
-            ecs: hecs::World::new(),
             energy_master: EnergyMaster::new(),
             aspect: ggez::glam::Vec2::splat(tile_size / crate::TEXTURE_SIZE),
         }
     }
 
-    pub fn remove_entity(&mut self, mut x: u16, mut y: u16) {
+    pub fn remove_entity(&mut self, ecs: &mut ECS, mut x: u16, mut y: u16) {
         if let Some(entity) = self.map.get(x, y) {
             let mut block_type = 0;
 
-            if let Ok((id, pos, net, producer, consumer)) = self.ecs.query_one_mut::<(
+            if let Ok((id, pos, net, producer, consumer)) = ecs.query_one_mut::<(
                 &BlockType,
                 &Position,
                 Option<&NetworkId>,
@@ -61,7 +54,7 @@ impl World {
                 }
             }
 
-            if let Err(e) = self.ecs.despawn(entity) {
+            if let Err(e) = ecs.despawn(entity) {
                 eprintln!("{e}");
             }
 
