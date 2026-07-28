@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::collections::{HashMap, HashSet};
 
 use ggez::GameResult;
 use serde::{Deserialize, Serialize};
@@ -102,7 +102,7 @@ impl Registry {
             return Ok(());
         }
 
-        for entry in fs::read_dir(mods_dir)? {
+        for entry in std::fs::read_dir(mods_dir)? {
             let mod_path = entry?.path();
             if !mod_path.is_dir() {
                 continue;
@@ -223,12 +223,12 @@ fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
         return Ok(());
     }
 
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
 
         if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-            let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             let def: T = serde_json::from_str(&content).map_err(|e| e.to_string())?;
             register_fn(def)?;
         }
@@ -237,20 +237,17 @@ fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
     Ok(())
 }
 
-pub fn get_paths(registry: &Registry) -> Vec<String> {
-    let mut texture_paths: Vec<String> = Vec::new();
-    texture_paths.push(crate::MISSING_TEX.to_string());
+pub fn get_paths(registry: &Registry) -> HashSet<String> {
+    let mut texture_paths = HashSet::new();
+    texture_paths.insert(crate::MISSING_TEX.to_string());
 
     for block in &registry.blocks {
-        texture_paths.push(block.texture.clone());
+        texture_paths.insert(block.texture.clone());
     }
 
     for item in registry.items.values() {
-        texture_paths.push(item.texture.clone());
+        texture_paths.insert(item.texture.clone());
     }
-
-    texture_paths.sort();
-    texture_paths.dedup();
 
     texture_paths
 }
@@ -270,7 +267,7 @@ pub fn gen_uv_cache(registry: &mut Registry, atlas: &crate::res::Atlas) -> GameR
 pub fn link_scripts(registry: &Registry, script_engine: &mut crate::scripts::ScriptEngine) {
     for (i, def) in registry.blocks.iter().enumerate() {
         if let Some(script_path) = &def.script {
-            if let Ok(code) = fs::read_to_string(script_path.clone()) {
+            if let Ok(code) = std::fs::read_to_string(script_path.clone()) {
                 if let Err(e) = script_engine.load_scripts(i as u32, &code) {
                     eprintln!("{e}");
                 }

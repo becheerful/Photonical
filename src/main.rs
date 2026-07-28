@@ -83,7 +83,10 @@ fn main() -> ggez::GameResult {
     let mut player = player::Player::new(&world, &reg, &settings);
 
     let mut paths_list = defs::get_paths(&reg);
-    paths_list.append(&mut player.ui.collect_ui_paths());
+    for path in player.ui.collect_ui_paths() {
+        paths_list.insert(path);
+    }
+
     let atlas = res::Atlas::new(&ctx, &paths_list)?;
 
     defs::gen_uv_cache(&mut reg, &atlas)?;

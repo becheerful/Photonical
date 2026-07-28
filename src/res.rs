@@ -12,7 +12,10 @@ pub struct Atlas {
 }
 
 impl Atlas {
-    pub fn new(ctx: &Context, texture_paths: &[String]) -> GameResult<Self> {
+    pub fn new(
+        ctx: &Context,
+        texture_paths: &std::collections::HashSet<String>,
+    ) -> GameResult<Self> {
         let mut packer = rect_packer::DensePacker::new(4096, 4096);
         let mut loaded_images = Vec::new();
 
