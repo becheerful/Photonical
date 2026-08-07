@@ -2,6 +2,7 @@ use ggez::glam::UVec2;
 use hecs::Entity;
 
 use crate::{
+    defs::registry,
     ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer},
     energy::EnergyMaster,
 };
@@ -13,9 +14,9 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(registry: &crate::defs::Registry, width: u16, height: u16, tile_size: f32) -> Self {
+    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
         Self {
-            map: GridMap::new(registry, width, height, tile_size),
+            map: GridMap::new(width, height, tile_size),
             energy_master: EnergyMaster::new(),
             aspect: ggez::glam::Vec2::splat(tile_size / crate::TEXTURE_SIZE),
         }
@@ -58,10 +59,7 @@ impl World {
                 eprintln!("{e}");
             }
 
-            let size = crate::defs::registry()
-                .get_block_directly(block_type)
-                .unwrap()
-                .size;
+            let size = registry().get_block_directly(block_type).unwrap().size;
             for col in x..(x + size) {
                 for row in y..(y + size) {
                     let index = self.map.index(col, row);
@@ -107,22 +105,25 @@ pub struct GridMap {
 }
 
 impl GridMap {
-    pub fn new(registry: &crate::defs::Registry, width: u16, height: u16, tile_size: f32) -> Self {
-        let size = width as usize * height as usize;
+    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
         Self {
             width,
             height,
             tile_size,
-            static_tiles: (0..size)
-                .map(|i| {
-                    (
-                        registry.get_block_index("photonical:sand").unwrap(),
-                        UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
-                    )
-                })
-                .collect(),
-            block_entities: vec![None; size],
+            static_tiles: GridMap::generate_world(width, height),
+            block_entities: vec![None; width as usize * height as usize],
         }
+    }
+
+    fn generate_world(width: u16, height: u16) -> Vec<(u32, UVec2)> {
+        (0..(width as usize * height as usize))
+            .map(|i| {
+                (
+                    registry().get_block_index("photonical:sand").unwrap(),
+                    UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
+                )
+            })
+            .collect()
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {

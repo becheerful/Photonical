@@ -24,7 +24,7 @@ pub struct PlayingState {
 
 impl PlayingState {
     pub fn new(data: &mut SharedData) -> Self {
-        let world = World::new(registry(), 128, 64, 32.0);
+        let world = World::new(128, 64, 32.0);
         Self {
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
@@ -218,7 +218,7 @@ impl crate::game::State for PlayingState {
         Ok(())
     }
 
-    fn draw(&self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
+    fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         let tile_size = self.world.map.tile_size;
         let aspect = self.world.aspect;
 

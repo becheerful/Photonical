@@ -9,7 +9,7 @@ use crate::{Settings, ecs::ECS, res::Atlas, scripts::ScriptEngine};
 pub trait State {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
 
-    fn draw(&self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
+    fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
 
     fn window_resize(
         &mut self,
@@ -81,6 +81,7 @@ impl GameHandler {
             ecs: ECS::new(),
             settings,
         };
+
         GameHandler {
             state: Box::new(crate::states::playing::PlayingState::new(&mut data)),
             data,
