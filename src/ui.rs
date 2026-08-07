@@ -120,11 +120,16 @@ impl BlockListUI {
 
     pub fn mouse_button_down_event(&self, settings: &Settings, mouse_pos: Vec2) -> Option<u32> {
         if self.hitbox.contains(mouse_pos) {
-            let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as u32;
+            let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as usize;
             let y =
-                (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as u32;
-            let index = x / self.item_size as u32 + (y / self.item_size as u32) * Self::COLS as u32;
-            return crate::defs::registry().get_block_index(&self.blocks[index as usize].id);
+                (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as usize;
+
+            let index = x / self.item_size as usize + (y / self.item_size as usize) * Self::COLS;
+            if index >= self.blocks.len()  {
+                return None;
+            }
+
+            return crate::defs::registry().get_block_index(&self.blocks[index].id);
         }
 
         None
