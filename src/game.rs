@@ -4,7 +4,7 @@ use ggez::{
     input::keyboard::KeyInput,
 };
 
-use crate::{Settings, ecs::ECS, player::Player, res::Atlas, scripts::ScriptEngine};
+use crate::{Settings, ecs::ECS, res::Atlas, scripts::ScriptEngine};
 
 pub trait State {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
@@ -74,21 +74,16 @@ pub struct GameHandler {
 }
 
 impl GameHandler {
-    pub fn new(
-        atlas: Atlas,
-        world: crate::world::World,
-        player: Player,
-        script_engine: ScriptEngine,
-        settings: Settings,
-    ) -> Self {
+    pub fn new(atlas: Atlas, script_engine: ScriptEngine, settings: Settings) -> Self {
+        let mut data = SharedData {
+            atlas,
+            script_engine,
+            ecs: ECS::new(),
+            settings,
+        };
         GameHandler {
-            state: Box::new(crate::states::playing::PlayingState::new(world, player)),
-            data: SharedData {
-                atlas,
-                script_engine,
-                ecs: ECS::new(),
-                settings,
-            },
+            state: Box::new(crate::states::playing::PlayingState::new(&mut data)),
+            data,
         }
     }
 }

@@ -16,17 +16,18 @@ use crate::{
 };
 
 pub struct PlayingState {
-    world: World,
     player: Player,
+    world: World,
     cur_block: Option<u32>,
     cur_net: Option<u32>,
 }
 
 impl PlayingState {
-    pub fn new(world: World, player: Player) -> Self {
+    pub fn new(data: &mut SharedData) -> Self {
+        let world = World::new(registry(), 128, 64, 32.0);
         Self {
+            player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
-            player,
             cur_block: None,
             cur_net: Some(0),
         }
@@ -409,7 +410,6 @@ impl crate::game::State for PlayingState {
         {
             self.world.aspect += y * 0.1;
             self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
-            data.settings.tile_size = self.world.map.tile_size;
 
             self.player.camera.resize_event(
                 &self.world.map,

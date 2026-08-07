@@ -106,9 +106,9 @@ impl Atlas {
             ))
     }
 
-    pub fn get_ui_uv(&self, uv: &impl crate::ui::UI) -> GameResult<&Rect> {
+    pub fn get_ui_uv<T: crate::ui::UI>(&self) -> GameResult<&Rect> {
         self.uv_map
-            .get(uv.get_texture_path())
+            .get(T::get_texture_path())
             .ok_or(GameError::ResourceNotFound(
                 "Texture not found in atlas".to_owned(),
                 vec![],
