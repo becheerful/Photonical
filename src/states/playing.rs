@@ -8,7 +8,7 @@ use ggez::{
 };
 
 use crate::{
-    defs::registry,
+    defs::{BlockDef, registry},
     ecs::{BlockType, ECS, NetworkId, Position, Table},
     game::SharedData,
     player::Player,
@@ -25,7 +25,7 @@ pub struct PlayingState {
 
 impl PlayingState {
     pub fn new(ctx: &Context, data: &mut SharedData) -> Self {
-        let world = World::new(128, 64, 32.0);
+        let world = World::new(80, 80, 32.0);
         Self {
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
@@ -58,6 +58,122 @@ impl PlayingState {
         None
     }
 
+    fn add_energy_producer(
+        &mut self,
+        data: &mut SharedData,
+        net_id: u32,
+        x: u16,
+        y: u16,
+        bd: &BlockDef,
+    ) -> GameResult<bool> {
+        let power = bd
+            .net
+            .get(crate::PARAM_ENERGY_POWER)
+            .ok_or(GameError::ConfigError(
+                "Missing parameter `power` for network mask 1".to_owned(),
+            ))?
+            .as_f64()
+            .expect("") as f32;
+
+        if !self.world.check_for_space(x, y, bd.size) {
+            return Ok(false);
+        }
+
+        let e = Some(
+            data.ecs.spawn((
+                data.atlas.make_texture_rect(
+                    &registry()
+                        .get_block_directly(self.cur_block.unwrap())
+                        .unwrap()
+                        .texture,
+                )?,
+                BlockType(self.cur_block.unwrap()),
+                Position(x, y),
+                crate::ecs::PowerProducer(power),
+                NetworkId(net_id),
+            )),
+        );
+
+        self.world.place_block(x, y, bd.size, e);
+        self.world.energy_master.add_producer(net_id, power);
+
+        Ok(true)
+    }
+
+    fn add_energy_consumer(
+        &mut self,
+        data: &mut SharedData,
+        net_id: u32,
+        x: u16,
+        y: u16,
+        bd: &BlockDef,
+    ) -> GameResult<bool> {
+        let demand = bd
+            .net
+            .get(crate::PARAM_ENERGY_DEMAND)
+            .ok_or(GameError::ConfigError(
+                "Missing parameter `demand` for network mask 2".to_owned(),
+            ))?
+            .as_f64()
+            .expect("") as f32;
+
+        if !self.world.check_for_space(x, y, bd.size) {
+            return Ok(false);
+        }
+
+        let e = Some(
+            data.ecs.spawn((
+                data.atlas.make_texture_rect(
+                    &registry()
+                        .get_block_directly(self.cur_block.unwrap())
+                        .unwrap()
+                        .texture,
+                )?,
+                BlockType(self.cur_block.unwrap()),
+                Position(x, y),
+                crate::ecs::PowerConsumer(demand),
+                NetworkId(net_id),
+            )),
+        );
+
+        self.world.place_block(x, y, bd.size, e);
+        self.world.energy_master.add_consumer(net_id, demand);
+
+        Ok(true)
+    }
+
+    fn add_energy_storage(
+        &mut self,
+        data: &mut SharedData,
+        net_id: u32,
+        x: u16,
+        y: u16,
+        bd: &BlockDef,
+    ) -> GameResult<bool> {
+        if !self.world.check_for_space(x, y, bd.size) {
+            return Ok(false);
+        }
+
+        let e = Some(
+            data.ecs.spawn((
+                data.atlas.make_texture_rect(
+                    &registry()
+                        .get_block_directly(self.cur_block.unwrap())
+                        .unwrap()
+                        .texture,
+                )?,
+                BlockType(self.cur_block.unwrap()),
+                Position(x, y),
+                NetworkId(net_id),
+            )),
+        );
+
+        self.world.place_block(x, y, bd.size, e);
+        self.world.energy_master.add_storage(net_id);
+
+        Ok(true)
+    }
+
     fn handle_click_on_block(
         &mut self,
         data: &mut SharedData,
@@ -78,84 +194,27 @@ impl PlayingState {
             let has_network = !bd.net.is_empty();
 
             if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
-                let mask = net_mask.as_u64().expect("") as u8;
                 let net_id = self
                     .cur_net
                     .unwrap_or(self.world.energy_master.networks.len() as u32);
 
-                match mask {
-                    crate::NETWORK_MASK_PRODUCER => {
-                        let power = bd
-                            .net
-                            .get(crate::PARAM_ENERGY_POWER)
-                            .ok_or(GameError::ConfigError(
-                                "Missing parameter `power` for network mask 1".to_owned(),
-                            ))?
-                            .as_f64()
-                            .expect("") as f32;
-
-                        if !self.world.check_for_space(x, y, bd.size) {
+                match net_mask.as_u64().expect("") as u8 {
+                    crate::NETWORK_MASK_PRODUCER  => {
+                        if !self.add_energy_producer(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            crate::ecs::PowerProducer(power),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_producer(net_id, power);
                     }
 
                     crate::NETWORK_MASK_CONSUMER => {
-                        let demand = bd
-                            .net
-                            .get(crate::PARAM_ENERGY_DEMAND)
-                            .ok_or(GameError::ConfigError(
-                                "Missing parameter `demand` for network mask 2".to_owned(),
-                            ))?
-                            .as_f64()
-                            .expect("") as f32;
-
-                        if !self.world.check_for_space(x, y, bd.size) {
+                        if !self.add_energy_consumer(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            crate::ecs::PowerConsumer(demand),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_consumer(net_id, demand);
                     }
 
                     crate::NETWORK_MASK_STORAGE => {
-                        if !self.world.check_for_space(x, y, bd.size) {
+                        if !self.add_energy_storage(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_storage(net_id);
                     }
 
                     _ => {
