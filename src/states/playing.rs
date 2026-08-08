@@ -20,16 +20,18 @@ pub struct PlayingState {
     world: World,
     cur_block: Option<u32>,
     cur_net: Option<u32>,
+    instance_array: ggez::graphics::InstanceArray,
 }
 
 impl PlayingState {
-    pub fn new(data: &mut SharedData) -> Self {
+    pub fn new(ctx: &Context, data: &mut SharedData) -> Self {
         let world = World::new(128, 64, 32.0);
         Self {
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
             cur_block: None,
             cur_net: Some(0),
+            instance_array: ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone()),
         }
     }
 
@@ -219,36 +221,32 @@ impl crate::game::State for PlayingState {
     }
 
     fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
-        let tile_size = self.world.map.tile_size;
-        let aspect = self.world.aspect;
-
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        let mut array = ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone());
-
         for (id, pos) in self.world.map.static_tiles.iter() {
-            array.push(
+            self.instance_array.push(
                 DrawParam::default()
                     .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                    .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
-                    .scale(aspect),
+                    .dest(pos.as_vec2() * self.world.map.tile_size - self.player.camera.pos)
+                    .scale(self.world.aspect),
             );
         }
 
         for (_, (trect, pos)) in data.ecs.query_mut::<(&crate::ecs::Textured, &Position)>() {
-            array.push(
+            self.instance_array.push(
                 DrawParam::default()
                     .src(trect.0)
                     .dest(
-                        ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size
+                        ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * self.world.map.tile_size
                             - self.player.camera.pos,
                     )
-                    .scale(aspect),
+                    .scale(self.world.aspect),
             );
         }
 
-        array.draw(&mut canvas, DrawParam::default());
+        self.instance_array.draw(&mut canvas, DrawParam::default());
+
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED),
@@ -256,8 +254,9 @@ impl crate::game::State for PlayingState {
 
         // should be last because of scissors
         self.player.draw(&mut canvas, &data.atlas)?;
-
+        self.instance_array.clear();
         canvas.finish(ctx)?;
+
         Ok(())
     }
 

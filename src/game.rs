@@ -74,7 +74,12 @@ pub struct GameHandler {
 }
 
 impl GameHandler {
-    pub fn new(atlas: Atlas, script_engine: ScriptEngine, settings: Settings) -> Self {
+    pub fn new(
+        ctx: &mut Context,
+        atlas: Atlas,
+        script_engine: ScriptEngine,
+        settings: Settings,
+    ) -> Self {
         let mut data = SharedData {
             atlas,
             script_engine,
@@ -83,7 +88,7 @@ impl GameHandler {
         };
 
         GameHandler {
-            state: Box::new(crate::states::playing::PlayingState::new(&mut data)),
+            state: Box::new(crate::states::playing::PlayingState::new(ctx, &mut data)),
             data,
         }
     }

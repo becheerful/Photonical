@@ -125,7 +125,7 @@ impl BlockListUI {
                 (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as usize;
 
             let index = x / self.item_size as usize + (y / self.item_size as usize) * Self::COLS;
-            if index >= self.blocks.len()  {
+            if index >= self.blocks.len() {
                 return None;
             }
 

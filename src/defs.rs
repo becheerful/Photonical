@@ -183,6 +183,7 @@ impl Registry {
     }
 
     /// Returns a definition of a block directly from the `Vec<BlockDef>` by given `u32` index
+    #[inline]
     pub fn get_block_directly(&self, index: u32) -> Option<&BlockDef> {
         self.blocks.get(index as usize)
     }
@@ -195,6 +196,7 @@ impl Registry {
         self.blocks.len() as u32
     }
 
+    #[inline]
     pub fn get_block_index(&self, id: &str) -> Option<u32> {
         self.blocks_idx.get(id).copied()
     }

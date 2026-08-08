@@ -88,7 +88,7 @@ fn main() -> ggez::GameResult {
         .set(reg)
         .expect("Game registry already initialized");
 
-    let game = game::GameHandler::new(atlas, script_engine, settings);
+    let game = game::GameHandler::new(&mut ctx, atlas, script_engine, settings);
 
     ggez::event::run(ctx, event_loop, game);
 }
