@@ -3,7 +3,7 @@ use ggez::{
     conf::FullscreenType,
     event::MouseButton,
     glam::UVec2,
-    graphics::{DrawParam, Drawable},
+    graphics::{DrawParam, Drawable, InstanceArray},
     input::keyboard::KeyCode,
 };
 
@@ -16,23 +16,40 @@ use crate::{
 };
 
 pub struct PlayingState {
-    player: Player,
-    world: World,
     cur_block: Option<u32>,
     cur_net: Option<u32>,
-    instance_array: ggez::graphics::InstanceArray,
+    static_layer: InstanceArray,
+    player: Player,
+    world: World,
 }
 
 impl PlayingState {
     pub fn new(ctx: &Context, data: &mut SharedData) -> Self {
-        let world = World::new(80, 80, 32.0);
+        let world = World::new(128, 128, 32.0);
         Self {
-            player: Player::new(&world, registry(), &data.atlas, &data.settings),
-            world,
             cur_block: None,
             cur_net: Some(0),
-            instance_array: ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone()),
+            static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world),
+            player: Player::new(&world, registry(), &data.atlas, &data.settings),
+            world,
         }
+    }
+
+    fn make_static_layer(
+        ctx: &Context,
+        image: &ggez::graphics::Image,
+        world: &World,
+    ) -> InstanceArray {
+        let mut static_layer = InstanceArray::new(ctx, image.to_owned());
+        for (id, pos) in world.map.static_tiles.iter() {
+            static_layer.push(
+                DrawParam::default()
+                    .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
+                    .dest(pos.as_vec2() * world.map.tile_size),
+            );
+        }
+
+        static_layer
     }
 
     fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
@@ -199,7 +216,7 @@ impl PlayingState {
                     .unwrap_or(self.world.energy_master.networks.len() as u32);
 
                 match net_mask.as_u64().expect("") as u8 {
-                    crate::NETWORK_MASK_PRODUCER  => {
+                    crate::NETWORK_MASK_PRODUCER => {
                         if !self.add_energy_producer(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
@@ -280,31 +297,32 @@ impl crate::game::State for PlayingState {
     }
 
     fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
+        let aspect = ggez::glam::Vec2::splat(self.world.aspect);
+
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        for (id, pos) in self.world.map.static_tiles.iter() {
-            self.instance_array.push(
-                DrawParam::default()
-                    .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                    .dest(pos.as_vec2() * self.world.map.tile_size - self.player.camera.pos)
-                    .scale(self.world.aspect),
-            );
-        }
+        let mut dynamic_layer = InstanceArray::new(ctx, data.atlas.image.to_owned());
 
         for (_, (trect, pos)) in data.ecs.query_mut::<(&crate::ecs::Textured, &Position)>() {
-            self.instance_array.push(
+            dynamic_layer.push(
                 DrawParam::default()
                     .src(trect.0)
                     .dest(
                         ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * self.world.map.tile_size
                             - self.player.camera.pos,
                     )
-                    .scale(self.world.aspect),
+                    .scale(aspect),
             );
         }
 
-        self.instance_array.draw(&mut canvas, DrawParam::default());
+        self.static_layer.draw(
+            &mut canvas,
+            DrawParam::default()
+                .scale(aspect)
+                .dest(-self.player.camera.pos),
+        );
+        dynamic_layer.draw(&mut canvas, DrawParam::default());
 
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
@@ -313,7 +331,6 @@ impl crate::game::State for PlayingState {
 
         // should be last because of scissors
         self.player.draw(&mut canvas, &data.atlas)?;
-        self.instance_array.clear();
         canvas.finish(ctx)?;
 
         Ok(())
@@ -466,8 +483,8 @@ impl crate::game::State for PlayingState {
             .block_list
             .scroll_event(&data.settings, ctx.mouse.position(), y)
         {
-            self.world.aspect += y * 0.1;
-            self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
+            self.world.aspect = (self.world.aspect + (y * 0.1)).clamp(1.0, 2.0);
+            self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect;
 
             self.player.camera.resize_event(
                 &self.world.map,

@@ -97,7 +97,7 @@ impl Player {
     ) -> Self {
         Self {
             camera: Camera::new(&world.map, settings),
-            ui: PlayerUI::new(registry, atlas, &world.aspect, settings),
+            ui: PlayerUI::new(registry, atlas, world.aspect, settings),
         }
     }
 

@@ -15,7 +15,7 @@ impl PlayerUI {
     pub fn new(
         registry: &crate::defs::Registry,
         atlas: &Atlas,
-        aspect: &Vec2,
+        aspect: f32,
         settings: &Settings,
     ) -> Self {
         Self {
@@ -40,7 +40,7 @@ impl PlayerUI {
 pub struct BlockListUI {
     hitbox: Rect,
     atlas_rect: Rect,
-    aspect: Vec2,
+    aspect: f32,
     padding: f32,
     item_size: f32,
     scroll_offset: f32,
@@ -56,12 +56,12 @@ impl BlockListUI {
     pub fn new(
         registry: &crate::defs::Registry,
         atlas: &Atlas,
-        aspect: &Vec2,
+        aspect: f32,
         settings: &Settings,
     ) -> Self {
-        let aspect = *aspect * 2.0;
+        let aspect = aspect * 2.0;
         let width =
-            ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
+            ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
 
         let blocks: Vec<crate::defs::BlockDef> = registry
             .get_all_blocks()
@@ -79,10 +79,13 @@ impl BlockListUI {
             ),
             atlas_rect: *atlas.get_ui_uv::<Self>().unwrap(),
             aspect,
-            padding: Self::PADDING * aspect.x,
-            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
+            padding: Self::PADDING * aspect,
+            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect,
             scroll_offset: 0.0,
-            sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
+            sizes: blocks
+                .iter()
+                .map(|def| Vec2::splat(aspect) / def.size as f32)
+                .collect(),
             blocks,
         }
     }
@@ -95,7 +98,7 @@ impl BlockListUI {
             ggez::graphics::DrawParam::default()
                 .src(self.atlas_rect)
                 .dest(xy)
-                .scale(self.aspect),
+                .scale(Vec2::splat(self.aspect)),
         );
 
         canvas.set_scissor_rect(self.hitbox)?;

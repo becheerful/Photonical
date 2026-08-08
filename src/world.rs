@@ -10,7 +10,7 @@ use crate::{
 pub struct World {
     pub map: GridMap,
     pub energy_master: EnergyMaster,
-    pub aspect: ggez::glam::Vec2,
+    pub aspect: f32,
 }
 
 impl World {
@@ -18,7 +18,7 @@ impl World {
         Self {
             map: GridMap::new(width, height, tile_size),
             energy_master: EnergyMaster::new(),
-            aspect: ggez::glam::Vec2::splat(tile_size / crate::TEXTURE_SIZE),
+            aspect: tile_size / crate::TEXTURE_SIZE,
         }
     }
 
@@ -116,14 +116,21 @@ impl GridMap {
     }
 
     fn generate_world(width: u16, height: u16) -> Vec<(u32, UVec2)> {
-        (0..(width as usize * height as usize))
+        let mut map: Vec<(u32, UVec2)> = (0..(width as usize * height as usize))
             .map(|i| {
                 (
                     registry().get_block_index("photonical:sand").unwrap(),
                     UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
                 )
             })
-            .collect()
+            .collect();
+        map[0] = (
+            registry()
+                .get_block_index("photonical:diamond_placer")
+                .unwrap(),
+            UVec2::splat(0),
+        );
+        map
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {
