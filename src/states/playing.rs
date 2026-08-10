@@ -10,7 +10,7 @@ use ggez::{
 use crate::{
     TEXTURE_SIZE,
     defs::{BlockDef, registry},
-    ecs::{BlockType, ECS, NetworkId, Position, Table, Textured},
+    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, Textured},
     game::SharedData,
     player::Player,
     world::World,
@@ -26,33 +26,33 @@ pub struct PlayingState {
 }
 
 impl PlayingState {
-    pub fn new(ctx: &Context, data: &mut SharedData) -> Self {
-        let world = World::new(128, 128, 32.0);
-        Self {
+    pub fn new(ctx: &Context, data: &mut SharedData) -> GameResult<Self> {
+        let world = World::new(128, 128, 32.0)?;
+        Ok(Self {
             cur_block: None,
             cur_net: Some(0),
             dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
-            static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world),
+            static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
-        }
+        })
     }
 
     fn make_static_layer(
         ctx: &Context,
         image: &ggez::graphics::Image,
         world: &World,
-    ) -> InstanceArray {
+    ) -> GameResult<InstanceArray> {
         let mut static_layer = InstanceArray::new(ctx, image.clone());
         for (id, pos) in world.map.static_tiles.iter() {
             static_layer.push(
                 DrawParam::default()
-                    .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
+                    .src(registry().get_block_directly(*id)?.uv.unwrap())
                     .dest(pos.as_vec2() * TEXTURE_SIZE),
             );
         }
 
-        static_layer
+        Ok(static_layer)
     }
 
     fn add_to_dynamic_layer(&mut self, textured: &Textured, pos: &Position) {
@@ -81,22 +81,15 @@ impl PlayingState {
         )
     }
 
-    fn place_block(
-        &mut self,
-        textured: &Textured,
-        pos: &Position,
-        size: u16,
-        e: Option<hecs::Entity>,
-    ) {
-        if e.is_some() {
-            self.world.place_block(pos.0, pos.1, size, e);
-            self.add_to_dynamic_layer(textured, pos);
-        }
+    fn place_block(&mut self, textured: &Textured, pos: &Position, size: u16, e: hecs::Entity) {
+        self.world.place_block(pos.0, pos.1, size, e);
+        self.add_to_dynamic_layer(textured, pos);
     }
 
-    fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) {
-        self.world.remove_entity(&mut data.ecs, x, y);
+    fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
+        self.world.remove_entity(&mut data.ecs, x, y)?;
         self.remove_from_dynamic_layer(data);
+        Ok(())
     }
 
     fn get_block_network_id(&self, ecs: &mut ECS, x: u16, y: u16) -> Option<u32> {
@@ -111,88 +104,57 @@ impl PlayingState {
         None
     }
 
-    fn add_energy_producer(
-        &mut self,
-        data: &mut SharedData,
-        net_id: u32,
-        x: u16,
-        y: u16,
+    fn get_energy_interaction_value<T: crate::ecs::EnergyComponent>(
         bd: &BlockDef,
-    ) -> GameResult<bool> {
-        let power = bd
+    ) -> GameResult<f32> {
+        let parameter_name = T::get_energy_param_name();
+        Ok(bd
             .net
-            .get(crate::PARAM_ENERGY_POWER)
+            .get(parameter_name)
             .ok_or(GameError::ConfigError(
-                "Missing parameter `power` for network mask 1".to_owned(),
+                format!(
+                    "Missing parameter `{parameter_name}` for network mask {}",
+                    T::get_network_mask()
+                )
+                .to_owned(),
             ))?
             .as_f64()
-            .expect("") as f32;
-
-        if !self.world.check_for_space(x, y, bd.size) {
-            return Ok(false);
-        }
-
-        let textured = data.atlas.make_texture_rect(
-            &registry()
-                .get_block_directly(self.cur_block.unwrap())
-                .unwrap()
-                .texture,
-        )?;
-        let pos = Position(x, y);
-
-        let e = Some(data.ecs.spawn((
-            textured.clone(),
-            BlockType(self.cur_block.unwrap()),
-            pos.clone(),
-            crate::ecs::PowerProducer(power),
-            NetworkId(net_id),
-        )));
-
-        self.place_block(&textured, &pos, bd.size, e);
-        self.world.energy_master.add_producer(net_id, power);
-
-        Ok(true)
+            .expect("") as f32)
     }
 
-    fn add_energy_consumer(
+    fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
         net_id: u32,
         x: u16,
         y: u16,
         bd: &BlockDef,
+        component: T,
     ) -> GameResult<bool> {
-        let demand = bd
-            .net
-            .get(crate::PARAM_ENERGY_DEMAND)
-            .ok_or(GameError::ConfigError(
-                "Missing parameter `demand` for network mask 2".to_owned(),
-            ))?
-            .as_f64()
-            .expect("") as f32;
-
         if !self.world.check_for_space(x, y, bd.size) {
             return Ok(false);
         }
 
-        let textured = data.atlas.make_texture_rect(
-            &registry()
-                .get_block_directly(self.cur_block.unwrap())
-                .unwrap()
-                .texture,
-        )?;
+        let Some(cur_block) = self.cur_block else {
+            return Ok(false);
+        };
+
+        let textured = data
+            .atlas
+            .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let e = Some(data.ecs.spawn((
+        component.add_to_energy_master(net_id, &mut self.world.energy_master);
+
+        let e = data.ecs.spawn((
             textured.clone(),
-            BlockType(self.cur_block.unwrap()),
+            BlockType(cur_block),
             pos.clone(),
-            crate::ecs::PowerConsumer(demand),
+            component,
             NetworkId(net_id),
-        )));
+        ));
 
         self.place_block(&textured, &pos, bd.size, e);
-        self.world.energy_master.add_consumer(net_id, demand);
 
         Ok(true)
     }
@@ -209,20 +171,21 @@ impl PlayingState {
             return Ok(false);
         }
 
-        let textured = data.atlas.make_texture_rect(
-            &registry()
-                .get_block_directly(self.cur_block.unwrap())
-                .unwrap()
-                .texture,
-        )?;
+        let Some(cur_block) = self.cur_block else {
+            return Ok(false);
+        };
+
+        let textured = data
+            .atlas
+            .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let e = Some(data.ecs.spawn((
+        let e = data.ecs.spawn((
             textured.clone(),
-            BlockType(self.cur_block.unwrap()),
+            BlockType(cur_block),
             pos.clone(),
             NetworkId(net_id),
-        )));
+        ));
 
         self.place_block(&textured, &pos, bd.size, e);
         self.world.energy_master.add_storage(net_id);
@@ -246,7 +209,7 @@ impl PlayingState {
 
             let cur_block = self.cur_block.unwrap();
 
-            let bd = registry().get_block_directly(cur_block).unwrap();
+            let bd = registry().get_block_directly(cur_block)?;
             let has_network = !bd.net.is_empty();
 
             if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
@@ -256,13 +219,31 @@ impl PlayingState {
 
                 match net_mask.as_u64().expect("") as u8 {
                     crate::NETWORK_MASK_PRODUCER => {
-                        if !self.add_energy_producer(data, net_id, x, y, bd)? {
+                        if !self.add_energy_block::<PowerProducer>(
+                            data,
+                            net_id,
+                            x,
+                            y,
+                            bd,
+                            PowerProducer(PlayingState::get_energy_interaction_value::<
+                                PowerProducer,
+                            >(bd)?),
+                        )? {
                             return Ok(());
                         }
                     }
 
                     crate::NETWORK_MASK_CONSUMER => {
-                        if !self.add_energy_consumer(data, net_id, x, y, bd)? {
+                        if !self.add_energy_block::<PowerConsumer>(
+                            data,
+                            net_id,
+                            x,
+                            y,
+                            bd,
+                            PowerConsumer(PlayingState::get_energy_interaction_value::<
+                                PowerConsumer,
+                            >(bd)?),
+                        )? {
                             return Ok(());
                         }
                     }
@@ -283,17 +264,17 @@ impl PlayingState {
 
             if bd.script.is_some() {
                 if self.world.map.block_entities[index].is_none() {
-                    let textured = data.atlas.make_texture_rect(
-                        &registry().get_block_directly(cur_block).unwrap().texture,
-                    )?;
+                    let textured = data
+                        .atlas
+                        .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
                     let pos = Position(x, y);
 
-                    let e = Some(data.ecs.spawn((
+                    let e = data.ecs.spawn((
                         textured.clone(),
                         BlockType(cur_block),
                         pos.clone(),
                         Table(None),
-                    )));
+                    ));
 
                     self.place_block(&textured, &pos, bd.size, e);
                     self.world.place_block(x, y, bd.size, e);
@@ -463,7 +444,7 @@ impl crate::game::State for PlayingState {
 
             MouseButton::Right => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.remove_block(data, x, y);
+                self.remove_block(data, x, y)?;
             }
 
             MouseButton::Other(_) => {}

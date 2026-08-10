@@ -132,7 +132,9 @@ impl BlockListUI {
                 return None;
             }
 
-            return crate::defs::registry().get_block_index(&self.blocks[index].id);
+            return crate::defs::registry()
+                .get_block_index(&self.blocks[index].id)
+                .ok();
         }
 
         None

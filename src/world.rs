@@ -1,4 +1,4 @@
-use ggez::glam::UVec2;
+use ggez::{GameResult, glam::UVec2};
 use hecs::Entity;
 
 use crate::{
@@ -14,15 +14,15 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
-        Self {
-            map: GridMap::new(width, height),
+    pub fn new(width: u16, height: u16, tile_size: f32) -> GameResult<Self> {
+        Ok(Self {
+            map: GridMap::new(width, height)?,
             energy_master: EnergyMaster::new(),
             aspect: tile_size / crate::TEXTURE_SIZE,
-        }
+        })
     }
 
-    pub fn remove_entity(&mut self, ecs: &mut ECS, mut x: u16, mut y: u16) {
+    pub fn remove_entity(&mut self, ecs: &mut ECS, mut x: u16, mut y: u16) -> GameResult {
         if let Some(entity) = self.map.get(x, y) {
             let mut block_type = 0;
 
@@ -59,7 +59,7 @@ impl World {
                 eprintln!("{e}");
             }
 
-            let size = registry().get_block_directly(block_type).unwrap().size;
+            let size = registry().get_block_directly(block_type)?.size;
             for col in x..(x + size) {
                 for row in y..(y + size) {
                     let index = self.map.index(col, row);
@@ -67,6 +67,8 @@ impl World {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Check if there is a free space for a block. If there is, it returns `true`; otherwise, it returns `false`.
@@ -86,11 +88,11 @@ impl World {
         true
     }
 
-    pub fn place_block(&mut self, x: u16, y: u16, size: u16, e: Option<Entity>) {
+    pub fn place_block(&mut self, x: u16, y: u16, size: u16, e: Entity) {
         for col in x..(x + size) {
             for row in y..(y + size) {
                 let index = self.map.index(col, row);
-                self.map.block_entities[index] = e.clone();
+                self.map.block_entities[index] = Some(e);
             }
         }
     }
@@ -106,33 +108,32 @@ pub struct GridMap {
 }
 
 impl GridMap {
-    pub fn new(width: u16, height: u16) -> Self {
-        Self {
+    pub fn new(width: u16, height: u16) -> GameResult<Self> {
+        Ok(Self {
             width,
             height,
             absolute_width: width as f32 * crate::TEXTURE_SIZE,
             absolute_height: height as f32 * crate::TEXTURE_SIZE,
-            static_tiles: GridMap::generate_world(width, height),
+            static_tiles: GridMap::generate_world(width, height)?,
             block_entities: vec![None; width as usize * height as usize],
-        }
+        })
     }
 
-    fn generate_world(width: u16, height: u16) -> Vec<(u32, UVec2)> {
-        let mut map: Vec<(u32, UVec2)> = (0..(width as usize * height as usize))
-            .map(|i| {
-                (
-                    registry().get_block_index("photonical:sand").unwrap(),
-                    UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
-                )
-            })
-            .collect();
+    fn generate_world(width: u16, height: u16) -> GameResult<Vec<(u32, UVec2)>> {
+        let mut map: Vec<(u32, UVec2)> = Vec::with_capacity(width as usize * height as usize);
+        for i in 0..map.capacity() {
+            map[i] = (
+                registry().get_block_index("photonical:sand")?,
+                UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
+            )
+        }
+
         map[0] = (
-            registry()
-                .get_block_index("photonical:diamond_placer")
-                .unwrap(),
+            registry().get_block_index("photonical:diamond_placer")?,
             UVec2::splat(0),
         );
-        map
+
+        Ok(map)
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {

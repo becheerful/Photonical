@@ -16,8 +16,8 @@ impl Atlas {
         ctx: &Context,
         texture_paths: &std::collections::HashSet<String>,
     ) -> GameResult<Self> {
-        let atlas_width: u32 = 4096;
-        let atlas_height: u32 = 4096;
+        let mut atlas_width: u32 = 1024;
+        let mut atlas_height: u32 = 1024;
 
         let mut packer = rect_packer::DensePacker::new(atlas_width as i32, atlas_height as i32);
         let mut loaded_images = Vec::new();
@@ -33,10 +33,29 @@ impl Atlas {
                 }
             }
             .to_rgba8();
+
             let (w, h) = image.dimensions();
-            let rect = packer
-                .pack(w as i32, h as i32, false)
-                .ok_or(ggez::GameError::CustomError("Atlas full".to_owned()))?;
+            let rect;
+            loop {
+                match packer.pack(w as i32, h as i32, false) {
+                    Some(r) => {
+                        rect = r;
+                        break;
+                    }
+
+                    None => {
+                        atlas_width *= 2;
+                        atlas_height *= 2;
+
+                        if atlas_width > 8192 || atlas_height > 8192 {
+                            return Err(GameError::CustomError("Atlas full".to_owned()));
+                        }
+
+                        packer.resize(atlas_width as i32, atlas_height as i32);
+                    }
+                }
+            }
+
             loaded_images.push((rect, image, path.clone()));
         }
 

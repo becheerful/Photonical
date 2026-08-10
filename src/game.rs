@@ -79,7 +79,7 @@ impl GameHandler {
         atlas: Atlas,
         script_engine: ScriptEngine,
         settings: Settings,
-    ) -> Self {
+    ) -> GameResult<Self> {
         let mut data = SharedData {
             atlas,
             script_engine,
@@ -87,10 +87,10 @@ impl GameHandler {
             settings,
         };
 
-        GameHandler {
-            state: Box::new(crate::states::playing::PlayingState::new(ctx, &mut data)),
+        Ok(GameHandler {
+            state: Box::new(crate::states::playing::PlayingState::new(ctx, &mut data)?),
             data,
-        }
+        })
     }
 }
 
