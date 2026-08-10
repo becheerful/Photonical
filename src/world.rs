@@ -16,7 +16,7 @@ pub struct World {
 impl World {
     pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
         Self {
-            map: GridMap::new(width, height, tile_size),
+            map: GridMap::new(width, height),
             energy_master: EnergyMaster::new(),
             aspect: tile_size / crate::TEXTURE_SIZE,
         }
@@ -97,19 +97,21 @@ impl World {
 }
 
 pub struct GridMap {
-    pub width: u16,
-    pub height: u16,
-    pub tile_size: f32,
+    width: u16,
+    height: u16,
+    pub absolute_width: f32,
+    pub absolute_height: f32,
     pub static_tiles: Vec<(u32, UVec2)>,
     pub block_entities: Vec<Option<Entity>>,
 }
 
 impl GridMap {
-    pub fn new(width: u16, height: u16, tile_size: f32) -> Self {
+    pub fn new(width: u16, height: u16) -> Self {
         Self {
             width,
             height,
-            tile_size,
+            absolute_width: width as f32 * crate::TEXTURE_SIZE,
+            absolute_height: height as f32 * crate::TEXTURE_SIZE,
             static_tiles: GridMap::generate_world(width, height),
             block_entities: vec![None; width as usize * height as usize],
         }

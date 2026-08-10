@@ -21,8 +21,8 @@ impl Camera {
             pos: Vec2::ZERO,
             movement_speed: 5.0,
             screen_bounds: Vec2::new(
-                map.width as f32 * map.tile_size - settings.sc_width,
-                map.height as f32 * map.tile_size - settings.sc_height,
+                map.absolute_width - settings.sc_width,
+                map.absolute_height - settings.sc_height,
             ),
             directions: [false; 4],
         }
@@ -58,8 +58,8 @@ impl Camera {
         new_width: f32,
         new_height: f32,
     ) {
-        self.screen_bounds.x = map.width as f32 * map.tile_size - new_width;
-        self.screen_bounds.y = map.height as f32 * map.tile_size - new_height;
+        self.screen_bounds.x = map.absolute_width - new_width;
+        self.screen_bounds.y = map.absolute_height - new_height;
     }
 
     pub fn key_down_event(&mut self, keycode: KeyCode) {

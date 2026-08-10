@@ -40,12 +40,12 @@ struct Settings {
 }
 
 impl Settings {
-    pub fn new(aspect: f32, sc_width: f32, sc_height: f32) -> Self {
+    pub fn new(sc_width: f32, sc_height: f32) -> Self {
         Settings {
             sc_width,
             sc_height,
             fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: aspect / 2.0,
+            mouse_wheel_sensitivity: 0.5,
         }
     }
 }
@@ -67,7 +67,7 @@ fn main() -> ggez::GameResult {
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
-    let settings = Settings::new(1.0, sc_width, sc_height);
+    let settings = Settings::new(sc_width, sc_height);
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);

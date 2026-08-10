@@ -8,8 +8,9 @@ use ggez::{
 };
 
 use crate::{
+    TEXTURE_SIZE,
     defs::{BlockDef, registry},
-    ecs::{BlockType, ECS, NetworkId, Position, Table},
+    ecs::{BlockType, ECS, NetworkId, Position, Table, Textured},
     game::SharedData,
     player::Player,
     world::World,
@@ -19,6 +20,7 @@ pub struct PlayingState {
     cur_block: Option<u32>,
     cur_net: Option<u32>,
     static_layer: InstanceArray,
+    dynamic_layer: InstanceArray,
     player: Player,
     world: World,
 }
@@ -29,6 +31,7 @@ impl PlayingState {
         Self {
             cur_block: None,
             cur_net: Some(0),
+            dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
             static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world),
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
             world,
@@ -40,27 +43,60 @@ impl PlayingState {
         image: &ggez::graphics::Image,
         world: &World,
     ) -> InstanceArray {
-        let mut static_layer = InstanceArray::new(ctx, image.to_owned());
+        let mut static_layer = InstanceArray::new(ctx, image.clone());
         for (id, pos) in world.map.static_tiles.iter() {
             static_layer.push(
                 DrawParam::default()
                     .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                    .dest(pos.as_vec2() * world.map.tile_size),
+                    .dest(pos.as_vec2() * TEXTURE_SIZE),
             );
         }
 
         static_layer
     }
 
+    fn add_to_dynamic_layer(&mut self, textured: &Textured, pos: &Position) {
+        self.dynamic_layer.push(
+            DrawParam::default()
+                .src(textured.0)
+                .dest(pos.to_vec2() * TEXTURE_SIZE),
+        );
+    }
+
+    fn remove_from_dynamic_layer(&mut self, data: &mut SharedData) {
+        self.dynamic_layer.clear();
+        for (_, (trect, pos)) in data.ecs.query_mut::<(&Textured, &Position)>() {
+            self.dynamic_layer.push(
+                DrawParam::default()
+                    .src(trect.0)
+                    .dest(pos.to_vec2() * TEXTURE_SIZE),
+            );
+        }
+    }
+
     fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
         (
-            ((px + self.player.camera.pos.x) / self.world.map.tile_size) as u16,
-            ((py + self.player.camera.pos.y) / self.world.map.tile_size) as u16,
+            ((px + self.player.camera.pos.x) / TEXTURE_SIZE / self.world.aspect) as u16,
+            ((py + self.player.camera.pos.y) / TEXTURE_SIZE / self.world.aspect) as u16,
         )
     }
 
-    fn remove_block(&mut self, ecs: &mut ECS, x: u16, y: u16) {
-        self.world.remove_entity(ecs, x, y);
+    fn place_block(
+        &mut self,
+        textured: &Textured,
+        pos: &Position,
+        size: u16,
+        e: Option<hecs::Entity>,
+    ) {
+        if e.is_some() {
+            self.world.place_block(pos.0, pos.1, size, e);
+            self.add_to_dynamic_layer(textured, pos);
+        }
+    }
+
+    fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) {
+        self.world.remove_entity(&mut data.ecs, x, y);
+        self.remove_from_dynamic_layer(data);
     }
 
     fn get_block_network_id(&self, ecs: &mut ECS, x: u16, y: u16) -> Option<u32> {
@@ -96,22 +132,23 @@ impl PlayingState {
             return Ok(false);
         }
 
-        let e = Some(
-            data.ecs.spawn((
-                data.atlas.make_texture_rect(
-                    &registry()
-                        .get_block_directly(self.cur_block.unwrap())
-                        .unwrap()
-                        .texture,
-                )?,
-                BlockType(self.cur_block.unwrap()),
-                Position(x, y),
-                crate::ecs::PowerProducer(power),
-                NetworkId(net_id),
-            )),
-        );
+        let textured = data.atlas.make_texture_rect(
+            &registry()
+                .get_block_directly(self.cur_block.unwrap())
+                .unwrap()
+                .texture,
+        )?;
+        let pos = Position(x, y);
 
-        self.world.place_block(x, y, bd.size, e);
+        let e = Some(data.ecs.spawn((
+            textured.clone(),
+            BlockType(self.cur_block.unwrap()),
+            pos.clone(),
+            crate::ecs::PowerProducer(power),
+            NetworkId(net_id),
+        )));
+
+        self.place_block(&textured, &pos, bd.size, e);
         self.world.energy_master.add_producer(net_id, power);
 
         Ok(true)
@@ -138,22 +175,23 @@ impl PlayingState {
             return Ok(false);
         }
 
-        let e = Some(
-            data.ecs.spawn((
-                data.atlas.make_texture_rect(
-                    &registry()
-                        .get_block_directly(self.cur_block.unwrap())
-                        .unwrap()
-                        .texture,
-                )?,
-                BlockType(self.cur_block.unwrap()),
-                Position(x, y),
-                crate::ecs::PowerConsumer(demand),
-                NetworkId(net_id),
-            )),
-        );
+        let textured = data.atlas.make_texture_rect(
+            &registry()
+                .get_block_directly(self.cur_block.unwrap())
+                .unwrap()
+                .texture,
+        )?;
+        let pos = Position(x, y);
 
-        self.world.place_block(x, y, bd.size, e);
+        let e = Some(data.ecs.spawn((
+            textured.clone(),
+            BlockType(self.cur_block.unwrap()),
+            pos.clone(),
+            crate::ecs::PowerConsumer(demand),
+            NetworkId(net_id),
+        )));
+
+        self.place_block(&textured, &pos, bd.size, e);
         self.world.energy_master.add_consumer(net_id, demand);
 
         Ok(true)
@@ -171,21 +209,22 @@ impl PlayingState {
             return Ok(false);
         }
 
-        let e = Some(
-            data.ecs.spawn((
-                data.atlas.make_texture_rect(
-                    &registry()
-                        .get_block_directly(self.cur_block.unwrap())
-                        .unwrap()
-                        .texture,
-                )?,
-                BlockType(self.cur_block.unwrap()),
-                Position(x, y),
-                NetworkId(net_id),
-            )),
-        );
+        let textured = data.atlas.make_texture_rect(
+            &registry()
+                .get_block_directly(self.cur_block.unwrap())
+                .unwrap()
+                .texture,
+        )?;
+        let pos = Position(x, y);
 
-        self.world.place_block(x, y, bd.size, e);
+        let e = Some(data.ecs.spawn((
+            textured.clone(),
+            BlockType(self.cur_block.unwrap()),
+            pos.clone(),
+            NetworkId(net_id),
+        )));
+
+        self.place_block(&textured, &pos, bd.size, e);
         self.world.energy_master.add_storage(net_id);
 
         Ok(true)
@@ -244,15 +283,19 @@ impl PlayingState {
 
             if bd.script.is_some() {
                 if self.world.map.block_entities[index].is_none() {
+                    let textured = data.atlas.make_texture_rect(
+                        &registry().get_block_directly(cur_block).unwrap().texture,
+                    )?;
+                    let pos = Position(x, y);
+
                     let e = Some(data.ecs.spawn((
-                        data.atlas.make_texture_rect(
-                            &registry().get_block_directly(cur_block).unwrap().texture,
-                        )?,
+                        textured.clone(),
                         BlockType(cur_block),
-                        Position(x, y),
+                        pos.clone(),
                         Table(None),
                     )));
 
+                    self.place_block(&textured, &pos, bd.size, e);
                     self.world.place_block(x, y, bd.size, e);
                 } else {
                     let e = self.world.map.block_entities[index].unwrap();
@@ -302,27 +345,12 @@ impl crate::game::State for PlayingState {
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        let mut dynamic_layer = InstanceArray::new(ctx, data.atlas.image.to_owned());
+        let draw_param = DrawParam::default()
+            .dest(-self.player.camera.pos)
+            .scale(aspect);
 
-        for (_, (trect, pos)) in data.ecs.query_mut::<(&crate::ecs::Textured, &Position)>() {
-            dynamic_layer.push(
-                DrawParam::default()
-                    .src(trect.0)
-                    .dest(
-                        ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * self.world.map.tile_size
-                            - self.player.camera.pos,
-                    )
-                    .scale(aspect),
-            );
-        }
-
-        self.static_layer.draw(
-            &mut canvas,
-            DrawParam::default()
-                .scale(aspect)
-                .dest(-self.player.camera.pos),
-        );
-        dynamic_layer.draw(&mut canvas, DrawParam::default());
+        self.static_layer.draw(&mut canvas, draw_param);
+        self.dynamic_layer.draw(&mut canvas, draw_param);
 
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
@@ -435,7 +463,7 @@ impl crate::game::State for PlayingState {
 
             MouseButton::Right => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.remove_block(&mut data.ecs, x, y);
+                self.remove_block(data, x, y);
             }
 
             MouseButton::Other(_) => {}
@@ -484,7 +512,6 @@ impl crate::game::State for PlayingState {
             .scroll_event(&data.settings, ctx.mouse.position(), y)
         {
             self.world.aspect = (self.world.aspect + (y * 0.1)).clamp(1.0, 2.0);
-            self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect;
 
             self.player.camera.resize_event(
                 &self.world.map,
