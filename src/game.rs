@@ -4,12 +4,12 @@ use ggez::{
     input::keyboard::KeyInput,
 };
 
-use crate::{Settings, ecs::ECS, player::Player, res::Atlas, scripts::ScriptEngine};
+use crate::{Settings, ecs::ECS, res::Atlas, scripts::ScriptEngine};
 
 pub trait State {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
 
-    fn draw(&self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
+    fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;
 
     fn window_resize(
         &mut self,
@@ -75,21 +75,22 @@ pub struct GameHandler {
 
 impl GameHandler {
     pub fn new(
+        ctx: &mut Context,
         atlas: Atlas,
-        world: crate::world::World,
-        player: Player,
         script_engine: ScriptEngine,
         settings: Settings,
-    ) -> Self {
-        GameHandler {
-            state: Box::new(crate::states::playing::PlayingState::new(world, player)),
-            data: SharedData {
-                atlas,
-                script_engine,
-                ecs: ECS::new(),
-                settings,
-            },
-        }
+    ) -> GameResult<Self> {
+        let mut data = SharedData {
+            atlas,
+            script_engine,
+            ecs: ECS::new(),
+            settings,
+        };
+
+        Ok(GameHandler {
+            state: Box::new(crate::states::playing::PlayingState::new(ctx, &mut data)?),
+            data,
+        })
     }
 }
 

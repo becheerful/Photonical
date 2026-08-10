@@ -3,7 +3,7 @@ use ggez::{GameResult, glam::Vec2, graphics::Rect};
 use crate::{Settings, res::Atlas};
 
 pub trait UI {
-    fn get_texture_path(&self) -> &str;
+    fn get_texture_path() -> &'static str;
     fn resize_event(&mut self, new_width: f32, new_height: f32);
 }
 
@@ -12,14 +12,19 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(registry: &crate::defs::Registry, aspect: &Vec2, settings: &Settings) -> Self {
+    pub fn new(
+        registry: &crate::defs::Registry,
+        atlas: &Atlas,
+        aspect: f32,
+        settings: &Settings,
+    ) -> Self {
         Self {
-            block_list: BlockListUI::new(registry, aspect, settings),
+            block_list: BlockListUI::new(registry, atlas, aspect, settings),
         }
     }
 
-    pub fn collect_ui_paths(&self) -> Vec<String> {
-        vec![self.block_list.get_texture_path().to_owned()]
+    pub fn collect_ui_paths() -> Vec<String> {
+        vec![BlockListUI::get_texture_path().to_owned()]
     }
 
     pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
@@ -34,8 +39,8 @@ impl PlayerUI {
 
 pub struct BlockListUI {
     hitbox: Rect,
-    atlas_rect: Option<Rect>,
-    aspect: Vec2,
+    atlas_rect: Rect,
+    aspect: f32,
     padding: f32,
     item_size: f32,
     scroll_offset: f32,
@@ -48,10 +53,15 @@ impl BlockListUI {
     // Basically intended to be used as `u32`
     pub const PADDING: f32 = 8.0;
 
-    pub fn new(registry: &crate::defs::Registry, aspect: &Vec2, settings: &Settings) -> Self {
-        let aspect = *aspect * 2.0;
+    pub fn new(
+        registry: &crate::defs::Registry,
+        atlas: &Atlas,
+        aspect: f32,
+        settings: &Settings,
+    ) -> Self {
+        let aspect = aspect * 2.0;
         let width =
-            ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
+            ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
 
         let blocks: Vec<crate::defs::BlockDef> = registry
             .get_all_blocks()
@@ -67,22 +77,17 @@ impl BlockListUI {
                 width,
                 width,
             ),
-            atlas_rect: None,
+            atlas_rect: *atlas.get_ui_uv::<Self>().unwrap(),
             aspect,
-            padding: Self::PADDING * aspect.x,
-            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
+            padding: Self::PADDING * aspect,
+            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect,
             scroll_offset: 0.0,
-            sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
+            sizes: blocks
+                .iter()
+                .map(|def| Vec2::splat(aspect) / def.size as f32)
+                .collect(),
             blocks,
         }
-    }
-
-    pub fn gen_cache(&mut self, atlas: &Atlas, registry: &crate::defs::Registry) -> GameResult {
-        self.atlas_rect = Some(*atlas.get_ui_uv(self)?);
-        for block in &mut self.blocks {
-            block.uv = registry.get_block(&block.id).unwrap().uv;
-        }
-        Ok(())
     }
 
     pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
@@ -91,9 +96,9 @@ impl BlockListUI {
         canvas.draw(
             &atlas.image,
             ggez::graphics::DrawParam::default()
-                .src(self.atlas_rect.unwrap())
+                .src(self.atlas_rect)
                 .dest(xy)
-                .scale(self.aspect),
+                .scale(Vec2::splat(self.aspect)),
         );
 
         canvas.set_scissor_rect(self.hitbox)?;
@@ -123,11 +128,13 @@ impl BlockListUI {
                 (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as usize;
 
             let index = x / self.item_size as usize + (y / self.item_size as usize) * Self::COLS;
-            if index >= self.blocks.len()  {
+            if index >= self.blocks.len() {
                 return None;
             }
 
-            return crate::defs::registry().get_block_index(&self.blocks[index].id);
+            return crate::defs::registry()
+                .get_block_index(&self.blocks[index as usize].id)
+                .ok();
         }
 
         None
@@ -150,7 +157,7 @@ impl BlockListUI {
 }
 
 impl UI for BlockListUI {
-    fn get_texture_path(&self) -> &str {
+    fn get_texture_path() -> &'static str {
         "./resources/assets/textures/ui/blocks_list.png"
     }
 

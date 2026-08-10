@@ -183,8 +183,13 @@ impl Registry {
     }
 
     /// Returns a definition of a block directly from the `Vec<BlockDef>` by given `u32` index
-    pub fn get_block_directly(&self, index: u32) -> Option<&BlockDef> {
-        self.blocks.get(index as usize)
+    #[inline]
+    pub fn get_block_directly(&self, index: u32) -> GameResult<&BlockDef> {
+        self.blocks
+            .get(index as usize)
+            .ok_or(ggez::GameError::CustomError(
+                "Block not found in registry".to_owned(),
+            ))
     }
 
     pub fn get_all_blocks(&self) -> Vec<BlockDef> {
@@ -195,8 +200,14 @@ impl Registry {
         self.blocks.len() as u32
     }
 
-    pub fn get_block_index(&self, id: &str) -> Option<u32> {
-        self.blocks_idx.get(id).copied()
+    #[inline]
+    pub fn get_block_index(&self, id: &str) -> GameResult<u32> {
+        self.blocks_idx
+            .get(id)
+            .ok_or(ggez::GameError::CustomError(
+                "Block ID not found".to_owned(),
+            ))
+            .copied()
     }
 
     pub fn get_item(&self, id: &str) -> Option<&ItemDef> {

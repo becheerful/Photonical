@@ -8,7 +8,7 @@ impl State for MainMenuState {
         Ok(())
     }
 
-    fn draw(&self, _data: &mut SharedData, _ctx: &mut Context) -> GameResult {
+    fn draw(&mut self, _data: &mut SharedData, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
 

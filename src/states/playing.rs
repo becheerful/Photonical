@@ -3,44 +3,93 @@ use ggez::{
     conf::FullscreenType,
     event::MouseButton,
     glam::UVec2,
-    graphics::{DrawParam, Drawable},
+    graphics::{DrawParam, Drawable, InstanceArray},
     input::keyboard::KeyCode,
 };
 
 use crate::{
-    defs::registry,
-    ecs::{BlockType, ECS, NetworkId, Position, Table},
+    TEXTURE_SIZE,
+    defs::{BlockDef, registry},
+    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, Textured},
     game::SharedData,
     player::Player,
     world::World,
 };
 
 pub struct PlayingState {
-    world: World,
-    player: Player,
     cur_block: Option<u32>,
     cur_net: Option<u32>,
+    static_layer: InstanceArray,
+    dynamic_layer: InstanceArray,
+    player: Player,
+    world: World,
 }
 
 impl PlayingState {
-    pub fn new(world: World, player: Player) -> Self {
-        Self {
-            world,
-            player,
+    pub fn new(ctx: &Context, data: &mut SharedData) -> GameResult<Self> {
+        let world = World::new(128, 128, 32.0)?;
+        Ok(Self {
             cur_block: None,
             cur_net: Some(0),
+            dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
+            static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
+            player: Player::new(&world, registry(), &data.atlas, &data.settings),
+            world,
+        })
+    }
+
+    fn make_static_layer(
+        ctx: &Context,
+        image: &ggez::graphics::Image,
+        world: &World,
+    ) -> GameResult<InstanceArray> {
+        let mut static_layer = InstanceArray::new(ctx, image.clone());
+        for (id, pos) in world.map.static_tiles.iter() {
+            static_layer.push(
+                DrawParam::default()
+                    .src(registry().get_block_directly(*id)?.uv.unwrap())
+                    .dest(pos.as_vec2() * TEXTURE_SIZE),
+            );
+        }
+
+        Ok(static_layer)
+    }
+
+    fn add_to_dynamic_layer(&mut self, textured: &Textured, pos: &Position) {
+        self.dynamic_layer.push(
+            DrawParam::default()
+                .src(textured.0)
+                .dest(pos.to_vec2() * TEXTURE_SIZE),
+        );
+    }
+
+    fn remove_from_dynamic_layer(&mut self, data: &mut SharedData) {
+        self.dynamic_layer.clear();
+        for (_, (trect, pos)) in data.ecs.query_mut::<(&Textured, &Position)>() {
+            self.dynamic_layer.push(
+                DrawParam::default()
+                    .src(trect.0)
+                    .dest(pos.to_vec2() * TEXTURE_SIZE),
+            );
         }
     }
 
     fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
         (
-            ((px + self.player.camera.pos.x) / self.world.map.tile_size) as u16,
-            ((py + self.player.camera.pos.y) / self.world.map.tile_size) as u16,
+            ((px + self.player.camera.pos.x) / TEXTURE_SIZE / self.world.aspect) as u16,
+            ((py + self.player.camera.pos.y) / TEXTURE_SIZE / self.world.aspect) as u16,
         )
     }
 
-    fn remove_block(&mut self, ecs: &mut ECS, x: u16, y: u16) {
-        self.world.remove_entity(ecs, x, y);
+    fn place_block(&mut self, textured: &Textured, pos: &Position, size: u16, e: hecs::Entity) {
+        self.world.place_block(pos.0, pos.1, size, e);
+        self.add_to_dynamic_layer(textured, pos);
+    }
+
+    fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
+        self.world.remove_entity(&mut data.ecs, x, y)?;
+        self.remove_from_dynamic_layer(data);
+        Ok(())
     }
 
     fn get_block_network_id(&self, ecs: &mut ECS, x: u16, y: u16) -> Option<u32> {
@@ -53,6 +102,95 @@ impl PlayingState {
         }
 
         None
+    }
+
+    fn get_energy_interaction_value<T: crate::ecs::EnergyComponent>(
+        bd: &BlockDef,
+    ) -> GameResult<f32> {
+        let parameter_name = T::get_energy_param_name();
+        Ok(bd
+            .net
+            .get(parameter_name)
+            .ok_or(GameError::ConfigError(
+                format!(
+                    "Missing parameter `{parameter_name}` for network mask {}",
+                    T::get_network_mask()
+                )
+                .to_owned(),
+            ))?
+            .as_f64()
+            .expect("") as f32)
+    }
+
+    fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
+        &mut self,
+        data: &mut SharedData,
+        net_id: u32,
+        x: u16,
+        y: u16,
+        bd: &BlockDef,
+        component: T,
+    ) -> GameResult<bool> {
+        if !self.world.check_for_space(x, y, bd.size) {
+            return Ok(false);
+        }
+
+        let Some(cur_block) = self.cur_block else {
+            return Ok(false);
+        };
+
+        let textured = data
+            .atlas
+            .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
+        let pos = Position(x, y);
+
+        component.add_to_energy_master(net_id, &mut self.world.energy_master);
+
+        let e = data.ecs.spawn((
+            textured.clone(),
+            BlockType(cur_block),
+            pos.clone(),
+            component,
+            NetworkId(net_id),
+        ));
+
+        self.place_block(&textured, &pos, bd.size, e);
+
+        Ok(true)
+    }
+
+    fn add_energy_storage(
+        &mut self,
+        data: &mut SharedData,
+        net_id: u32,
+        x: u16,
+        y: u16,
+        bd: &BlockDef,
+    ) -> GameResult<bool> {
+        if !self.world.check_for_space(x, y, bd.size) {
+            return Ok(false);
+        }
+
+        let Some(cur_block) = self.cur_block else {
+            return Ok(false);
+        };
+
+        let textured = data
+            .atlas
+            .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
+        let pos = Position(x, y);
+
+        let e = data.ecs.spawn((
+            textured.clone(),
+            BlockType(cur_block),
+            pos.clone(),
+            NetworkId(net_id),
+        ));
+
+        self.place_block(&textured, &pos, bd.size, e);
+        self.world.energy_master.add_storage(net_id);
+
+        Ok(true)
     }
 
     fn handle_click_on_block(
@@ -71,88 +209,49 @@ impl PlayingState {
 
             let cur_block = self.cur_block.unwrap();
 
-            let bd = registry().get_block_directly(cur_block).unwrap();
+            let bd = registry().get_block_directly(cur_block)?;
             let has_network = !bd.net.is_empty();
 
             if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
-                let mask = net_mask.as_u64().expect("") as u8;
                 let net_id = self
                     .cur_net
                     .unwrap_or(self.world.energy_master.networks.len() as u32);
 
-                match mask {
+                match net_mask.as_u64().expect("") as u8 {
                     crate::NETWORK_MASK_PRODUCER => {
-                        let power = bd
-                            .net
-                            .get(crate::PARAM_ENERGY_POWER)
-                            .ok_or(GameError::ConfigError(
-                                "Missing parameter `power` for network mask 1".to_owned(),
-                            ))?
-                            .as_f64()
-                            .expect("") as f32;
-
-                        if !self.world.check_for_space(x, y, bd.size) {
+                        if !self.add_energy_block::<PowerProducer>(
+                            data,
+                            net_id,
+                            x,
+                            y,
+                            bd,
+                            PowerProducer(PlayingState::get_energy_interaction_value::<
+                                PowerProducer,
+                            >(bd)?),
+                        )? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            crate::ecs::PowerProducer(power),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_producer(net_id, power);
                     }
 
                     crate::NETWORK_MASK_CONSUMER => {
-                        let demand = bd
-                            .net
-                            .get(crate::PARAM_ENERGY_DEMAND)
-                            .ok_or(GameError::ConfigError(
-                                "Missing parameter `demand` for network mask 2".to_owned(),
-                            ))?
-                            .as_f64()
-                            .expect("") as f32;
-
-                        if !self.world.check_for_space(x, y, bd.size) {
+                        if !self.add_energy_block::<PowerConsumer>(
+                            data,
+                            net_id,
+                            x,
+                            y,
+                            bd,
+                            PowerConsumer(PlayingState::get_energy_interaction_value::<
+                                PowerConsumer,
+                            >(bd)?),
+                        )? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            crate::ecs::PowerConsumer(demand),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_consumer(net_id, demand);
                     }
 
                     crate::NETWORK_MASK_STORAGE => {
-                        if !self.world.check_for_space(x, y, bd.size) {
+                        if !self.add_energy_storage(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
-
-                        let e = Some(data.ecs.spawn((
-                            data.atlas.make_texture_rect(
-                                &registry().get_block_directly(cur_block).unwrap().texture,
-                            )?,
-                            BlockType(cur_block),
-                            Position(x, y),
-                            NetworkId(net_id),
-                        )));
-
-                        self.world.place_block(x, y, bd.size, e);
-                        self.world.energy_master.add_storage(net_id);
                     }
 
                     _ => {
@@ -165,15 +264,19 @@ impl PlayingState {
 
             if bd.script.is_some() {
                 if self.world.map.block_entities[index].is_none() {
-                    let e = Some(data.ecs.spawn((
-                        data.atlas.make_texture_rect(
-                            &registry().get_block_directly(cur_block).unwrap().texture,
-                        )?,
-                        BlockType(cur_block),
-                        Position(x, y),
-                        Table(None),
-                    )));
+                    let textured = data
+                        .atlas
+                        .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
+                    let pos = Position(x, y);
 
+                    let e = data.ecs.spawn((
+                        textured.clone(),
+                        BlockType(cur_block),
+                        pos.clone(),
+                        Table(None),
+                    ));
+
+                    self.place_block(&textured, &pos, bd.size, e);
                     self.world.place_block(x, y, bd.size, e);
                 } else {
                     let e = self.world.map.block_entities[index].unwrap();
@@ -217,37 +320,19 @@ impl crate::game::State for PlayingState {
         Ok(())
     }
 
-    fn draw(&self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
-        let tile_size = self.world.map.tile_size;
-        let aspect = self.world.aspect;
+    fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
+        let aspect = ggez::glam::Vec2::splat(self.world.aspect);
 
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        let mut array = ggez::graphics::InstanceArray::new(ctx, data.atlas.image.clone());
+        let draw_param = DrawParam::default()
+            .dest(-self.player.camera.pos)
+            .scale(aspect);
 
-        for (id, pos) in self.world.map.static_tiles.iter() {
-            array.push(
-                DrawParam::default()
-                    .src(registry().get_block_directly(*id).unwrap().uv.unwrap())
-                    .dest(pos.as_vec2() * tile_size - self.player.camera.pos)
-                    .scale(aspect),
-            );
-        }
+        self.static_layer.draw(&mut canvas, draw_param);
+        self.dynamic_layer.draw(&mut canvas, draw_param);
 
-        for (_, (trect, pos)) in data.ecs.query_mut::<(&crate::ecs::Textured, &Position)>() {
-            array.push(
-                DrawParam::default()
-                    .src(trect.0)
-                    .dest(
-                        ggez::glam::vec2(pos.0 as f32, pos.1 as f32) * tile_size
-                            - self.player.camera.pos,
-                    )
-                    .scale(aspect),
-            );
-        }
-
-        array.draw(&mut canvas, DrawParam::default());
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED),
@@ -255,8 +340,8 @@ impl crate::game::State for PlayingState {
 
         // should be last because of scissors
         self.player.draw(&mut canvas, &data.atlas)?;
-
         canvas.finish(ctx)?;
+
         Ok(())
     }
 
@@ -359,7 +444,7 @@ impl crate::game::State for PlayingState {
 
             MouseButton::Right => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.remove_block(&mut data.ecs, x, y);
+                self.remove_block(data, x, y)?;
             }
 
             MouseButton::Other(_) => {}
@@ -407,9 +492,7 @@ impl crate::game::State for PlayingState {
             .block_list
             .scroll_event(&data.settings, ctx.mouse.position(), y)
         {
-            self.world.aspect += y * 0.1;
-            self.world.map.tile_size = crate::TEXTURE_SIZE * self.world.aspect.x;
-            data.settings.tile_size = self.world.map.tile_size;
+            self.world.aspect = (self.world.aspect + (y * 0.1)).clamp(1.0, 2.0);
 
             self.player.camera.resize_event(
                 &self.world.map,

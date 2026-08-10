@@ -35,19 +35,17 @@ const NETWORK_MASK_STORAGE: u8 = 3;
 struct Settings {
     pub sc_width: f32,
     pub sc_height: f32,
-    pub tile_size: f32,
     pub fullscreen_type: ggez::conf::FullscreenType,
     pub mouse_wheel_sensitivity: f32,
 }
 
 impl Settings {
-    pub fn new(aspect: f32, tile_size: f32, sc_width: f32, sc_height: f32) -> Self {
+    pub fn new(sc_width: f32, sc_height: f32) -> Self {
         Settings {
             sc_width,
             sc_height,
-            tile_size,
             fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: aspect / 2.0,
+            mouse_wheel_sensitivity: 0.5,
         }
     }
 }
@@ -69,10 +67,7 @@ fn main() -> ggez::GameResult {
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
-
-    let world = world::World::new(&reg, 128, 64, 32.0);
-
-    let settings = Settings::new(world.aspect.x, world.map.tile_size, sc_width, sc_height);
+    let settings = Settings::new(sc_width, sc_height);
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
@@ -80,23 +75,20 @@ fn main() -> ggez::GameResult {
         .init_api()
         .expect("Error during Lua API initialization");
 
-    let mut player = player::Player::new(&world, &reg, &settings);
-
     let mut paths_list = defs::get_paths(&reg);
-    for path in player.ui.collect_ui_paths() {
+    for path in crate::ui::PlayerUI::collect_ui_paths() {
         paths_list.insert(path);
     }
 
     let atlas = res::Atlas::new(&ctx, &paths_list)?;
 
     defs::gen_uv_cache(&mut reg, &atlas)?;
-    player.ui.block_list.gen_cache(&atlas, &reg)?;
 
     defs::REGISTRY
         .set(reg)
         .expect("Game registry already initialized");
 
-    let game = game::GameHandler::new(atlas, world, player, script_engine, settings);
+    let game = game::GameHandler::new(&mut ctx, atlas, script_engine, settings)?;
 
     ggez::event::run(ctx, event_loop, game);
 }

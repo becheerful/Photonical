@@ -57,15 +57,33 @@ impl ScriptEngine {
 
     pub fn init_api(&mut self) -> mlua::Result<()> {
         let get_name = self.lua.create_function(move |_, raw_id: u32| {
-            Ok(registry().get_block_directly(raw_id).unwrap().name.clone())
+            Ok(registry()
+                .get_block_directly(raw_id)
+                .or(Err(mlua::Error::RuntimeError(
+                    "The block with this raw ID was not found".to_owned(),
+                )))?
+                .name
+                .clone())
         })?;
 
         let get_block_str_id = self.lua.create_function(move |_, raw_id: u32| {
-            Ok(registry().get_block_directly(raw_id).unwrap().id.clone())
+            Ok(registry()
+                .get_block_directly(raw_id)
+                .or(Err(mlua::Error::RuntimeError(
+                    "The block with this raw ID was not found".to_owned(),
+                )))?
+                .id
+                .clone())
         })?;
 
         let get_size = self.lua.create_function(move |_, raw_id: u32| {
-            Ok(registry().get_block_directly(raw_id).unwrap().size.clone())
+            Ok(registry()
+                .get_block_directly(raw_id)
+                .or(Err(mlua::Error::RuntimeError(
+                    "The block with this raw ID was not found".to_owned(),
+                )))?
+                .size
+                .clone())
         })?;
 
         /*
@@ -103,7 +121,9 @@ impl ScriptEngine {
                             PARAM_STRING_ID,
                             registry()
                                 .get_block_directly(block.0)
-                                .unwrap()
+                                .or(Err(mlua::Error::RuntimeError(
+                                    "The block with this raw ID was not found".to_owned(),
+                                )))?
                                 .id
                                 .to_owned(),
                         )?;
@@ -184,7 +204,13 @@ impl ScriptEngine {
             block_table.set(PARAM_NETWORK_ID, net_id.0)?;
         }
 
-        for (key, value) in &registry().get_block_directly(id.0).unwrap().fields {
+        for (key, value) in &registry()
+            .get_block_directly(id.0)
+            .or(Err(mlua::Error::RuntimeError(
+                "The block with this raw ID was not found".to_owned(),
+            )))?
+            .fields
+        {
             block_table.set(key.to_owned(), self.json_to_lua(value)?)?;
         }
 

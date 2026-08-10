@@ -21,8 +21,8 @@ impl Camera {
             pos: Vec2::ZERO,
             movement_speed: 5.0,
             screen_bounds: Vec2::new(
-                map.width as f32 * map.tile_size - settings.sc_width,
-                map.height as f32 * map.tile_size - settings.sc_height,
+                map.absolute_width - settings.sc_width,
+                map.absolute_height - settings.sc_height,
             ),
             directions: [false; 4],
         }
@@ -54,12 +54,12 @@ impl Camera {
     pub fn resize_event(
         &mut self,
         map: &GridMap,
-        data: &SharedData,
+        _data: &SharedData,
         new_width: f32,
         new_height: f32,
     ) {
-        self.screen_bounds.x = map.width as f32 * data.settings.tile_size - new_width;
-        self.screen_bounds.y = map.height as f32 * data.settings.tile_size - new_height;
+        self.screen_bounds.x = map.absolute_width - new_width;
+        self.screen_bounds.y = map.absolute_height - new_height;
     }
 
     pub fn key_down_event(&mut self, keycode: KeyCode) {
@@ -92,11 +92,12 @@ impl Player {
     pub fn new(
         world: &crate::world::World,
         registry: &crate::defs::Registry,
+        atlas: &crate::res::Atlas,
         settings: &Settings,
     ) -> Self {
         Self {
             camera: Camera::new(&world.map, settings),
-            ui: PlayerUI::new(registry, &world.aspect, settings),
+            ui: PlayerUI::new(registry, atlas, world.aspect, settings),
         }
     }
 

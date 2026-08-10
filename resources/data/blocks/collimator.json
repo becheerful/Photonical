@@ -2,7 +2,7 @@
     "id": "photonical:collimator",
     "name": "Collimator",
     "texture": "resources/assets/textures/blocks/collimator.png",
-    "size": 2,
+    "size": 3,
     "script": null,
     "fields": {},
     "net": {

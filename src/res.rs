@@ -16,7 +16,10 @@ impl Atlas {
         ctx: &Context,
         texture_paths: &std::collections::HashSet<String>,
     ) -> GameResult<Self> {
-        let mut packer = rect_packer::DensePacker::new(4096, 4096);
+        let mut atlas_width: u32 = 1024;
+        let mut atlas_height: u32 = 1024;
+
+        let mut packer = rect_packer::DensePacker::new(atlas_width as i32, atlas_height as i32);
         let mut loaded_images = Vec::new();
 
         for path in texture_paths {
@@ -30,30 +33,41 @@ impl Atlas {
                 }
             }
             .to_rgba8();
+
             let (w, h) = image.dimensions();
-            let rect = packer
-                .pack(
-                    w.try_into().expect("The value is outside the range of i32"),
-                    h.try_into().expect("The value is outside the range of i32"),
-                    false,
-                )
-                .ok_or(ggez::GameError::CustomError("Atlas full".to_owned()))?;
+            let rect;
+            loop {
+                match packer.pack(w as i32, h as i32, false) {
+                    Some(r) => {
+                        rect = r;
+                        break;
+                    }
+
+                    None => {
+                        atlas_width *= 2;
+                        atlas_height *= 2;
+
+                        if atlas_width > 8192 || atlas_height > 8192 {
+                            return Err(GameError::CustomError("Atlas full".to_owned()));
+                        }
+
+                        packer.resize(atlas_width as i32, atlas_height as i32);
+                    }
+                }
+            }
+
             loaded_images.push((rect, image, path.clone()));
         }
-
-        let atlas_width = u32::try_from(packer.size().0).expect("u32 can't be negative");
-        let atlas_height = u32::try_from(packer.size().1).expect("u32 can't be negative");
 
         let mut atlas_buffer = image::RgbaImage::new(atlas_width, atlas_height);
 
         for (rect, img, _) in loaded_images.clone() {
-            for y in 0..u32::try_from(rect.height).expect("u32 can't be negative") {
-                for x in 0..u32::try_from(rect.width).expect("u32 can't be negative") {
-                    let px = img.get_pixel(x, y);
+            for x in 0..rect.width as u32 {
+                for y in 0..rect.height as u32 {
                     atlas_buffer.put_pixel(
                         u32::try_from(rect.x).expect("u32 can't be negative") + x,
                         u32::try_from(rect.y).expect("u32 can't be negative") + y,
-                        *px,
+                        *img.get_pixel(x, y),
                     );
                 }
             }
@@ -106,9 +120,9 @@ impl Atlas {
             ))
     }
 
-    pub fn get_ui_uv(&self, uv: &impl crate::ui::UI) -> GameResult<&Rect> {
+    pub fn get_ui_uv<T: crate::ui::UI>(&self) -> GameResult<&Rect> {
         self.uv_map
-            .get(uv.get_texture_path())
+            .get(T::get_texture_path())
             .ok_or(GameError::ResourceNotFound(
                 "Texture not found in atlas".to_owned(),
                 vec![],
