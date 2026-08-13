@@ -1,4 +1,4 @@
-use ggez::{GameResult, glam::Vec2, graphics::Rect};
+use ggez::{glam::Vec2, graphics::Rect};
 
 use crate::{Settings, res::Atlas};
 
@@ -27,7 +27,7 @@ impl PlayerUI {
         vec![BlockListUI::get_texture_path().to_owned()]
     }
 
-    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
+    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> ggez::GameResult {
         self.block_list.draw(canvas, atlas)?;
         Ok(())
     }
@@ -90,7 +90,7 @@ impl BlockListUI {
         }
     }
 
-    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> GameResult {
+    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> ggez::GameResult {
         let xy = self.hitbox.point();
 
         canvas.draw(

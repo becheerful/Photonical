@@ -120,12 +120,12 @@ impl GridMap {
     }
 
     fn generate_world(width: u16, height: u16) -> GameResult<Vec<(u32, UVec2)>> {
-        let mut map: Vec<(u32, UVec2)> = Vec::with_capacity(width as usize * height as usize);
+        let mut map = Vec::with_capacity(width as usize * height as usize);
         for i in 0..map.capacity() {
-            map[i] = (
+            map.push((
                 registry().get_block_index("photonical:sand")?,
                 UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
-            )
+            ));
         }
 
         map[0] = (

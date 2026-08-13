@@ -10,7 +10,7 @@ use ggez::{
 use crate::{
     TEXTURE_SIZE,
     defs::{BlockDef, registry},
-    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, Textured},
+    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, UV},
     game::SharedData,
     player::Player,
     world::World,
@@ -55,20 +55,20 @@ impl PlayingState {
         Ok(static_layer)
     }
 
-    fn add_to_dynamic_layer(&mut self, textured: &Textured, pos: &Position) {
+    fn add_to_dynamic_layer(&mut self, uv: &UV, pos: &Position) {
         self.dynamic_layer.push(
             DrawParam::default()
-                .src(textured.0)
+                .src(uv.0)
                 .dest(pos.to_vec2() * TEXTURE_SIZE),
         );
     }
 
     fn remove_from_dynamic_layer(&mut self, data: &mut SharedData) {
         self.dynamic_layer.clear();
-        for (_, (trect, pos)) in data.ecs.query_mut::<(&Textured, &Position)>() {
+        for (_, (uv, pos)) in data.ecs.query_mut::<(&UV, &Position)>() {
             self.dynamic_layer.push(
                 DrawParam::default()
-                    .src(trect.0)
+                    .src(uv.0)
                     .dest(pos.to_vec2() * TEXTURE_SIZE),
             );
         }
@@ -81,9 +81,9 @@ impl PlayingState {
         )
     }
 
-    fn place_block(&mut self, textured: &Textured, pos: &Position, size: u16, e: hecs::Entity) {
+    fn place_block(&mut self, uv: &UV, pos: &Position, size: u16, e: hecs::Entity) {
         self.world.place_block(pos.0, pos.1, size, e);
-        self.add_to_dynamic_layer(textured, pos);
+        self.add_to_dynamic_layer(uv, pos);
     }
 
     fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
@@ -119,7 +119,9 @@ impl PlayingState {
                 .to_owned(),
             ))?
             .as_f64()
-            .expect("") as f32)
+            .ok_or(GameError::CustomError(format!(
+                "Invalid value for `{parameter_name}`"
+            )))? as f32)
     }
 
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
@@ -139,7 +141,7 @@ impl PlayingState {
             return Ok(false);
         };
 
-        let textured = data
+        let uv = data
             .atlas
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
@@ -147,14 +149,14 @@ impl PlayingState {
         component.add_to_energy_master(net_id, &mut self.world.energy_master);
 
         let e = data.ecs.spawn((
-            textured.clone(),
+            uv.clone(),
             BlockType(cur_block),
             pos.clone(),
             component,
             NetworkId(net_id),
         ));
 
-        self.place_block(&textured, &pos, bd.size, e);
+        self.place_block(&uv, &pos, bd.size, e);
 
         Ok(true)
     }
@@ -175,19 +177,19 @@ impl PlayingState {
             return Ok(false);
         };
 
-        let textured = data
+        let uv = data
             .atlas
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
         let e = data.ecs.spawn((
-            textured.clone(),
+            uv.clone(),
             BlockType(cur_block),
             pos.clone(),
             NetworkId(net_id),
         ));
 
-        self.place_block(&textured, &pos, bd.size, e);
+        self.place_block(&uv, &pos, bd.size, e);
         self.world.energy_master.add_storage(net_id);
 
         Ok(true)
@@ -217,7 +219,7 @@ impl PlayingState {
                     .cur_net
                     .unwrap_or(self.world.energy_master.networks.len() as u32);
 
-                match net_mask.as_u64().expect("") as u8 {
+                match net_mask.as_u64().unwrap_or(0) as u8 {
                     crate::NETWORK_MASK_PRODUCER => {
                         if !self.add_energy_block::<PowerProducer>(
                             data,
@@ -255,7 +257,7 @@ impl PlayingState {
                     }
 
                     _ => {
-                        return Err(GameError::ConfigError("No such mask".to_owned()));
+                        return Err(ggez::GameError::ConfigError("No such mask".to_owned()));
                     }
                 }
 
@@ -264,19 +266,19 @@ impl PlayingState {
 
             if bd.script.is_some() {
                 if self.world.map.block_entities[index].is_none() {
-                    let textured = data
+                    let uv = data
                         .atlas
                         .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
                     let pos = Position(x, y);
 
                     let e = data.ecs.spawn((
-                        textured.clone(),
+                        uv.clone(),
                         BlockType(cur_block),
                         pos.clone(),
                         Table(None),
                     ));
 
-                    self.place_block(&textured, &pos, bd.size, e);
+                    self.place_block(&uv, &pos, bd.size, e);
                     self.world.place_block(x, y, bd.size, e);
                 } else {
                     let e = self.world.map.block_entities[index].unwrap();

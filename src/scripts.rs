@@ -29,8 +29,8 @@ impl ScriptEngine {
             serde_json::Value::Null => Ok(mlua::Value::Nil),
             serde_json::Value::Bool(b) => Ok(mlua::Value::Boolean(*b)),
             serde_json::Value::Number(n) => {
-                if let Some(u) = n.as_i64() {
-                    return Ok(mlua::Value::Integer(u));
+                if let Some(i) = n.as_i64() {
+                    return Ok(mlua::Value::Integer(i));
                 } else {
                     return Ok(mlua::Value::Number(n.as_f64().unwrap_or(0.0)));
                 }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use ggez::GameResult;
+use ggez::{GameError, GameResult};
 use serde::{Deserialize, Serialize};
 
 fn get_default_size() -> u16 {
@@ -71,27 +71,21 @@ impl Registry {
     pub fn load_data(&mut self, rel_path: &str) {
         let data_dir = std::path::PathBuf::from(format!("{rel_path}/resources/data"));
 
-        if let Err(e) =
-            load_defs_from_dir::<BlockDef>(data_dir.join("blocks").as_path(), |block_def| {
-                self.register_block(block_def, rel_path)
-            })
-        {
+        if let Err(e) = load_defs_from_dir::<BlockDef>(data_dir.join("blocks").as_path(), |def| {
+            self.register_block(def, rel_path)
+        }) {
             eprintln!("Failed to load blocks: {e}");
         }
 
-        if let Err(e) =
-            load_defs_from_dir::<ItemDef>(data_dir.join("items").as_path(), |item_def| {
-                self.register_item(item_def, rel_path)
-            })
-        {
+        if let Err(e) = load_defs_from_dir::<ItemDef>(data_dir.join("items").as_path(), |def| {
+            self.register_item(def, rel_path)
+        }) {
             eprintln!("Failed to load items: {e}");
         }
 
-        if let Err(e) =
-            load_defs_from_dir::<RecipeDef>(data_dir.join("recipes").as_path(), |recipe_def| {
-                self.register_recipe(recipe_def)
-            })
-        {
+        if let Err(e) = load_defs_from_dir::<RecipeDef>(data_dir.join("recipes").as_path(), |def| {
+            self.recipes.entry(def.id.clone()).or_insert(def);
+        }) {
             eprintln!("Failed to load recipes: {e}");
         }
     }
@@ -116,64 +110,33 @@ impl Registry {
         Ok(())
     }
 
-    /// # Arguments
-    /// * `def` - block definition (id, name, path to the texture, path to the script)
-    /// * `rel_path` - path to the mod folder contents
-    /// # Errors
-    /// Returns an error if a block with this id is already registered.
-    pub fn register_block(&mut self, mut def: BlockDef, rel_path: &str) -> Result<(), String> {
-        if self.blocks_idx.contains_key(&def.id) {
-            return Err(format!("Block id '{}' already registered", def.id));
-        }
-
+    pub fn register_block(&mut self, mut def: BlockDef, rel_path: &str) {
         let original = def.texture.clone();
         def.texture = format!(r"{rel_path}/{original}");
 
-        if let Some(script) = def.script {
+        if let Some(script) = &def.script {
             let original = script;
             def.script = Some(format!(r"{rel_path}/{original}"));
         }
 
-        let l = self.blocks_idx.len();
-        self.blocks_idx
-            .insert(def.id.clone(), u32::try_from(l).unwrap_or(u32::MAX));
-        self.blocks.push(def);
-
-        Ok(())
+        if self.blocks_idx.contains_key(&def.id) {
+            let index = *self.blocks_idx.get(&def.id).unwrap() as usize;
+            self.blocks[index] = def;
+        } else {
+            self.blocks_idx.insert(
+                def.id.clone(),
+                u32::try_from(self.blocks.len()).unwrap_or(u32::MAX),
+            );
+            self.blocks.push(def);
+        }
     }
 
-    /// # Arguments
-    /// * `def` - item definition (id, name, path to the texture)
-    /// * `rel_path` - path to the mod folder contents
-    /// # Errors
-    /// Returns an error if an item with this id is already registered.
-    pub fn register_item(&mut self, mut def: ItemDef, rel_path: &str) -> Result<(), String> {
-        if self.items.contains_key(&def.id) {
-            return Err(format!("Item id '{}' already registered", def.id));
-        }
-
+    pub fn register_item(&mut self, mut def: ItemDef, rel_path: &str) {
         let original = def.texture.clone();
         def.texture = format!(r"{rel_path}/{original}");
-
-        self.items.insert(def.id.clone(), def);
-        Ok(())
+        self.items.entry(def.id.clone()).or_insert(def);
     }
 
-    /// # Arguments
-    /// * `def` - recipe definition (id, time, inputs and outputs)
-    /// * `rel_path` - path to the mod folder contents
-    /// # Errors
-    /// Returns an error if a recipe with this id is already registered.
-    pub fn register_recipe(&mut self, def: RecipeDef) -> Result<(), String> {
-        if self.recipes.contains_key(&def.id) {
-            return Err(format!("Reciped id '{}' already registered", def.id));
-        }
-
-        self.recipes.insert(def.id.clone(), def);
-        Ok(())
-    }
-
-    /// Searches an gets a definition of a block by given `&str` id
     pub fn get_block(&self, id: &str) -> Option<&BlockDef> {
         let Some(index) = self.blocks_idx.get(id) else {
             return None;
@@ -182,12 +145,11 @@ impl Registry {
         self.blocks.get(*index as usize)
     }
 
-    /// Returns a definition of a block directly from the `Vec<BlockDef>` by given `u32` index
     #[inline]
     pub fn get_block_directly(&self, index: u32) -> GameResult<&BlockDef> {
         self.blocks
             .get(index as usize)
-            .ok_or(ggez::GameError::CustomError(
+            .ok_or(GameError::CustomError(
                 "Block not found in registry".to_owned(),
             ))
     }
@@ -204,7 +166,7 @@ impl Registry {
     pub fn get_block_index(&self, id: &str) -> GameResult<u32> {
         self.blocks_idx
             .get(id)
-            .ok_or(ggez::GameError::CustomError(
+            .ok_or(GameError::CustomError(
                 "Block ID not found".to_owned(),
             ))
             .copied()
@@ -219,7 +181,6 @@ impl Registry {
     }
 }
 
-/// The global registry of all game objects (blocks, items).
 pub static REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
 
 pub fn registry() -> &'static Registry {
@@ -228,20 +189,22 @@ pub fn registry() -> &'static Registry {
 
 fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
     dir: &std::path::Path,
-    mut register_fn: impl FnMut(T) -> Result<(), String>,
-) -> Result<(), String> {
+    mut register_fn: impl FnMut(T),
+) -> GameResult {
     if !dir.exists() {
         return Ok(());
     }
 
-    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    for entry in std::fs::read_dir(dir).map_err(|e| GameError::FilesystemError(e.to_string()))? {
+        let entry = entry.map_err(|e| GameError::FilesystemError(e.to_string()))?;
         let path = entry.path();
 
         if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-            let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-            let def: T = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-            register_fn(def)?;
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| GameError::FilesystemError(e.to_string()))?;
+            let def: T = serde_json::from_str(&content)
+                .map_err(|e| GameError::FilesystemError(e.to_string()))?;
+            register_fn(def);
         }
     }
 

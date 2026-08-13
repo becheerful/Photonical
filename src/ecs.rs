@@ -1,8 +1,9 @@
 use crate::energy::EnergyMaster;
 
 #[derive(Debug, Clone)]
-pub struct Textured(pub ggez::graphics::Rect);
+pub struct UV(pub ggez::graphics::Rect);
 
+#[derive(Debug, Clone, Copy)]
 pub struct BlockType(pub u32);
 
 #[derive(Debug, Clone)]
@@ -28,7 +29,7 @@ pub struct PowerProducer(pub f32);
 
 impl EnergyComponent for PowerProducer {
     fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
-        energy_master.add_producer(net_id, self.0);
+        energy_master.add_energy_interactor(net_id, self.0);
     }
 
     fn get_energy_param_name() -> &'static str {
@@ -44,7 +45,7 @@ pub struct PowerConsumer(pub f32);
 
 impl EnergyComponent for PowerConsumer {
     fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
-        energy_master.add_consumer(net_id, self.0);
+        energy_master.add_energy_interactor(net_id, -self.0);
     }
 
     fn get_energy_param_name() -> &'static str {

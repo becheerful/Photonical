@@ -27,9 +27,8 @@ impl Atlas {
                 Ok(img) => img,
                 Err(_) => {
                     eprintln!("Warning: texture '{path}' not found");
-                    image::open(crate::MISSING_TEX).or(Err(ggez::GameError::CustomError(
-                        "No textures found".to_owned(),
-                    )))?
+                    image::open(crate::MISSING_TEX)
+                        .or(Err(GameError::CustomError("No textures found".to_owned())))?
                 }
             }
             .to_rgba8();
@@ -96,9 +95,12 @@ impl Atlas {
         Ok(Self { image, uv_map })
     }
 
-    pub fn make_texture_rect(&self, texture_path: &str) -> GameResult<crate::ecs::Textured> {
-        Ok(crate::ecs::Textured(*self.uv_map.get(texture_path).ok_or(
-            GameError::ResourceNotFound("Texture not found in atlas".to_owned(), vec![]),
+    pub fn make_texture_rect(&self, texture_path: &str) -> GameResult<crate::ecs::UV> {
+        Ok(crate::ecs::UV(*self.uv_map.get(texture_path).ok_or(
+            GameError::ResourceNotFound(
+                format!("Texture {texture_path} not found in atlas"),
+                vec![],
+            ),
         )?))
     }
 
@@ -106,7 +108,7 @@ impl Atlas {
         self.uv_map
             .get(&block_def.texture)
             .ok_or(GameError::ResourceNotFound(
-                "Texture not found in atlas".to_owned(),
+                format!("Texture {} not found in atlas", block_def.texture),
                 vec![],
             ))
     }
@@ -115,17 +117,16 @@ impl Atlas {
         self.uv_map
             .get(&item_def.texture)
             .ok_or(GameError::ResourceNotFound(
-                "Texture not found in atlas".to_owned(),
+                format!("Texture {} not found in atlas", item_def.texture),
                 vec![],
             ))
     }
 
     pub fn get_ui_uv<T: crate::ui::UI>(&self) -> GameResult<&Rect> {
-        self.uv_map
-            .get(T::get_texture_path())
-            .ok_or(GameError::ResourceNotFound(
-                "Texture not found in atlas".to_owned(),
-                vec![],
-            ))
+        let path = T::get_texture_path();
+        self.uv_map.get(path).ok_or(GameError::ResourceNotFound(
+            format!("Texture {path} not found in atlas"),
+            vec![],
+        ))
     }
 }

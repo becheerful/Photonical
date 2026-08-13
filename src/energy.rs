@@ -13,7 +13,7 @@ impl Network {
         }
     }
 
-    /// Returns the amount of energy that one storage should give up or consume
+    /// Returns the amount of energy that *one* storage should give up or consume.
     pub fn get_storage_imbalance(&self) -> f32 {
         if self.storages > 0 {
             self.imbalance / (self.storages as f32)
@@ -38,18 +38,11 @@ impl EnergyMaster {
         }
     }
 
-    pub fn add_producer(&mut self, net_id: u32, power: f32) {
+    pub fn add_energy_interactor(&mut self, net_id: u32, delta_power: f32) {
         self.networks
             .entry(net_id)
             .or_insert(Network::new())
-            .imbalance += power;
-    }
-
-    pub fn add_consumer(&mut self, net_id: u32, demand: f32) {
-        self.networks
-            .entry(net_id)
-            .or_insert(Network::new())
-            .imbalance -= demand;
+            .imbalance += delta_power;
     }
 
     pub fn add_storage(&mut self, net_id: u32) {
