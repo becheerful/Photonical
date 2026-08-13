@@ -1,0 +1,12 @@
+{
+    "id": "photonical:mirror",
+    "name": "Mirror",
+    "texture": "resources/assets/textures/blocks/mirror.png",
+    "script": "scripts/mirror.lua",
+    "fields": {
+        "radius": 5
+    },
+    "net": {
+        "mask": 4
+    }
+}

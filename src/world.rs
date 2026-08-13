@@ -5,6 +5,7 @@ use crate::{
     defs::registry,
     ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer},
     energy::EnergyMaster,
+    settings::res::TEXTURE_SIZE,
 };
 
 pub struct World {
@@ -18,7 +19,7 @@ impl World {
         Ok(Self {
             map: GridMap::new(width, height)?,
             energy_master: EnergyMaster::new(),
-            aspect: tile_size / crate::TEXTURE_SIZE,
+            aspect: tile_size / TEXTURE_SIZE,
         })
     }
 
@@ -99,8 +100,8 @@ impl World {
 }
 
 pub struct GridMap {
-    width: u16,
-    height: u16,
+    pub width: u16,
+    pub height: u16,
     pub absolute_width: f32,
     pub absolute_height: f32,
     pub static_tiles: Vec<(u32, UVec2)>,
@@ -112,8 +113,8 @@ impl GridMap {
         Ok(Self {
             width,
             height,
-            absolute_width: width as f32 * crate::TEXTURE_SIZE,
-            absolute_height: height as f32 * crate::TEXTURE_SIZE,
+            absolute_width: width as f32 * TEXTURE_SIZE,
+            absolute_height: height as f32 * TEXTURE_SIZE,
             static_tiles: GridMap::generate_world(width, height)?,
             block_entities: vec![None; width as usize * height as usize],
         })

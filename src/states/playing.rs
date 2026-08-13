@@ -8,11 +8,11 @@ use ggez::{
 };
 
 use crate::{
-    TEXTURE_SIZE,
     defs::{BlockDef, registry},
     ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, UV},
     game::SharedData,
     player::Player,
+    settings::res::TEXTURE_SIZE,
     world::World,
 };
 
@@ -161,7 +161,7 @@ impl PlayingState {
         Ok(true)
     }
 
-    fn add_energy_storage(
+    fn add_neutral_energy_block(
         &mut self,
         data: &mut SharedData,
         net_id: u32,
@@ -190,7 +190,6 @@ impl PlayingState {
         ));
 
         self.place_block(&uv, &pos, bd.size, e);
-        self.world.energy_master.add_storage(net_id);
 
         Ok(true)
     }
@@ -214,13 +213,15 @@ impl PlayingState {
             let bd = registry().get_block_directly(cur_block)?;
             let has_network = !bd.net.is_empty();
 
-            if has_network && let Some(net_mask) = bd.net.get(crate::PARAM_ENERGY_MASK) {
+            if has_network
+                && let Some(net_mask) = bd.net.get(crate::settings::json::fields::ENERGY_MASK)
+            {
                 let net_id = self
                     .cur_net
                     .unwrap_or(self.world.energy_master.networks.len() as u32);
 
                 match net_mask.as_u64().unwrap_or(0) as u8 {
-                    crate::NETWORK_MASK_PRODUCER => {
+                    crate::settings::json::mask::PRODUCER => {
                         if !self.add_energy_block::<PowerProducer>(
                             data,
                             net_id,
@@ -235,7 +236,7 @@ impl PlayingState {
                         }
                     }
 
-                    crate::NETWORK_MASK_CONSUMER => {
+                    crate::settings::json::mask::CONSUMER => {
                         if !self.add_energy_block::<PowerConsumer>(
                             data,
                             net_id,
@@ -250,8 +251,15 @@ impl PlayingState {
                         }
                     }
 
-                    crate::NETWORK_MASK_STORAGE => {
-                        if !self.add_energy_storage(data, net_id, x, y, bd)? {
+                    crate::settings::json::mask::STORAGE => {
+                        if !self.add_neutral_energy_block(data, net_id, x, y, bd)? {
+                            return Ok(());
+                        }
+                        self.world.energy_master.add_storage(net_id);
+                    }
+
+                    crate::settings::json::mask::NODE => {
+                        if !self.add_neutral_energy_block(data, net_id, x, y, bd)? {
                             return Ok(());
                         }
                     }
@@ -286,6 +294,16 @@ impl PlayingState {
                         eprintln!("{e}");
                     }
                 }
+
+                if let Err(e) = data.script_engine.run_lua_function(
+                    &mut data.ecs,
+                    crate::settings::lua::functions::INIT,
+                    &mut self.world,
+                    index,
+                    dt,
+                ) {
+                    eprintln!("{e}");
+                }
             } else if !has_network {
                 self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
             }
@@ -294,7 +312,7 @@ impl PlayingState {
         } else {
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
-                crate::LUA_FUNCTION_MOUSE_BUTTON_DOWN,
+                crate::settings::lua::functions::MOUSE_BUTTON_DOWN,
                 &mut self.world,
                 index,
                 dt,
@@ -469,7 +487,7 @@ impl crate::game::State for PlayingState {
 
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
-                crate::LUA_FUNCTION_MOUSE_BUTTON_UP,
+                crate::settings::lua::functions::MOUSE_BUTTON_UP,
                 &mut self.world,
                 index,
                 ctx.time.delta().as_secs_f32(),

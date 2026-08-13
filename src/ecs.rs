@@ -33,11 +33,11 @@ impl EnergyComponent for PowerProducer {
     }
 
     fn get_energy_param_name() -> &'static str {
-        crate::PARAM_ENERGY_POWER
+        crate::settings::json::fields::ENERGY_POWER
     }
 
     fn get_network_mask() -> u8 {
-        crate::NETWORK_MASK_PRODUCER
+        crate::settings::json::mask::PRODUCER
     }
 }
 
@@ -49,11 +49,11 @@ impl EnergyComponent for PowerConsumer {
     }
 
     fn get_energy_param_name() -> &'static str {
-        crate::PARAM_ENERGY_DEMAND
+        crate::settings::json::fields::ENERGY_DEMAND
     }
 
     fn get_network_mask() -> u8 {
-        crate::NETWORK_MASK_CONSUMER
+        crate::settings::json::mask::CONSUMER
     }
 }
 

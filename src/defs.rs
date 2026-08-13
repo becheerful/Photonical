@@ -7,6 +7,14 @@ fn get_default_size() -> u16 {
     1
 }
 
+fn get_default_script() -> Option<String> {
+    None
+}
+
+fn get_default_map() -> serde_json::Map<String, serde_json::Value> {
+    serde_json::Map::new()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDef {
     pub id: String,
@@ -16,8 +24,11 @@ pub struct BlockDef {
     pub texture: String,
     #[serde(default = "get_default_size")]
     pub size: u16,
+    #[serde(default = "get_default_script")]
     pub script: Option<String>,
+    #[serde(default = "get_default_map")]
     pub fields: serde_json::Map<String, serde_json::Value>,
+    #[serde(default = "get_default_map")]
     pub net: serde_json::Map<String, serde_json::Value>,
     /// position in the dynamically stitched texture atlas \
     /// it's safe to use `.unwrap()` after the atlas is initialized
@@ -166,9 +177,7 @@ impl Registry {
     pub fn get_block_index(&self, id: &str) -> GameResult<u32> {
         self.blocks_idx
             .get(id)
-            .ok_or(GameError::CustomError(
-                "Block ID not found".to_owned(),
-            ))
+            .ok_or(GameError::CustomError("Block ID not found".to_owned()))
             .copied()
     }
 
@@ -213,7 +222,7 @@ fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
 
 pub fn get_paths(registry: &Registry) -> HashSet<String> {
     let mut texture_paths = HashSet::new();
-    texture_paths.insert(crate::MISSING_TEX.to_string());
+    texture_paths.insert(crate::settings::res::MISSING_TEX.to_string());
 
     for block in &registry.blocks {
         texture_paths.insert(block.texture.clone());

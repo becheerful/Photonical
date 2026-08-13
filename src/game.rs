@@ -4,7 +4,7 @@ use ggez::{
     input::keyboard::KeyInput,
 };
 
-use crate::{Settings, ecs::ECS, res::Atlas, scripts::ScriptEngine};
+use crate::{ecs::ECS, res::Atlas, scripts::ScriptEngine, settings::Settings};
 
 pub trait State {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult;

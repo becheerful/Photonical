@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use mlua::AnyUserData;
 
 use crate::{
-    LUA_FUNCTION_MOUSE_BUTTON_DOWN, LUA_FUNCTION_MOUSE_BUTTON_UP, LUA_FUNCTION_UPDATE,
-    PARAM_BLOCK_INDEX_IN_REGISTRY, PARAM_ENTITY_ID, PARAM_NETWORK_ID, PARAM_POSITION,
-    PARAM_STRING_ID,
     defs::registry,
     ecs::{BlockType, ECS, NetworkId, Position},
+    settings::lua::{
+        functions::UPDATE,
+        param::{BLOCK_INDEX_IN_REGISTRY, POSITION},
+    },
     world::World,
 };
 
@@ -32,7 +33,9 @@ impl ScriptEngine {
                 if let Some(i) = n.as_i64() {
                     return Ok(mlua::Value::Integer(i));
                 } else {
-                    return Ok(mlua::Value::Number(n.as_f64().unwrap_or(0.0)));
+                    return Ok(mlua::Value::Number(n.as_f64().ok_or(
+                        mlua::Error::RuntimeError(format!("Invalid number {v}")),
+                    )?));
                 }
             }
             serde_json::Value::String(s) => Ok(mlua::Value::String(self.lua.create_string(s)?)),
@@ -86,28 +89,37 @@ impl ScriptEngine {
                 .clone())
         })?;
 
-        /*
         let get_entity_at =
             self.lua
-                .create_function(move |lua, (world, x, y): (AnyUserData, u16, u16)| {
+                .create_function(move |_, (world, x, y): (AnyUserData, u16, u16)| {
                     world.borrow_scoped(|world: &World| {
-                        let entity = world.map.get(x, y);
+                        if let Some(e) =
+                            world.map.block_entities[(y * world.map.width + x) as usize]
+                        {
+                            return e.to_bits().get();
+                        }
 
-                        if let Some(e) = entity {
-                            if let Some(key) = &world
-                                .ecs
-                                .get::<&crate::ecs::Table>(e)
-                                .expect("Entity not found")
-                                .0
-                            {
-                                return lua.registry_value(key);
-                            }
+                        0
+                    })
+                })?;
+
+        let get_entity_table =
+            self.lua
+                .create_function(move |lua, (ecs, entity): (AnyUserData, u64)| {
+                    ecs.borrow_scoped(|ecs: &ECS| {
+                        if let Some(key) = &ecs
+                            .get::<&crate::ecs::Table>(hecs::Entity::from_bits(entity).unwrap())
+                            .expect("Entity not found")
+                            .0
+                        {
+                            return Ok(mlua::Value::Table(
+                                lua.registry_value::<mlua::Table>(&key)?,
+                            ));
                         }
 
                         Ok(mlua::Value::Nil)
                     })?
                 })?;
-        */
 
         let get_block_at =
             self.lua
@@ -116,9 +128,9 @@ impl ScriptEngine {
                         let table = lua.create_table()?;
                         let block = world.map.static_tiles[world.map.index(x, y)];
 
-                        table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, block.0)?;
+                        table.set(BLOCK_INDEX_IN_REGISTRY, block.0)?;
                         table.set(
-                            PARAM_STRING_ID,
+                            crate::settings::lua::param::STRING_ID,
                             registry()
                                 .get_block_directly(block.0)
                                 .or(Err(mlua::Error::RuntimeError(
@@ -127,7 +139,7 @@ impl ScriptEngine {
                                 .id
                                 .to_owned(),
                         )?;
-                        table.set(PARAM_POSITION, block.1.to_array())?;
+                        table.set(POSITION, block.1.to_array())?;
 
                         Ok(table)
                     })?
@@ -139,11 +151,19 @@ impl ScriptEngine {
                     world.borrow_scoped(|world: &World| {
                         let net = world.energy_master.networks.get(&net_id);
                         match net {
-                            Some(n) => Ok(mlua::Value::Number(n.get_storage_imbalance() as f64)),
-                            None => Ok(mlua::Value::Nil),
+                            Some(n) => mlua::Value::Number(n.get_storage_imbalance() as f64),
+                            None => mlua::Value::Nil,
                         }
-                    })?
+                    })
                 })?;
+
+        let get_world_width = self.lua.create_function(move |_, world: AnyUserData| {
+            world.borrow_scoped(|world: &World| world.map.width)
+        })?;
+
+        let get_world_height = self.lua.create_function(move |_, world: AnyUserData| {
+            world.borrow_scoped(|world: &World| world.map.height)
+        })?;
 
         self.lua.globals().set("get_name", get_name)?;
         // Gets the block's string ID in the registry
@@ -151,10 +171,17 @@ impl ScriptEngine {
             .globals()
             .set("get_block_str_id", get_block_str_id)?;
         self.lua.globals().set("get_size", get_size)?;
-        // self.lua.globals().set("get_entity_at", get_entity_at)?;
+        self.lua.globals().set("get_entity_at", get_entity_at)?;
+        self.lua
+            .globals()
+            .set("get_entity_table", get_entity_table)?;
         self.lua.globals().set("get_block_at", get_block_at)?;
         // Gets the total network imbalance divided by the number of energy storages
         self.lua.globals().set("get_imbalance", get_imbalance)?;
+        self.lua.globals().set("get_world_width", get_world_width)?;
+        self.lua
+            .globals()
+            .set("get_world_height", get_world_height)?;
 
         Ok(())
     }
@@ -179,9 +206,18 @@ impl ScriptEngine {
 
         self.lua.load(code).set_environment(env.clone()).exec()?;
 
-        self.load_lua_function(&env, block_id, LUA_FUNCTION_UPDATE);
-        self.load_lua_function(&env, block_id, LUA_FUNCTION_MOUSE_BUTTON_DOWN);
-        self.load_lua_function(&env, block_id, LUA_FUNCTION_MOUSE_BUTTON_UP);
+        self.load_lua_function(&env, block_id, crate::settings::lua::functions::INIT);
+        self.load_lua_function(&env, block_id, UPDATE);
+        self.load_lua_function(
+            &env,
+            block_id,
+            crate::settings::lua::functions::MOUSE_BUTTON_DOWN,
+        );
+        self.load_lua_function(
+            &env,
+            block_id,
+            crate::settings::lua::functions::MOUSE_BUTTON_UP,
+        );
 
         Ok(())
     }
@@ -196,12 +232,15 @@ impl ScriptEngine {
     ) -> mlua::Result<mlua::Table> {
         let block_table = self.lua.create_table()?;
 
-        block_table.set(PARAM_ENTITY_ID, entity.id())?;
-        block_table.set(PARAM_BLOCK_INDEX_IN_REGISTRY, id.0)?;
-        block_table.set(PARAM_POSITION, vec![pos.0, pos.1])?;
+        block_table.set(
+            crate::settings::lua::param::ENTITY_ID,
+            entity.to_bits().get(),
+        )?;
+        block_table.set(BLOCK_INDEX_IN_REGISTRY, id.0)?;
+        block_table.set(POSITION, vec![pos.0, pos.1])?;
 
         if let Some(net_id) = network {
-            block_table.set(PARAM_NETWORK_ID, net_id.0)?;
+            block_table.set(crate::settings::lua::param::NETWORK_ID, net_id.0)?;
         }
 
         for (key, value) in &registry()
@@ -248,7 +287,8 @@ impl ScriptEngine {
 
                     self.lua.scope(|scope| {
                         let world_ud = scope.create_any_userdata_ref(world)?;
-                        func.call::<()>((world_ud, table, dt))
+                        let ecs_ud = scope.create_any_userdata_ref(ecs)?;
+                        func.call::<()>((world_ud, ecs_ud, table, dt))
                     })?;
                 }
             }
@@ -258,7 +298,7 @@ impl ScriptEngine {
     }
 
     pub fn update(&mut self, ecs: &mut ECS, world: &mut World, dt: f32) -> mlua::Result<()> {
-        if let Some(func_group) = self.scripts.get(LUA_FUNCTION_UPDATE) {
+        if let Some(func_group) = self.scripts.get(UPDATE) {
             let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
             for (entity, (id, pos, table, network)) in ecs.query_mut::<(
@@ -282,7 +322,8 @@ impl ScriptEngine {
                 if let Some(func) = func_group.get(&block_type) {
                     self.lua.scope(|scope| {
                         let world_ud = scope.create_any_userdata_ref(world)?;
-                        func.call::<()>((world_ud, entities, dt))
+                        let ecs_ud = scope.create_any_userdata_ref(ecs)?;
+                        func.call::<()>((world_ud, ecs_ud, entities, dt))
                     })?;
                 }
             }

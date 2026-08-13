@@ -1,6 +1,9 @@
 use ggez::{glam::Vec2, graphics::Rect};
 
-use crate::{Settings, res::Atlas};
+use crate::{
+    res::Atlas,
+    settings::{Settings, res::TEXTURE_SIZE},
+};
 
 pub trait UI {
     fn get_texture_path() -> &'static str;
@@ -60,8 +63,7 @@ impl BlockListUI {
         settings: &Settings,
     ) -> Self {
         let aspect = aspect * 2.0;
-        let width =
-            ((crate::TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
+        let width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
 
         let blocks: Vec<crate::defs::BlockDef> = registry
             .get_all_blocks()
@@ -80,7 +82,7 @@ impl BlockListUI {
             atlas_rect: *atlas.get_ui_uv::<Self>().unwrap(),
             aspect,
             padding: Self::PADDING * aspect,
-            item_size: (crate::TEXTURE_SIZE + Self::PADDING as f32) * aspect,
+            item_size: (TEXTURE_SIZE + Self::PADDING as f32) * aspect,
             scroll_offset: 0.0,
             sizes: blocks
                 .iter()
@@ -149,7 +151,7 @@ impl BlockListUI {
         let contains = self.hitbox.contains(mouse_pos);
         if contains {
             self.scroll_offset +=
-                dy * (crate::TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
+                dy * (TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
         }
 
         contains

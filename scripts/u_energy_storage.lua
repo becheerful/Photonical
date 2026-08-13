@@ -1,7 +1,7 @@
 local min = math.min
 local max = math.max
 
-function update(world, storages, dt)
+function update(world, _ecs, storages, dt)
     for _, storage in ipairs(storages) do
         local imbalance = get_imbalance(world, storage.net_id)
         if imbalance ~= nil then
@@ -10,6 +10,6 @@ function update(world, storages, dt)
     end
 end
 
-function on_mouse_button_down(_world, storage, _dt)
+function on_mouse_button_down(_world, _ecs, storage, _dt)
     print(storage.stored)
 end

@@ -27,7 +27,7 @@ impl Atlas {
                 Ok(img) => img,
                 Err(_) => {
                     eprintln!("Warning: texture '{path}' not found");
-                    image::open(crate::MISSING_TEX)
+                    image::open(crate::settings::res::MISSING_TEX)
                         .or(Err(GameError::CustomError("No textures found".to_owned())))?
                 }
             }
