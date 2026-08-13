@@ -512,13 +512,15 @@ impl crate::game::State for PlayingState {
             .block_list
             .scroll_event(&data.settings, ctx.mouse.position(), y)
         {
-            self.world.aspect = (self.world.aspect + (y * 0.1)).clamp(1.0, 2.0);
+            self.world.aspect = (self.world.aspect
+                + (y * data.settings.aspect_mouse_wheel_sensitivity))
+                .clamp(1.0, 2.0);
 
             self.player.camera.resize_event(
                 &self.world.map,
                 data,
-                data.settings.sc_width,
-                data.settings.sc_height,
+                data.settings.screen_width,
+                data.settings.screen_height,
             );
         }
 

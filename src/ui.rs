@@ -74,8 +74,8 @@ impl BlockListUI {
 
         Self {
             hitbox: Rect::new(
-                settings.sc_width - width,
-                settings.sc_height - width,
+                settings.screen_width - width,
+                settings.screen_height - width,
                 width,
                 width,
             ),
@@ -125,9 +125,9 @@ impl BlockListUI {
 
     pub fn mouse_button_down_event(&self, settings: &Settings, mouse_pos: Vec2) -> Option<u32> {
         if self.hitbox.contains(mouse_pos) {
-            let x = (self.hitbox.w - (settings.sc_width - mouse_pos.x)) as usize;
-            let y =
-                (self.hitbox.h - (settings.sc_height - mouse_pos.y + self.scroll_offset)) as usize;
+            let x = (self.hitbox.w - (settings.screen_width - mouse_pos.x)) as usize;
+            let y = (self.hitbox.h - (settings.screen_height - mouse_pos.y + self.scroll_offset))
+                as usize;
 
             let index = x / self.item_size as usize + (y / self.item_size as usize) * Self::COLS;
             if index >= self.blocks.len() {
@@ -151,7 +151,7 @@ impl BlockListUI {
         let contains = self.hitbox.contains(mouse_pos);
         if contains {
             self.scroll_offset +=
-                dy * (TEXTURE_SIZE + Self::PADDING) * settings.mouse_wheel_sensitivity;
+                dy * (TEXTURE_SIZE + Self::PADDING) * settings.ui_mouse_wheel_sensitivity;
         }
 
         contains

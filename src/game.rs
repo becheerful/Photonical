@@ -146,8 +146,8 @@ impl EventHandler for GameHandler {
     }
 
     fn resize_event(&mut self, ctx: &mut Context, width: f32, height: f32) -> GameResult {
-        self.data.settings.sc_width = width;
-        self.data.settings.sc_height = height;
+        self.data.settings.screen_width = width;
+        self.data.settings.screen_height = height;
         self.state
             .window_resize(&mut self.data, ctx, width, height)?;
         Ok(())

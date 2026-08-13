@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use ggez::{GameError, GameResult};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 fn get_default_size() -> u16 {
     1
@@ -15,7 +15,7 @@ fn get_default_map() -> serde_json::Map<String, serde_json::Value> {
     serde_json::Map::new()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BlockDef {
     pub id: String,
     pub name: String,
@@ -36,7 +36,7 @@ pub struct BlockDef {
     pub uv: Option<ggez::graphics::Rect>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ItemDef {
     pub id: String,
     pub name: String,
@@ -47,7 +47,7 @@ pub struct ItemDef {
     pub uv: Option<ggez::graphics::Rect>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RecipeDef {
     pub id: String,
     pub time: f32,
@@ -212,7 +212,7 @@ fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
             let content = std::fs::read_to_string(&path)
                 .map_err(|e| GameError::FilesystemError(e.to_string()))?;
             let def: T = serde_json::from_str(&content)
-                .map_err(|e| GameError::FilesystemError(e.to_string()))?;
+                .map_err(|e| GameError::CustomError(e.to_string()))?;
             register_fn(def);
         }
     }

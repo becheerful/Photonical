@@ -1,0 +1,5 @@
+screen_width = 640
+screen_height = 480
+fullscreen_type = "Windowed"
+ui_mouse_wheel_sensitivity = 0.5
+aspect_mouse_wheel_sensitivity = 0.1

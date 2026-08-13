@@ -1,19 +1,18 @@
+use serde::Deserialize;
+
+#[derive(Deserialize)]
 pub struct Settings {
-    pub sc_width: f32,
-    pub sc_height: f32,
+    pub screen_width: f32,
+    pub screen_height: f32,
     pub fullscreen_type: ggez::conf::FullscreenType,
-    pub mouse_wheel_sensitivity: f32,
+    pub ui_mouse_wheel_sensitivity: f32,
+    pub aspect_mouse_wheel_sensitivity: f32,
 }
 
-impl Settings {
-    pub fn new(sc_width: f32, sc_height: f32) -> Self {
-        Settings {
-            sc_width,
-            sc_height,
-            fullscreen_type: ggez::conf::FullscreenType::Windowed,
-            mouse_wheel_sensitivity: 0.5,
-        }
-    }
+pub fn load_settings() -> ggez::GameResult<Settings> {
+    let content = std::fs::read_to_string("./settings.toml")
+        .map_err(|e| ggez::GameError::FilesystemError(e.to_string()))?;
+    toml::from_str(&content).map_err(|e| ggez::GameError::CustomError(e.to_string()))
 }
 
 pub mod lua {

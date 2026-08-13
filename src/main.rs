@@ -27,7 +27,7 @@ fn main() -> ggez::GameResult {
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
-    let settings = settings::Settings::new(sc_width, sc_height);
+    let settings = settings::load_settings()?;
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);

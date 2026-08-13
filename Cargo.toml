@@ -7,6 +7,7 @@ edition = "2024"
 ggez = "0.9"
 serde = "1.0"
 serde_json = "1.0"
+toml = "1.1"
 rect_packer = "0.2"
 image = "0.25"
 mlua = { version = "0.10", default-features = false, features = ["lua54", "vendored"] }

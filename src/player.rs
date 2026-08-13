@@ -21,8 +21,8 @@ impl Camera {
             pos: Vec2::ZERO,
             movement_speed: 5.0,
             screen_bounds: Vec2::new(
-                map.absolute_width - settings.sc_width,
-                map.absolute_height - settings.sc_height,
+                map.absolute_width - settings.screen_width,
+                map.absolute_height - settings.screen_height,
             ),
             directions: [false; 4],
         }
