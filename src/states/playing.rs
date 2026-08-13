@@ -393,7 +393,6 @@ impl crate::game::State for PlayingState {
 
                 ctx.gfx.set_fullscreen(data.settings.fullscreen_type)?;
             }
-            Some(KeyCode::Escape) => ctx.request_quit(),
             Some(key) => self.player.camera.key_down_event(key),
             None => {}
         }

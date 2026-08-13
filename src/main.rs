@@ -11,23 +11,22 @@ mod ui;
 mod world;
 
 fn main() -> ggez::GameResult {
-    let sc_width: f32 = 640.0;
-    let sc_height: f32 = 480.0;
+    let settings = settings::load_settings()?;
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))
         .window_mode(
             ggez::conf::WindowMode::default()
-                .dimensions(sc_width, sc_height)
+                .dimensions(settings.screen_width, settings.screen_height)
                 .resizable(true),
         )
         .build()?;
+
     ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
     // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
     let mut reg = defs::Registry::new()?;
-    let settings = settings::load_settings()?;
 
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);

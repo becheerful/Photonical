@@ -92,10 +92,24 @@ impl GameHandler {
             data,
         })
     }
+
+    pub fn quit(&self, ctx: &mut Context) {
+        if let Ok(s) = toml::to_string(&self.data.settings) {
+            if let Err(e) = std::fs::write("./settings.toml", s) {
+                eprintln!("{e}");
+            }
+        }
+
+        ctx.request_quit();
+    }
 }
 
 impl EventHandler for GameHandler {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, repeated: bool) -> GameResult {
+        if input.keycode == Some(ggez::input::keyboard::KeyCode::Escape) {
+            self.quit(ctx);
+        }
+
         self.state
             .key_down_event(&mut self.data, ctx, input, repeated)?;
         Ok(())
