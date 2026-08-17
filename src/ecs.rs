@@ -1,12 +1,12 @@
 use crate::energy::EnergyMaster;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct UV(pub ggez::graphics::Rect);
 
 #[derive(Debug, Clone, Copy)]
 pub struct BlockType(pub u32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Position(pub u16, pub u16);
 
 impl Position {
@@ -57,8 +57,24 @@ impl EnergyComponent for PowerConsumer {
     }
 }
 
-// no component for power storage because it will be useless
+pub struct PowerStorage;
+
+impl EnergyComponent for PowerStorage {
+    fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
+        energy_master.add_storage(net_id);
+    }
+
+    fn get_energy_param_name() -> &'static str {
+        "" // storages don't produce or consume energy
+    }
+
+    fn get_network_mask() -> u8 {
+        crate::settings::json::mask::STORAGE
+    }
+}
 
 pub struct NetworkId(pub u32);
+
+pub struct LightBeam(pub [ggez::glam::Vec2; 2]);
 
 pub type ECS = hecs::World;

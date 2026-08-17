@@ -1,5 +1,5 @@
-screen_width = 640
-screen_height = 480
+screen_width = 936.0
+screen_height = 621.0
 fullscreen_type = "Windowed"
 ui_mouse_wheel_sensitivity = 0.5
 aspect_mouse_wheel_sensitivity = 0.1

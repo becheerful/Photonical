@@ -1,24 +1,24 @@
 use ggez::{
     Context, GameError, GameResult,
-    conf::FullscreenType,
     event::MouseButton,
-    glam::UVec2,
+    glam::{UVec2, Vec2},
     graphics::{DrawParam, Drawable, InstanceArray},
-    input::keyboard::KeyCode,
 };
 
 use crate::{
     defs::{BlockDef, registry},
-    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer, Table, UV},
+    ecs::{
+        BlockType, LightBeam, NetworkId, Position, PowerConsumer, PowerProducer, PowerStorage,
+        Table, UV,
+    },
     game::SharedData,
     player::Player,
-    settings::res::TEXTURE_SIZE,
+    settings::{CONNECTION_RADIUS, res::TEXTURE_SIZE},
     world::World,
 };
 
 pub struct PlayingState {
     cur_block: Option<u32>,
-    cur_net: Option<u32>,
     static_layer: InstanceArray,
     dynamic_layer: InstanceArray,
     player: Player,
@@ -30,7 +30,6 @@ impl PlayingState {
         let world = World::new(128, 128, 32.0)?;
         Ok(Self {
             cur_block: None,
-            cur_net: Some(0),
             dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
             static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
             player: Player::new(&world, registry(), &data.atlas, &data.settings),
@@ -92,18 +91,6 @@ impl PlayingState {
         Ok(())
     }
 
-    fn get_block_network_id(&self, ecs: &mut ECS, x: u16, y: u16) -> Option<u32> {
-        let index = self.world.map.index(x, y);
-
-        if let Some(entity) = self.world.map.block_entities[index] {
-            if let Ok(id) = ecs.get::<&NetworkId>(entity) {
-                return Some(id.0);
-            }
-        }
-
-        None
-    }
-
     fn get_energy_interaction_value<T: crate::ecs::EnergyComponent>(
         bd: &BlockDef,
     ) -> GameResult<f32> {
@@ -124,10 +111,93 @@ impl PlayingState {
             )))? as f32)
     }
 
+    fn connect_with_network(&mut self, data: &mut SharedData, x: u16, y: u16, size: u16) -> u32 {
+        let mut net_id = self.world.energy_master.networks.len() as u32;
+        let mut connections: Vec<LightBeam> = Vec::new();
+
+        let half = size / 2;
+        let hx = (x + half).min(self.world.map.width);
+        let hy = (y + half).min(self.world.map.height);
+
+        let end_x = x + size;
+        let end_y = y + size;
+
+        for fx in end_x..(end_x + CONNECTION_RADIUS).min(self.world.map.width) {
+            if let Some(entity) = self.world.map.get(fx, hy) {
+                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
+                    net_id = nid.0;
+
+                    connections.push(LightBeam([
+                        Vec2::new(end_x as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
+                        Vec2::new(fx as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
+                    ]));
+
+                    break;
+                }
+            }
+        }
+
+        let mut cx = x.saturating_sub(1);
+        while cx > x.saturating_sub(CONNECTION_RADIUS) {
+            if let Some(entity) = self.world.map.get(cx, hy) {
+                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
+                    net_id = nid.0;
+
+                    connections.push(LightBeam([
+                        Vec2::new(cx as f32 + 1.0, hy as f32 + 0.5) * TEXTURE_SIZE,
+                        Vec2::new(x as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
+                    ]));
+
+                    break;
+                }
+            }
+
+            cx -= 1;
+        }
+
+        for fy in end_y..(end_y + CONNECTION_RADIUS).min(self.world.map.height) {
+            if let Some(entity) = self.world.map.get(hx, fy) {
+                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
+                    net_id = nid.0;
+
+                    connections.push(LightBeam([
+                        Vec2::new(hx as f32 + 0.5, end_y as f32) * TEXTURE_SIZE,
+                        Vec2::new(hx as f32 + 0.5, fy as f32) * TEXTURE_SIZE,
+                    ]));
+
+                    break;
+                }
+            }
+        }
+
+        let mut cy = y.saturating_sub(1);
+        while cy > y.saturating_sub(CONNECTION_RADIUS) {
+            if let Some(entity) = self.world.map.get(hx, cy) {
+                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
+                    net_id = nid.0;
+
+                    connections.push(LightBeam([
+                        Vec2::new(hx as f32 + 0.5, cy as f32 + 1.0) * TEXTURE_SIZE,
+                        Vec2::new(hx as f32 + 0.5, y as f32) * TEXTURE_SIZE,
+                    ]));
+
+                    break;
+                }
+            }
+
+            cy -= 1;
+        }
+
+        for connection in connections {
+            data.ecs.spawn((connection,));
+        }
+
+        net_id
+    }
+
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
-        net_id: u32,
         x: u16,
         y: u16,
         bd: &BlockDef,
@@ -146,15 +216,12 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
+        let net_id = self.connect_with_network(data, x, y, bd.size);
         component.add_to_energy_master(net_id, &mut self.world.energy_master);
 
-        let e = data.ecs.spawn((
-            uv.clone(),
-            BlockType(cur_block),
-            pos.clone(),
-            component,
-            NetworkId(net_id),
-        ));
+        let e = data
+            .ecs
+            .spawn((uv, BlockType(cur_block), pos, component, NetworkId(net_id)));
 
         self.place_block(&uv, &pos, bd.size, e);
 
@@ -164,7 +231,6 @@ impl PlayingState {
     fn add_neutral_energy_block(
         &mut self,
         data: &mut SharedData,
-        net_id: u32,
         x: u16,
         y: u16,
         bd: &BlockDef,
@@ -182,12 +248,11 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let e = data.ecs.spawn((
-            uv.clone(),
-            BlockType(cur_block),
-            pos.clone(),
-            NetworkId(net_id),
-        ));
+        let net_id = self.connect_with_network(data, x, y, bd.size);
+
+        let e = data
+            .ecs
+            .spawn((uv, BlockType(cur_block), pos, NetworkId(net_id)));
 
         self.place_block(&uv, &pos, bd.size, e);
 
@@ -216,15 +281,10 @@ impl PlayingState {
             if has_network
                 && let Some(net_mask) = bd.net.get(crate::settings::json::fields::ENERGY_MASK)
             {
-                let net_id = self
-                    .cur_net
-                    .unwrap_or(self.world.energy_master.networks.len() as u32);
-
                 match net_mask.as_u64().unwrap_or(0) as u8 {
                     crate::settings::json::mask::PRODUCER => {
                         if !self.add_energy_block::<PowerProducer>(
                             data,
-                            net_id,
                             x,
                             y,
                             bd,
@@ -239,7 +299,6 @@ impl PlayingState {
                     crate::settings::json::mask::CONSUMER => {
                         if !self.add_energy_block::<PowerConsumer>(
                             data,
-                            net_id,
                             x,
                             y,
                             bd,
@@ -252,14 +311,13 @@ impl PlayingState {
                     }
 
                     crate::settings::json::mask::STORAGE => {
-                        if !self.add_neutral_energy_block(data, net_id, x, y, bd)? {
+                        if !self.add_energy_block::<PowerStorage>(data, x, y, bd, PowerStorage)? {
                             return Ok(());
                         }
-                        self.world.energy_master.add_storage(net_id);
                     }
 
                     crate::settings::json::mask::NODE => {
-                        if !self.add_neutral_energy_block(data, net_id, x, y, bd)? {
+                        if !self.add_neutral_energy_block(data, x, y, bd)? {
                             return Ok(());
                         }
                     }
@@ -268,8 +326,6 @@ impl PlayingState {
                         return Err(ggez::GameError::ConfigError("No such mask".to_owned()));
                     }
                 }
-
-                self.cur_net = None;
             }
 
             if bd.script.is_some() {
@@ -353,6 +409,12 @@ impl crate::game::State for PlayingState {
         self.static_layer.draw(&mut canvas, draw_param);
         self.dynamic_layer.draw(&mut canvas, draw_param);
 
+        for (_, beam) in data.ecs.query_mut::<&LightBeam>() {
+            let l =
+                ggez::graphics::Mesh::new_line(ctx, &beam.0, 8.0, ggez::graphics::Color::WHITE)?;
+            canvas.draw(&l, draw_param);
+        }
+
         canvas.draw(
             &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
             DrawParam::default().color(ggez::graphics::Color::RED),
@@ -372,29 +434,24 @@ impl crate::game::State for PlayingState {
         new_width: f32,
         new_height: f32,
     ) -> GameResult {
+        data.settings.screen_width = new_width;
+        data.settings.screen_height = new_height;
+
         self.player
-            .resize_event(&self.world.map, data, new_width, new_height);
+            .resize_event(&self.world.map, new_width, new_height);
+
         Ok(())
     }
 
     fn key_down_event(
         &mut self,
-        data: &mut SharedData,
-        ctx: &mut Context,
+        _data: &mut SharedData,
+        _ctx: &mut Context,
         input: ggez::input::keyboard::KeyInput,
         _repeated: bool,
     ) -> GameResult {
-        match input.keycode {
-            Some(KeyCode::F11) => {
-                data.settings.fullscreen_type = match data.settings.fullscreen_type {
-                    FullscreenType::Windowed => FullscreenType::Desktop,
-                    _ => FullscreenType::Windowed,
-                };
-
-                ctx.gfx.set_fullscreen(data.settings.fullscreen_type)?;
-            }
-            Some(key) => self.player.camera.key_down_event(key),
-            None => {}
+        if let Some(key) = input.keycode {
+            self.player.camera.key_down_event(key);
         }
 
         Ok(())
@@ -436,28 +493,18 @@ impl crate::game::State for PlayingState {
                 }
 
                 let (x, y) = self.point_to_block_pos(mx, my);
-                if ctx.keyboard.is_key_pressed(KeyCode::RShift)
-                    || ctx.keyboard.is_key_pressed(KeyCode::LShift)
-                {
-                    self.cur_net = self.get_block_network_id(&mut data.ecs, x, y);
-                } else {
-                    self.handle_click_on_block(data, x, y, ctx.time.delta().as_secs_f32())?;
-                }
+                self.handle_click_on_block(data, x, y, ctx.time.delta().as_secs_f32())?;
             }
 
             MouseButton::Middle => {
                 let (x, y) = self.point_to_block_pos(mx, my);
 
-                if let Some(entity) = self.world.map.get(x, y) {
-                    if let Ok((id, network)) = data
-                        .ecs
-                        .query_one_mut::<(&BlockType, Option<&NetworkId>)>(entity)
-                    {
-                        self.cur_block = Some(id.0);
-                        if let Some(net_id) = network {
-                            self.cur_net = Some(net_id.0)
-                        }
-                    }
+                let Some(entity) = self.world.map.get(x, y) else {
+                    return Ok(());
+                };
+
+                if let Ok(id) = data.ecs.get::<&BlockType>(entity) {
+                    self.cur_block = Some(id.0);
                 }
             }
 
@@ -517,7 +564,6 @@ impl crate::game::State for PlayingState {
 
             self.player.camera.resize_event(
                 &self.world.map,
-                data,
                 data.settings.screen_width,
                 data.settings.screen_height,
             );

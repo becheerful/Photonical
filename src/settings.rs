@@ -1,6 +1,4 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub screen_width: f32,
     pub screen_height: f32,
@@ -14,6 +12,8 @@ pub fn load_settings() -> ggez::GameResult<Settings> {
         .map_err(|e| ggez::GameError::FilesystemError(e.to_string()))?;
     toml::from_str(&content).map_err(|e| ggez::GameError::CustomError(e.to_string()))
 }
+
+pub const CONNECTION_RADIUS: u16 = 10;
 
 pub mod lua {
     pub mod param {

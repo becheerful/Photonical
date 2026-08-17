@@ -1,5 +1,6 @@
 use ggez::{
     Context, GameResult,
+    conf::FullscreenType,
     event::{EventHandler, MouseButton},
     input::keyboard::KeyInput,
 };
@@ -108,6 +109,14 @@ impl EventHandler for GameHandler {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, repeated: bool) -> GameResult {
         if input.keycode == Some(ggez::input::keyboard::KeyCode::Escape) {
             self.quit(ctx);
+        } else if input.keycode == Some(ggez::input::keyboard::KeyCode::F11) {
+            let new_type = match self.data.settings.fullscreen_type {
+                FullscreenType::Windowed => FullscreenType::Desktop,
+                _ => FullscreenType::Windowed,
+            };
+
+            self.data.settings.fullscreen_type = new_type;
+            ctx.gfx.set_fullscreen(new_type)?;
         }
 
         self.state

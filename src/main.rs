@@ -18,6 +18,7 @@ fn main() -> ggez::GameResult {
         .window_mode(
             ggez::conf::WindowMode::default()
                 .dimensions(settings.screen_width, settings.screen_height)
+                .fullscreen_type(settings.fullscreen_type)
                 .resizable(true),
         )
         .build()?;
@@ -35,7 +36,7 @@ fn main() -> ggez::GameResult {
         .expect("Error during Lua API initialization");
 
     let mut paths_list = defs::get_paths(&reg);
-    for path in crate::ui::PlayerUI::collect_ui_paths() {
+    for path in ui::PlayerUI::collect_ui_paths() {
         paths_list.insert(path);
     }
 

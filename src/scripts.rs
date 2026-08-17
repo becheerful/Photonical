@@ -266,66 +266,72 @@ impl ScriptEngine {
         index: usize,
         dt: f32,
     ) -> mlua::Result<()> {
-        if let Some(func_groups) = self.scripts.get(name) {
-            let Some(entity) = world.map.block_entities[index] else {
+        let Some(func_groups) = self.scripts.get(name) else {
+            return Ok(());
+        };
+
+        let Some(entity) = world.map.block_entities[index] else {
+            return Ok(());
+        };
+
+        if let Ok((id, pos, table, network)) = ecs.query_one_mut::<(
+            &BlockType,
+            &Position,
+            &mut crate::ecs::Table,
+            Option<&NetworkId>,
+        )>(entity)
+        {
+            let Some(func) = func_groups.get(&id.0) else {
                 return Ok(());
             };
 
-            if let Ok((id, pos, table, network)) = ecs.query_one_mut::<(
-                &BlockType,
-                &Position,
-                &mut crate::ecs::Table,
-                Option<&NetworkId>,
-            )>(entity)
-            {
-                if let Some(func) = func_groups.get(&id.0) {
-                    let table = if let Some(key) = &table.0 {
-                        self.lua.registry_value::<mlua::Table>(&key)?
-                    } else {
-                        self.create_table(&entity, id, pos, table, network)?
-                    };
+            let table = if let Some(key) = &table.0 {
+                self.lua.registry_value::<mlua::Table>(&key)?
+            } else {
+                self.create_table(&entity, id, pos, table, network)?
+            };
 
-                    self.lua.scope(|scope| {
-                        let world_ud = scope.create_any_userdata_ref(world)?;
-                        let ecs_ud = scope.create_any_userdata_ref(ecs)?;
-                        func.call::<()>((world_ud, ecs_ud, table, dt))
-                    })?;
-                }
-            }
+            self.lua.scope(|scope| {
+                let world_ud = scope.create_any_userdata_ref(world)?;
+                let ecs_ud = scope.create_any_userdata_ref(ecs)?;
+                func.call::<()>((world_ud, ecs_ud, table, dt))
+            })?;
         }
 
         Ok(())
     }
 
     pub fn update(&mut self, ecs: &mut ECS, world: &mut World, dt: f32) -> mlua::Result<()> {
-        if let Some(func_group) = self.scripts.get(UPDATE) {
-            let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
+        let Some(func_group) = self.scripts.get(UPDATE) else {
+            return Ok(());
+        };
 
-            for (entity, (id, pos, table, network)) in ecs.query_mut::<(
-                &BlockType,
-                &Position,
-                &mut crate::ecs::Table,
-                Option<&NetworkId>,
-            )>() {
-                if let Some(key) = &table.0 {
-                    block_groups
-                        .entry(id.0)
-                        .or_default()
-                        .push(self.lua.registry_value(&key)?);
-                } else {
-                    let table = self.create_table(&entity, id, pos, table, network)?;
-                    block_groups.entry(id.0).or_default().push(table);
-                }
+        let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
+
+        for (entity, (id, pos, table, network)) in ecs.query_mut::<(
+            &BlockType,
+            &Position,
+            &mut crate::ecs::Table,
+            Option<&NetworkId>,
+        )>() {
+            if let Some(key) = &table.0 {
+                block_groups
+                    .entry(id.0)
+                    .or_default()
+                    .push(self.lua.registry_value(&key)?);
+            } else {
+                let table = self.create_table(&entity, id, pos, table, network)?;
+                block_groups.entry(id.0).or_default().push(table);
             }
+        }
 
-            for (block_type, entities) in block_groups {
-                if let Some(func) = func_group.get(&block_type) {
-                    self.lua.scope(|scope| {
-                        let world_ud = scope.create_any_userdata_ref(world)?;
-                        let ecs_ud = scope.create_any_userdata_ref(ecs)?;
-                        func.call::<()>((world_ud, ecs_ud, entities, dt))
-                    })?;
-                }
+        for (block_type, entities) in block_groups {
+            if let Some(func) = func_group.get(&block_type) {
+                self.lua.scope(|scope| {
+                    let world_ud = scope.create_any_userdata_ref(world)?;
+                    let ecs_ud = scope.create_any_userdata_ref(ecs)?;
+                    func.call::<()>((world_ud, ecs_ud, entities, dt))
+                })?;
             }
         }
 

@@ -1,6 +1,6 @@
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
-use crate::{game::SharedData, settings::Settings, ui::PlayerUI, world::GridMap};
+use crate::{settings::Settings, ui::PlayerUI, world::GridMap};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -51,13 +51,7 @@ impl Camera {
             .clamp(Vec2::ZERO, self.screen_bounds);
     }
 
-    pub fn resize_event(
-        &mut self,
-        map: &GridMap,
-        _data: &SharedData,
-        new_width: f32,
-        new_height: f32,
-    ) {
+    pub fn resize_event(&mut self, map: &GridMap, new_width: f32, new_height: f32) {
         self.screen_bounds.x = map.absolute_width - new_width;
         self.screen_bounds.y = map.absolute_height - new_height;
     }
@@ -110,14 +104,8 @@ impl Player {
         Ok(())
     }
 
-    pub fn resize_event(
-        &mut self,
-        map: &GridMap,
-        data: &SharedData,
-        new_width: f32,
-        new_height: f32,
-    ) {
-        self.camera.resize_event(map, data, new_width, new_height);
+    pub fn resize_event(&mut self, map: &GridMap, new_width: f32, new_height: f32) {
+        self.camera.resize_event(map, new_width, new_height);
         self.ui.resize_event(new_width, new_height);
     }
 }
