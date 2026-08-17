@@ -27,7 +27,7 @@ pub struct PlayingState {
 
 impl PlayingState {
     pub fn new(ctx: &Context, data: &mut SharedData) -> GameResult<Self> {
-        let world = World::new(128, 128, 32.0)?;
+        let world = World::new(128, 128)?;
         Ok(Self {
             cur_block: None,
             dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
@@ -127,10 +127,12 @@ impl PlayingState {
                 if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
                     net_id = nid.0;
 
-                    connections.push(LightBeam([
-                        Vec2::new(end_x as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
-                        Vec2::new(fx as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
-                    ]));
+                    let v1 = Vec2::new(end_x as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
+                    let v2 = Vec2::new(fx as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
+
+                    if v1 != v2 {
+                        connections.push(LightBeam([v1, v2]));
+                    }
 
                     break;
                 }
@@ -143,10 +145,12 @@ impl PlayingState {
                 if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
                     net_id = nid.0;
 
-                    connections.push(LightBeam([
-                        Vec2::new(cx as f32 + 1.0, hy as f32 + 0.5) * TEXTURE_SIZE,
-                        Vec2::new(x as f32, hy as f32 + 0.5) * TEXTURE_SIZE,
-                    ]));
+                    let v1 = Vec2::new(cx as f32 + 1.0, hy as f32 + 0.5) * TEXTURE_SIZE;
+                    let v2 = Vec2::new(x as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
+
+                    if v1 != v2 {
+                        connections.push(LightBeam([v1, v2]));
+                    }
 
                     break;
                 }
@@ -160,10 +164,12 @@ impl PlayingState {
                 if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
                     net_id = nid.0;
 
-                    connections.push(LightBeam([
-                        Vec2::new(hx as f32 + 0.5, end_y as f32) * TEXTURE_SIZE,
-                        Vec2::new(hx as f32 + 0.5, fy as f32) * TEXTURE_SIZE,
-                    ]));
+                    let v1 = Vec2::new(hx as f32 + 0.5, end_y as f32) * TEXTURE_SIZE;
+                    let v2 = Vec2::new(hx as f32 + 0.5, fy as f32) * TEXTURE_SIZE;
+
+                    if v1 != v2 {
+                        connections.push(LightBeam([v1, v2]));
+                    }
 
                     break;
                 }
@@ -176,10 +182,12 @@ impl PlayingState {
                 if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
                     net_id = nid.0;
 
-                    connections.push(LightBeam([
-                        Vec2::new(hx as f32 + 0.5, cy as f32 + 1.0) * TEXTURE_SIZE,
-                        Vec2::new(hx as f32 + 0.5, y as f32) * TEXTURE_SIZE,
-                    ]));
+                    let v1 = Vec2::new(hx as f32 + 0.5, cy as f32 + 1.0) * TEXTURE_SIZE;
+                    let v2 = Vec2::new(hx as f32 + 0.5, y as f32) * TEXTURE_SIZE;
+
+                    if v1 != v2 {
+                        connections.push(LightBeam([v1, v2]));
+                    }
 
                     break;
                 }
@@ -381,7 +389,7 @@ impl PlayingState {
     }
 }
 
-impl crate::game::State for PlayingState {
+impl crate::states::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         self.player.camera.update();
 

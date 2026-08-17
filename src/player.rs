@@ -32,19 +32,19 @@ impl Camera {
         let mut dir = Vec2::ZERO;
 
         if self.directions[Self::UP] {
-            dir.y -= 1.0;
+            dir -= Vec2::Y;
         }
 
         if self.directions[Self::LEFT] {
-            dir.x -= 1.0;
+            dir -= Vec2::X;
         }
 
         if self.directions[Self::DOWN] {
-            dir.y += 1.0;
+            dir += Vec2::Y;
         }
 
         if self.directions[Self::RIGHT] {
-            dir.x += 1.0;
+            dir += Vec2::X
         }
 
         self.pos = (self.pos + dir.normalize_or_zero() * self.movement_speed)

@@ -47,21 +47,12 @@ pub struct ItemDef {
     pub uv: Option<ggez::graphics::Rect>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct RecipeDef {
-    pub id: String,
-    pub time: f32,
-    pub inputs: Vec<(String, u32)>,
-    pub outputs: Vec<(String, u32)>,
-}
-
 #[derive(Debug)]
 pub struct Registry {
     /// Matches the block ID with its position in `Vec<BlockDef>`
     blocks_idx: HashMap<String, u32>,
     blocks: Vec<BlockDef>,
     items: HashMap<String, ItemDef>,
-    recipes: HashMap<String, RecipeDef>,
 }
 
 impl Registry {
@@ -70,7 +61,6 @@ impl Registry {
             blocks_idx: HashMap::new(),
             blocks: Vec::new(),
             items: HashMap::new(),
-            recipes: HashMap::new(),
         };
 
         r.load_data(".");
@@ -92,12 +82,6 @@ impl Registry {
             self.register_item(def, rel_path)
         }) {
             eprintln!("Failed to load items: {e}");
-        }
-
-        if let Err(e) = load_defs_from_dir::<RecipeDef>(data_dir.join("recipes").as_path(), |def| {
-            self.recipes.entry(def.id.clone()).or_insert(def);
-        }) {
-            eprintln!("Failed to load recipes: {e}");
         }
     }
 
@@ -148,14 +132,6 @@ impl Registry {
         self.items.entry(def.id.clone()).or_insert(def);
     }
 
-    pub fn get_block(&self, id: &str) -> Option<&BlockDef> {
-        let Some(index) = self.blocks_idx.get(id) else {
-            return None;
-        };
-
-        self.blocks.get(*index as usize)
-    }
-
     #[inline]
     pub fn get_block_directly(&self, index: u32) -> GameResult<&BlockDef> {
         self.blocks
@@ -169,24 +145,12 @@ impl Registry {
         self.blocks.clone()
     }
 
-    pub fn get_number_of_blocks(&self) -> u32 {
-        self.blocks.len() as u32
-    }
-
     #[inline]
     pub fn get_block_index(&self, id: &str) -> GameResult<u32> {
         self.blocks_idx
             .get(id)
             .ok_or(GameError::CustomError("Block ID not found".to_owned()))
             .copied()
-    }
-
-    pub fn get_item(&self, id: &str) -> Option<&ItemDef> {
-        self.items.get(id)
-    }
-
-    pub fn get_recipe(&self, id: &str) -> Option<&RecipeDef> {
-        self.recipes.get(id)
     }
 }
 

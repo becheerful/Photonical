@@ -15,11 +15,11 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(width: u16, height: u16, tile_size: f32) -> GameResult<Self> {
+    pub fn new(width: u16, height: u16) -> GameResult<Self> {
         Ok(Self {
             map: GridMap::new(width, height)?,
             energy_master: EnergyMaster::new(),
-            aspect: tile_size / TEXTURE_SIZE,
+            aspect: 1.0,
         })
     }
 
