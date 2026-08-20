@@ -1,7 +1,7 @@
 mod defs;
 mod ecs;
-mod energy;
 mod game;
+mod network;
 mod player;
 mod res;
 mod scripts;
@@ -23,7 +23,7 @@ fn main() -> ggez::GameResult {
         )
         .build()?;
 
-    ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
+    // ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
     // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 

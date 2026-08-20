@@ -1,4 +1,6 @@
-use crate::energy::EnergyMaster;
+use std::collections::HashMap;
+
+use crate::network::Network;
 
 #[derive(Debug, Clone, Copy)]
 pub struct UV(pub ggez::graphics::Rect);
@@ -18,18 +20,19 @@ impl Position {
 pub struct Table(pub Option<mlua::RegistryKey>);
 
 pub trait EnergyComponent {
-    fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster);
+    fn apply_to_network(&self, net_id: u32, networks: &mut HashMap<u32, Network>);
 
     fn get_energy_param_name() -> &'static str;
 
     fn get_network_mask() -> u8;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PowerProducer(pub f32);
 
 impl EnergyComponent for PowerProducer {
-    fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
-        energy_master.add_energy_interactor(net_id, self.0);
+    fn apply_to_network(&self, net_id: u32, networks: &mut HashMap<u32, Network>) {
+        networks.entry(net_id).or_insert(Network::new()).imbalance += self.0;
     }
 
     fn get_energy_param_name() -> &'static str {
@@ -41,11 +44,12 @@ impl EnergyComponent for PowerProducer {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PowerConsumer(pub f32);
 
 impl EnergyComponent for PowerConsumer {
-    fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
-        energy_master.add_energy_interactor(net_id, -self.0);
+    fn apply_to_network(&self, net_id: u32, networks: &mut HashMap<u32, Network>) {
+        networks.entry(net_id).or_insert(Network::new()).imbalance -= self.0;
     }
 
     fn get_energy_param_name() -> &'static str {
@@ -57,11 +61,12 @@ impl EnergyComponent for PowerConsumer {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PowerStorage;
 
 impl EnergyComponent for PowerStorage {
-    fn add_to_energy_master(&self, net_id: u32, energy_master: &mut EnergyMaster) {
-        energy_master.add_storage(net_id);
+    fn apply_to_network(&self, net_id: u32, networks: &mut HashMap<u32, Network>) {
+        networks.entry(net_id).or_insert(Network::new()).storages += 1;
     }
 
     fn get_energy_param_name() -> &'static str {
@@ -73,8 +78,14 @@ impl EnergyComponent for PowerStorage {
     }
 }
 
-pub struct NetworkId(pub u32);
+#[derive(Debug, Clone, Copy)]
+pub struct NetNode(pub u32);
+
+#[derive(Debug, Clone, Copy)]
+pub struct LightProperties {
+    pub wavelength: u32,
+}
 
 pub struct LightBeam(pub [ggez::glam::Vec2; 2]);
 
-pub type ECS = hecs::World;
+pub type Ecs = hecs::World;

@@ -1,19 +1,19 @@
 use ggez::{
     Context, GameError, GameResult,
     event::MouseButton,
-    glam::{UVec2, Vec2},
+    glam::UVec2,
     graphics::{DrawParam, Drawable, InstanceArray},
 };
 
 use crate::{
     defs::{BlockDef, registry},
     ecs::{
-        BlockType, LightBeam, NetworkId, Position, PowerConsumer, PowerProducer, PowerStorage,
-        Table, UV,
+        BlockType, LightBeam, LightProperties, NetNode, Position, PowerConsumer, PowerProducer,
+        PowerStorage, Table, UV,
     },
     game::SharedData,
     player::Player,
-    settings::{CONNECTION_RADIUS, res::TEXTURE_SIZE},
+    settings::res::TEXTURE_SIZE,
     world::World,
 };
 
@@ -80,13 +80,22 @@ impl PlayingState {
         )
     }
 
-    fn place_block(&mut self, uv: &UV, pos: &Position, size: u16, e: hecs::Entity) {
+    fn place_block(
+        &mut self,
+        ecs: &mut crate::ecs::Ecs,
+        uv: &UV,
+        pos: &Position,
+        size: u16,
+        e: hecs::Entity,
+    ) {
         self.world.place_block(pos.0, pos.1, size, e);
+        crate::network::rebuild_networks(&mut self.world, ecs);
         self.add_to_dynamic_layer(uv, pos);
     }
 
     fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
         self.world.remove_entity(&mut data.ecs, x, y)?;
+        crate::network::rebuild_networks(&mut self.world, &mut data.ecs);
         self.remove_from_dynamic_layer(data);
         Ok(())
     }
@@ -111,98 +120,6 @@ impl PlayingState {
             )))? as f32)
     }
 
-    fn connect_with_network(&mut self, data: &mut SharedData, x: u16, y: u16, size: u16) -> u32 {
-        let mut net_id = self.world.energy_master.networks.len() as u32;
-        let mut connections: Vec<LightBeam> = Vec::new();
-
-        let half = size / 2;
-        let hx = (x + half).min(self.world.map.width);
-        let hy = (y + half).min(self.world.map.height);
-
-        let end_x = x + size;
-        let end_y = y + size;
-
-        for fx in end_x..(end_x + CONNECTION_RADIUS).min(self.world.map.width) {
-            if let Some(entity) = self.world.map.get(fx, hy) {
-                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
-                    net_id = nid.0;
-
-                    let v1 = Vec2::new(end_x as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
-                    let v2 = Vec2::new(fx as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
-
-                    if v1 != v2 {
-                        connections.push(LightBeam([v1, v2]));
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        let mut cx = x.saturating_sub(1);
-        while cx > x.saturating_sub(CONNECTION_RADIUS) {
-            if let Some(entity) = self.world.map.get(cx, hy) {
-                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
-                    net_id = nid.0;
-
-                    let v1 = Vec2::new(cx as f32 + 1.0, hy as f32 + 0.5) * TEXTURE_SIZE;
-                    let v2 = Vec2::new(x as f32, hy as f32 + 0.5) * TEXTURE_SIZE;
-
-                    if v1 != v2 {
-                        connections.push(LightBeam([v1, v2]));
-                    }
-
-                    break;
-                }
-            }
-
-            cx -= 1;
-        }
-
-        for fy in end_y..(end_y + CONNECTION_RADIUS).min(self.world.map.height) {
-            if let Some(entity) = self.world.map.get(hx, fy) {
-                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
-                    net_id = nid.0;
-
-                    let v1 = Vec2::new(hx as f32 + 0.5, end_y as f32) * TEXTURE_SIZE;
-                    let v2 = Vec2::new(hx as f32 + 0.5, fy as f32) * TEXTURE_SIZE;
-
-                    if v1 != v2 {
-                        connections.push(LightBeam([v1, v2]));
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        let mut cy = y.saturating_sub(1);
-        while cy > y.saturating_sub(CONNECTION_RADIUS) {
-            if let Some(entity) = self.world.map.get(hx, cy) {
-                if let Ok(nid) = data.ecs.get::<&NetworkId>(entity) {
-                    net_id = nid.0;
-
-                    let v1 = Vec2::new(hx as f32 + 0.5, cy as f32 + 1.0) * TEXTURE_SIZE;
-                    let v2 = Vec2::new(hx as f32 + 0.5, y as f32) * TEXTURE_SIZE;
-
-                    if v1 != v2 {
-                        connections.push(LightBeam([v1, v2]));
-                    }
-
-                    break;
-                }
-            }
-
-            cy -= 1;
-        }
-
-        for connection in connections {
-            data.ecs.spawn((connection,));
-        }
-
-        net_id
-    }
-
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
@@ -224,15 +141,16 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let net_id = self.connect_with_network(data, x, y, bd.size);
-        component.add_to_energy_master(net_id, &mut self.world.energy_master);
+        let e = data.ecs.spawn((
+            uv,
+            BlockType(cur_block),
+            pos,
+            component,
+            LightProperties { wavelength: 500 },
+            NetNode(crate::network::PLUG),
+        ));
 
-        let e = data
-            .ecs
-            .spawn((uv, BlockType(cur_block), pos, component, NetworkId(net_id)));
-
-        self.place_block(&uv, &pos, bd.size, e);
-
+        self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
         Ok(true)
     }
 
@@ -256,14 +174,11 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let net_id = self.connect_with_network(data, x, y, bd.size);
-
         let e = data
             .ecs
-            .spawn((uv, BlockType(cur_block), pos, NetworkId(net_id)));
+            .spawn((uv, BlockType(cur_block), pos, NetNode(crate::network::PLUG)));
 
-        self.place_block(&uv, &pos, bd.size, e);
-
+        self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
         Ok(true)
     }
 
@@ -276,104 +191,7 @@ impl PlayingState {
     ) -> GameResult {
         let index = self.world.map.index(x, y);
 
-        if self.world.map.block_entities[index].is_none() {
-            if self.cur_block.is_none() {
-                return Ok(());
-            }
-
-            let cur_block = self.cur_block.unwrap();
-
-            let bd = registry().get_block_directly(cur_block)?;
-            let has_network = !bd.net.is_empty();
-
-            if has_network
-                && let Some(net_mask) = bd.net.get(crate::settings::json::fields::ENERGY_MASK)
-            {
-                match net_mask.as_u64().unwrap_or(0) as u8 {
-                    crate::settings::json::mask::PRODUCER => {
-                        if !self.add_energy_block::<PowerProducer>(
-                            data,
-                            x,
-                            y,
-                            bd,
-                            PowerProducer(PlayingState::get_energy_interaction_value::<
-                                PowerProducer,
-                            >(bd)?),
-                        )? {
-                            return Ok(());
-                        }
-                    }
-
-                    crate::settings::json::mask::CONSUMER => {
-                        if !self.add_energy_block::<PowerConsumer>(
-                            data,
-                            x,
-                            y,
-                            bd,
-                            PowerConsumer(PlayingState::get_energy_interaction_value::<
-                                PowerConsumer,
-                            >(bd)?),
-                        )? {
-                            return Ok(());
-                        }
-                    }
-
-                    crate::settings::json::mask::STORAGE => {
-                        if !self.add_energy_block::<PowerStorage>(data, x, y, bd, PowerStorage)? {
-                            return Ok(());
-                        }
-                    }
-
-                    crate::settings::json::mask::NODE => {
-                        if !self.add_neutral_energy_block(data, x, y, bd)? {
-                            return Ok(());
-                        }
-                    }
-
-                    _ => {
-                        return Err(ggez::GameError::ConfigError("No such mask".to_owned()));
-                    }
-                }
-            }
-
-            if bd.script.is_some() {
-                if self.world.map.block_entities[index].is_none() {
-                    let uv = data
-                        .atlas
-                        .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
-                    let pos = Position(x, y);
-
-                    let e = data.ecs.spawn((
-                        uv.clone(),
-                        BlockType(cur_block),
-                        pos.clone(),
-                        Table(None),
-                    ));
-
-                    self.place_block(&uv, &pos, bd.size, e);
-                    self.world.place_block(x, y, bd.size, e);
-                } else {
-                    let e = self.world.map.block_entities[index].unwrap();
-                    if let Err(e) = data.ecs.insert_one(e, Table(None)) {
-                        eprintln!("{e}");
-                    }
-                }
-
-                if let Err(e) = data.script_engine.run_lua_function(
-                    &mut data.ecs,
-                    crate::settings::lua::functions::INIT,
-                    &mut self.world,
-                    index,
-                    dt,
-                ) {
-                    eprintln!("{e}");
-                }
-            } else if !has_network {
-                self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
-            }
-
-            self.cur_block = None;
-        } else {
+        if self.world.map.block_entities[index].is_some() {
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
                 crate::settings::lua::functions::MOUSE_BUTTON_DOWN,
@@ -383,8 +201,92 @@ impl PlayingState {
             ) {
                 eprintln!("{e}");
             }
+
+            return Ok(());
         }
 
+        let Some(cur_block) = self.cur_block else {
+            return Ok(());
+        };
+
+        let bd = registry().get_block_directly(cur_block)?;
+        let has_network = !bd.net.is_empty();
+
+        if has_network
+            && let Some(net_mask) = bd.net.get(crate::settings::json::fields::ENERGY_MASK)
+        {
+            match net_mask.as_u64().unwrap_or(0) as u8 {
+                crate::settings::json::mask::PRODUCER => {
+                    let component = PowerProducer(PlayingState::get_energy_interaction_value::<
+                        PowerProducer,
+                    >(bd)?);
+
+                    if !self.add_energy_block::<PowerProducer>(data, x, y, bd, component)? {
+                        return Ok(());
+                    }
+                }
+
+                crate::settings::json::mask::CONSUMER => {
+                    let component = PowerConsumer(PlayingState::get_energy_interaction_value::<
+                        PowerConsumer,
+                    >(bd)?);
+                    if !self.add_energy_block::<PowerConsumer>(data, x, y, bd, component)? {
+                        return Ok(());
+                    }
+                }
+
+                crate::settings::json::mask::STORAGE => {
+                    let component = PowerStorage;
+                    if !self.add_energy_block::<PowerStorage>(data, x, y, bd, component)? {
+                        return Ok(());
+                    }
+                }
+
+                crate::settings::json::mask::NODE => {
+                    if !self.add_neutral_energy_block(data, x, y, bd)? {
+                        return Ok(());
+                    }
+                }
+
+                _ => {
+                    return Err(ggez::GameError::ConfigError("No such mask".to_owned()));
+                }
+            }
+        }
+
+        if bd.script.is_some() {
+            if self.world.map.block_entities[index].is_none() {
+                let uv = data
+                    .atlas
+                    .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
+                let pos = Position(x, y);
+
+                let e =
+                    data.ecs
+                        .spawn((uv.clone(), BlockType(cur_block), pos.clone(), Table(None)));
+
+                self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
+            } else {
+                let e = self.world.map.block_entities[index].unwrap();
+                if let Err(e) = data.ecs.insert_one(e, Table(None)) {
+                    eprintln!("{e}");
+                }
+            }
+
+            if let Err(e) = data.script_engine.run_lua_function(
+                &mut data.ecs,
+                crate::settings::lua::functions::INIT,
+                &mut self.world,
+                index,
+                dt,
+            ) {
+                eprintln!("{e}");
+            }
+        } else if !has_network {
+            self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
+        }
+
+        self.cur_block = None;
         Ok(())
     }
 }
@@ -393,7 +295,7 @@ impl crate::states::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         self.player.camera.update();
 
-        if let Err(e) = data.script_engine.update(
+        if let Err(e) = data.script_engine.run_update_function(
             &mut data.ecs,
             &mut self.world,
             ctx.time.delta().as_secs_f32(),

@@ -5,12 +5,12 @@ use ggez::{
     input::keyboard::KeyInput,
 };
 
-use crate::{ecs::ECS, res::Atlas, scripts::ScriptEngine, settings::Settings};
+use crate::{ecs::Ecs, res::Atlas, scripts::ScriptEngine, settings::Settings};
 
 pub struct SharedData {
     pub atlas: Atlas,
     pub script_engine: ScriptEngine,
-    pub ecs: ECS,
+    pub ecs: Ecs,
     pub settings: Settings,
 }
 
@@ -29,7 +29,7 @@ impl GameHandler {
         let mut data = SharedData {
             atlas,
             script_engine,
-            ecs: ECS::new(),
+            ecs: Ecs::new(),
             settings,
         };
 

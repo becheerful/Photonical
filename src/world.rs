@@ -1,16 +1,18 @@
+use std::collections::HashMap;
+
 use ggez::{GameResult, glam::UVec2};
 use hecs::Entity;
 
 use crate::{
     defs::registry,
-    ecs::{BlockType, ECS, NetworkId, Position, PowerConsumer, PowerProducer},
-    energy::EnergyMaster,
+    ecs::{BlockType, Ecs, Position},
+    network::Network,
     settings::res::TEXTURE_SIZE,
 };
 
 pub struct World {
     pub map: GridMap,
-    pub energy_master: EnergyMaster,
+    pub networks: HashMap<u32, Network>,
     pub aspect: f32,
 }
 
@@ -18,42 +20,19 @@ impl World {
     pub fn new(width: u16, height: u16) -> GameResult<Self> {
         Ok(Self {
             map: GridMap::new(width, height)?,
-            energy_master: EnergyMaster::new(),
+            networks: HashMap::new(),
             aspect: 1.0,
         })
     }
 
-    pub fn remove_entity(&mut self, ecs: &mut ECS, mut x: u16, mut y: u16) -> GameResult {
+    pub fn remove_entity(&mut self, ecs: &mut Ecs, mut x: u16, mut y: u16) -> GameResult {
         if let Some(entity) = self.map.get(x, y) {
             let mut block_type = 0;
 
-            if let Ok((id, pos, net, producer, consumer)) = ecs.query_one_mut::<(
-                &BlockType,
-                &Position,
-                Option<&NetworkId>,
-                Option<&PowerProducer>,
-                Option<&PowerConsumer>,
-            )>(entity)
-            {
+            if let Ok((id, pos)) = ecs.query_one_mut::<(&BlockType, &Position)>(entity) {
                 block_type = id.0;
-                x = pos.0;
+                x = pos.0; // i don't know what's going on here, so i won't touch anything
                 y = pos.1;
-
-                if let Some(n) = net {
-                    let network = self.energy_master.networks.get_mut(&n.0).unwrap();
-
-                    if let Some(power) = producer {
-                        network.imbalance -= power.0;
-                    } else if let Some(demand) = consumer {
-                        network.imbalance += demand.0;
-                    } else {
-                        network.storages -= 1;
-                    }
-
-                    if network.is_empty() {
-                        self.energy_master.networks.remove(&n.0);
-                    }
-                }
             }
 
             if let Err(e) = ecs.despawn(entity) {
@@ -72,7 +51,6 @@ impl World {
         Ok(())
     }
 
-    /// Check if there is a free space for a block. If there is, it returns `true`; otherwise, it returns `false`.
     pub fn check_for_space(&self, x: u16, y: u16, size: u16) -> bool {
         if x + size > self.map.width || y + size > self.map.height {
             return false;

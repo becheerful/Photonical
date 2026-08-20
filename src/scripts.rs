@@ -4,10 +4,10 @@ use mlua::AnyUserData;
 
 use crate::{
     defs::registry,
-    ecs::{BlockType, ECS, NetworkId, Position},
+    ecs::{BlockType, Ecs, NetNode, Position},
     settings::lua::{
         functions::UPDATE,
-        param::{BLOCK_INDEX_IN_REGISTRY, POSITION},
+        param::{BLOCK_INDEX_IN_REGISTRY, NETWORK_ID, POSITION},
     },
     world::World,
 };
@@ -106,7 +106,7 @@ impl ScriptEngine {
         let get_entity_table =
             self.lua
                 .create_function(move |lua, (ecs, entity): (AnyUserData, u64)| {
-                    ecs.borrow_scoped(|ecs: &ECS| {
+                    ecs.borrow_scoped(|ecs: &Ecs| {
                         if let Some(key) = &ecs
                             .get::<&crate::ecs::Table>(hecs::Entity::from_bits(entity).unwrap())
                             .expect("Entity not found")
@@ -149,7 +149,7 @@ impl ScriptEngine {
             self.lua
                 .create_function(move |_, (world, net_id): (AnyUserData, u32)| {
                     world.borrow_scoped(|world: &World| {
-                        let net = world.energy_master.networks.get(&net_id);
+                        let net = world.networks.get(&net_id);
                         match net {
                             Some(n) => mlua::Value::Number(n.get_storage_imbalance() as f64),
                             None => mlua::Value::Nil,
@@ -228,7 +228,7 @@ impl ScriptEngine {
         id: &BlockType,
         pos: &Position,
         table: &mut crate::ecs::Table,
-        network: Option<&NetworkId>,
+        node: Option<&NetNode>,
     ) -> mlua::Result<mlua::Table> {
         let block_table = self.lua.create_table()?;
 
@@ -239,8 +239,8 @@ impl ScriptEngine {
         block_table.set(BLOCK_INDEX_IN_REGISTRY, id.0)?;
         block_table.set(POSITION, vec![pos.0, pos.1])?;
 
-        if let Some(net_id) = network {
-            block_table.set(crate::settings::lua::param::NETWORK_ID, net_id.0)?;
+        if let Some(n) = node {
+            block_table.set(NETWORK_ID, n.0)?;
         }
 
         for (key, value) in &registry()
@@ -260,7 +260,7 @@ impl ScriptEngine {
 
     pub fn run_lua_function(
         &mut self,
-        ecs: &mut ECS,
+        ecs: &mut Ecs,
         name: &str,
         world: &mut crate::world::World,
         index: usize,
@@ -274,11 +274,11 @@ impl ScriptEngine {
             return Ok(());
         };
 
-        if let Ok((id, pos, table, network)) = ecs.query_one_mut::<(
+        if let Ok((id, pos, table, node)) = ecs.query_one_mut::<(
             &BlockType,
             &Position,
             &mut crate::ecs::Table,
-            Option<&NetworkId>,
+            Option<&NetNode>,
         )>(entity)
         {
             let Some(func) = func_groups.get(&id.0) else {
@@ -286,9 +286,15 @@ impl ScriptEngine {
             };
 
             let table = if let Some(key) = &table.0 {
-                self.lua.registry_value::<mlua::Table>(&key)?
+                let t = self.lua.registry_value::<mlua::Table>(&key)?;
+
+                if let Some(n) = node {
+                    t.set(NETWORK_ID, n.0)?;
+                }
+
+                t
             } else {
-                self.create_table(&entity, id, pos, table, network)?
+                self.create_table(&entity, id, pos, table, node)?
             };
 
             self.lua.scope(|scope| {
@@ -301,18 +307,23 @@ impl ScriptEngine {
         Ok(())
     }
 
-    pub fn update(&mut self, ecs: &mut ECS, world: &mut World, dt: f32) -> mlua::Result<()> {
+    pub fn run_update_function(
+        &mut self,
+        ecs: &mut Ecs,
+        world: &mut World,
+        dt: f32,
+    ) -> mlua::Result<()> {
         let Some(func_group) = self.scripts.get(UPDATE) else {
             return Ok(());
         };
 
         let mut block_groups: HashMap<u32, Vec<mlua::Table>> = HashMap::new();
 
-        for (entity, (id, pos, table, network)) in ecs.query_mut::<(
+        for (entity, (id, pos, table, node)) in ecs.query_mut::<(
             &BlockType,
             &Position,
             &mut crate::ecs::Table,
-            Option<&NetworkId>,
+            Option<&NetNode>,
         )>() {
             if let Some(key) = &table.0 {
                 block_groups
@@ -320,7 +331,7 @@ impl ScriptEngine {
                     .or_default()
                     .push(self.lua.registry_value(&key)?);
             } else {
-                let table = self.create_table(&entity, id, pos, table, network)?;
+                let table = self.create_table(&entity, id, pos, table, node)?;
                 block_groups.entry(id.0).or_default().push(table);
             }
         }
