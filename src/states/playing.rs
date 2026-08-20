@@ -286,7 +286,6 @@ impl PlayingState {
             self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
         }
 
-        self.cur_block = None;
         Ok(())
     }
 }
@@ -419,8 +418,12 @@ impl crate::states::State for PlayingState {
             }
 
             MouseButton::Right => {
-                let (x, y) = self.point_to_block_pos(mx, my);
-                self.remove_block(data, x, y)?;
+                if self.cur_block.is_some() {
+                    self.cur_block = None;
+                } else {
+                    let (x, y) = self.point_to_block_pos(mx, my);
+                    self.remove_block(data, x, y)?;
+                }
             }
 
             MouseButton::Other(_) => {}
