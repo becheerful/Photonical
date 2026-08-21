@@ -82,9 +82,7 @@ impl EnergyComponent for PowerStorage {
 pub struct NetNode(pub u32);
 
 #[derive(Debug, Clone, Copy)]
-pub struct LightProperties {
-    pub wavelength: u32,
-}
+pub struct LightProperties(pub crate::network::LightColor);
 
 pub struct LightBeam(pub [ggez::glam::Vec2; 2]);
 

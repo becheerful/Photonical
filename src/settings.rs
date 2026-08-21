@@ -38,6 +38,7 @@ pub mod json {
         // parameter names for .json block definitions
         pub const ENERGY_POWER: &str = "power";
         pub const ENERGY_DEMAND: &str = "demand";
+        pub const WAVELENGTH: &str = "wavelength";
         pub const ENERGY_MASK: &str = "mask";
     }
 

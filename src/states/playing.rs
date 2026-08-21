@@ -12,6 +12,7 @@ use crate::{
         PowerStorage, Table, UV,
     },
     game::SharedData,
+    network::LightColor,
     player::Player,
     settings::res::TEXTURE_SIZE,
     world::World,
@@ -126,6 +127,7 @@ impl PlayingState {
         x: u16,
         y: u16,
         bd: &BlockDef,
+        light_color: LightColor,
         component: T,
     ) -> GameResult<bool> {
         if !self.world.check_for_space(x, y, bd.size) {
@@ -146,7 +148,7 @@ impl PlayingState {
             BlockType(cur_block),
             pos,
             component,
-            LightProperties { wavelength: 500 },
+            LightProperties(light_color),
             NetNode(crate::network::PLUG),
         ));
 
@@ -174,9 +176,13 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let e = data
-            .ecs
-            .spawn((uv, BlockType(cur_block), pos, NetNode(crate::network::PLUG)));
+        let e = data.ecs.spawn((
+            uv,
+            BlockType(cur_block),
+            pos,
+            LightProperties(LightColor::Undefined),
+            NetNode(crate::network::PLUG),
+        ));
 
         self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
         Ok(true)
@@ -221,7 +227,25 @@ impl PlayingState {
                         PowerProducer,
                     >(bd)?);
 
-                    if !self.add_energy_block::<PowerProducer>(data, x, y, bd, component)? {
+                    let wavelength = bd
+                        .net
+                        .get(crate::settings::json::fields::WAVELENGTH)
+                        .ok_or(GameError::ConfigError(
+                            "Missing `wavelength` field for light emitter".to_owned(),
+                        ))?
+                        .as_u64()
+                        .ok_or(GameError::CustomError(
+                            "Invalid value for `wavelength`".to_owned(),
+                        ))?;
+
+                    if !self.add_energy_block::<PowerProducer>(
+                        data,
+                        x,
+                        y,
+                        bd,
+                        LightColor::from(wavelength as u16),
+                        component,
+                    )? {
                         return Ok(());
                     }
                 }
@@ -230,14 +254,39 @@ impl PlayingState {
                     let component = PowerConsumer(PlayingState::get_energy_interaction_value::<
                         PowerConsumer,
                     >(bd)?);
-                    if !self.add_energy_block::<PowerConsumer>(data, x, y, bd, component)? {
+
+                    let wavelength = bd
+                        .net
+                        .get(crate::settings::json::fields::WAVELENGTH)
+                        .ok_or(GameError::ConfigError(
+                            "Missing `wavelength` field for light consumer".to_owned(),
+                        ))?
+                        .as_u64()
+                        .ok_or(GameError::CustomError(
+                            "Invalid value for `wavelength`".to_owned(),
+                        ))?;
+
+                    if !self.add_energy_block::<PowerConsumer>(
+                        data,
+                        x,
+                        y,
+                        bd,
+                        LightColor::from(wavelength as u16),
+                        component,
+                    )? {
                         return Ok(());
                     }
                 }
 
                 crate::settings::json::mask::STORAGE => {
-                    let component = PowerStorage;
-                    if !self.add_energy_block::<PowerStorage>(data, x, y, bd, component)? {
+                    if !self.add_energy_block::<PowerStorage>(
+                        data,
+                        x,
+                        y,
+                        bd,
+                        LightColor::Undefined,
+                        PowerStorage,
+                    )? {
                         return Ok(());
                     }
                 }

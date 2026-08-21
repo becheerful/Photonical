@@ -5,6 +5,7 @@
     "size": 3,
     "net": {
         "power": 1,
+        "wavelength": 0,
         "mask": 1
     }
 }

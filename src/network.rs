@@ -9,6 +9,36 @@ use crate::{
 
 pub const PLUG: u32 = 0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LightColor {
+    Undefined, // for storages and mirrors
+    White,
+    Red,
+    Orange,
+    Yellow,
+    Green,
+    Cyan,
+    Blue,
+    Violet,
+    Unseen,
+}
+
+impl LightColor {
+    pub fn from(wavelength: u16) -> Self {
+        match wavelength {
+            0 => Self::White, // don't judge me for that.
+            380..450 => Self::Violet,
+            450..480 => Self::Blue,
+            480..510 => Self::Cyan,
+            510..560 => Self::Green,
+            560..590 => Self::Yellow,
+            590..620 => Self::Orange,
+            620..750 => Self::Red,
+            _ => Self::Unseen,
+        }
+    }
+}
+
 pub struct Network {
     pub storages: u32,
     pub imbalance: f32,
@@ -82,17 +112,15 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
             continue;
         };
 
-        let has_energy = ecs.get::<&PowerProducer>(entity).is_ok()
-            || ecs.get::<&PowerConsumer>(entity).is_ok()
-            || ecs.get::<&PowerStorage>(entity).is_ok();
-
-        if has_energy && let Ok(props) = ecs.get::<&LightProperties>(entity) {
+        if ecs.get::<&NetNode>(entity).is_ok()
+            && let Ok(props) = ecs.get::<&LightProperties>(entity)
+        {
             let x = idx as u16 % world.map.width;
             let y = idx as u16 / world.map.width;
 
             entity_to_coord.entry(entity).or_default().push((x, y));
             coord_to_entity.insert((x, y), entity);
-            light_props.insert(entity, props.wavelength);
+            light_props.insert(entity, props.0);
         }
     }
 
@@ -116,7 +144,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
     for entity in &energy_entities {
         let cur_idx = entity_to_idx[entity];
         let coord = entity_to_coord.get(entity).unwrap();
-        let wavelength = light_props[entity];
+        let light_color = light_props[entity];
 
         for &(x, y) in coord {
             for &(dx, dy) in &directions {
@@ -152,11 +180,13 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                             continue;
                         }
 
-                        let other_wavelength = ecs
-                            .get::<&LightProperties>(other_entity)
-                            .unwrap()
-                            .wavelength;
-                        if other_wavelength == wavelength {
+                        let other_light_color =
+                            &mut ecs.get::<&mut LightProperties>(other_entity).unwrap().0;
+                        if *other_light_color == LightColor::Undefined {
+                            *other_light_color = light_color;
+                        }
+
+                        if light_color == *other_light_color || light_color == LightColor::White {
                             let other_idx = entity_to_idx[&other_entity];
                             dsu.union(cur_idx, other_idx);
                         }
