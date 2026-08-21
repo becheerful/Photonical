@@ -15,8 +15,10 @@ pub struct Settings {
     pub screen_width: f32,
     pub screen_height: f32,
     pub fullscreen_type: ggez::conf::FullscreenType,
+    pub font: String,
     pub ui_mouse_wheel_sensitivity: f32,
     pub aspect_mouse_wheel_sensitivity: f32,
+    pub show_fps: bool,
 }
 
 fn load_settings() -> ggez::GameResult<Settings> {
@@ -38,7 +40,12 @@ fn main() -> ggez::GameResult {
         )
         .build()?;
 
-    // ctx.fs.mount(&std::path::PathBuf::from("./resources"), true);
+    ctx.fs.mount(&std::path::Path::new("."), true);
+    ctx.gfx.add_font(
+        "ScienceGothic",
+        ggez::graphics::FontData::from_path(&ctx.fs, &settings.font)?,
+    );
+
     // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 

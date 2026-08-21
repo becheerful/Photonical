@@ -2,7 +2,7 @@ use ggez::{
     Context, GameResult,
     event::MouseButton,
     glam::UVec2,
-    graphics::{DrawParam, Drawable, InstanceArray},
+    graphics::{Color, DrawParam, Drawable, InstanceArray},
 };
 
 use crate::{
@@ -308,7 +308,7 @@ impl crate::states::State for PlayingState {
     fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         let aspect = ggez::glam::Vec2::splat(self.world.aspect);
 
-        let mut canvas = ggez::graphics::Canvas::from_frame(ctx, ggez::graphics::Color::WHITE);
+        let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
         let draw_param = DrawParam::default()
@@ -319,15 +319,18 @@ impl crate::states::State for PlayingState {
         self.dynamic_layer.draw(&mut canvas, draw_param);
 
         for (_, beam) in data.ecs.query_mut::<&LightBeam>() {
-            let l =
-                ggez::graphics::Mesh::new_line(ctx, &beam.0, 8.0, ggez::graphics::Color::WHITE)?;
+            let l = ggez::graphics::Mesh::new_line(ctx, &beam.0, 8.0, Color::WHITE)?;
             canvas.draw(&l, draw_param);
         }
 
-        canvas.draw(
-            &ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps())),
-            DrawParam::default().color(ggez::graphics::Color::RED),
-        );
+        if data.settings.show_fps {
+            canvas.draw(
+                ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps()))
+                    .set_font("ScienceGothic")
+                    .set_scale(36.0),
+                DrawParam::default().color(Color::BLACK),
+            );
+        }
 
         // should be last because of scissors
         self.player.draw(&mut canvas, &data.atlas)?;
@@ -407,7 +410,6 @@ impl crate::states::State for PlayingState {
 
             MouseButton::Middle => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-
                 let Some(entity) = self.world.map.get(x, y) else {
                     return Ok(());
                 };
