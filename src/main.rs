@@ -1,17 +1,32 @@
 mod defs;
 mod ecs;
 mod game;
+mod json;
 mod network;
 mod player;
 mod res;
 mod scripts;
-mod settings;
 mod states;
 mod ui;
 mod world;
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Settings {
+    pub screen_width: f32,
+    pub screen_height: f32,
+    pub fullscreen_type: ggez::conf::FullscreenType,
+    pub ui_mouse_wheel_sensitivity: f32,
+    pub aspect_mouse_wheel_sensitivity: f32,
+}
+
+fn load_settings() -> ggez::GameResult<Settings> {
+    let content = std::fs::read_to_string("./settings.toml")
+        .map_err(|e| ggez::GameError::FilesystemError(e.to_string()))?;
+    toml::from_str(&content).map_err(|e| ggez::GameError::CustomError(e.to_string()))
+}
+
 fn main() -> ggez::GameResult {
-    let settings = settings::load_settings()?;
+    let settings = load_settings()?;
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
         .window_setup(ggez::conf::WindowSetup::default().title("Photonical"))

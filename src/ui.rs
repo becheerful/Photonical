@@ -1,9 +1,6 @@
 use ggez::{glam::Vec2, graphics::Rect};
 
-use crate::{
-    res::Atlas,
-    settings::{Settings, res::TEXTURE_SIZE},
-};
+use crate::{Settings, res::Atlas, res::TEXTURE_SIZE};
 
 pub trait UI {
     fn get_texture_path() -> &'static str;

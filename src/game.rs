@@ -5,7 +5,7 @@ use ggez::{
     input::keyboard::KeyInput,
 };
 
-use crate::{ecs::Ecs, res::Atlas, scripts::ScriptEngine, settings::Settings};
+use crate::{Settings, ecs::Ecs, res::Atlas, scripts::ScriptEngine};
 
 pub struct SharedData {
     pub atlas: Atlas,

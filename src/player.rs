@@ -1,6 +1,6 @@
 use ggez::{glam::Vec2, input::keyboard::KeyCode};
 
-use crate::{settings::Settings, ui::PlayerUI, world::GridMap};
+use crate::{Settings, ui::PlayerUI, world::GridMap};
 
 #[derive(Debug, Clone)]
 pub struct Camera {

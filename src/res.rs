@@ -5,6 +5,9 @@ use ggez::{
     graphics::{Image, Rect},
 };
 
+pub const MISSING_TEX: &str = "./resources/assets/textures/missing.png";
+pub const TEXTURE_SIZE: f32 = 32.0;
+
 #[derive(Debug)]
 pub struct Atlas {
     pub image: Image,
@@ -27,7 +30,7 @@ impl Atlas {
                 Ok(img) => img,
                 Err(_) => {
                     eprintln!("Warning: texture '{path}' not found");
-                    image::open(crate::settings::res::MISSING_TEX)
+                    image::open(MISSING_TEX)
                         .or(Err(GameError::CustomError("No textures found".to_owned())))?
                 }
             }

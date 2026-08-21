@@ -22,7 +22,7 @@ pub struct Table(pub Option<mlua::RegistryKey>);
 pub trait EnergyComponent {
     fn apply_to_network(&self, net_id: u32, networks: &mut HashMap<u32, Network>);
 
-    fn get_energy_param_name() -> &'static str;
+    fn get_energy_param_name() -> Option<String>;
 
     fn get_network_mask() -> u8;
 }
@@ -35,12 +35,12 @@ impl EnergyComponent for PowerProducer {
         networks.entry(net_id).or_insert(Network::new()).imbalance += self.0;
     }
 
-    fn get_energy_param_name() -> &'static str {
-        crate::settings::json::fields::ENERGY_POWER
+    fn get_energy_param_name() -> Option<String> {
+        Some(crate::json::fields::ENERGY_POWER.to_owned())
     }
 
     fn get_network_mask() -> u8 {
-        crate::settings::json::mask::PRODUCER
+        crate::network::mask::PRODUCER
     }
 }
 
@@ -52,12 +52,12 @@ impl EnergyComponent for PowerConsumer {
         networks.entry(net_id).or_insert(Network::new()).imbalance -= self.0;
     }
 
-    fn get_energy_param_name() -> &'static str {
-        crate::settings::json::fields::ENERGY_DEMAND
+    fn get_energy_param_name() -> Option<String> {
+        Some(crate::json::fields::ENERGY_DEMAND.to_owned())
     }
 
     fn get_network_mask() -> u8 {
-        crate::settings::json::mask::CONSUMER
+        crate::network::mask::CONSUMER
     }
 }
 
@@ -69,12 +69,12 @@ impl EnergyComponent for PowerStorage {
         networks.entry(net_id).or_insert(Network::new()).storages += 1;
     }
 
-    fn get_energy_param_name() -> &'static str {
-        "" // storages don't produce or consume energy
+    fn get_energy_param_name() -> Option<String> {
+        None
     }
 
     fn get_network_mask() -> u8 {
-        crate::settings::json::mask::STORAGE
+        crate::network::mask::STORAGE
     }
 }
 

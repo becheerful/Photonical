@@ -7,7 +7,15 @@ use crate::{
     world::World,
 };
 
+pub mod mask {
+    pub const PRODUCER: u8 = 1;
+    pub const CONSUMER: u8 = 2;
+    pub const STORAGE: u8 = 3;
+    pub const NODE: u8 = 4;
+}
+
 pub const PLUG: u32 = 0;
+const CONNECTION_RADIUS: u16 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LightColor {
@@ -164,7 +172,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                 let mut cy = ny;
                 let mut steps = 0;
 
-                while steps < crate::settings::CONNECTION_RADIUS
+                while steps < CONNECTION_RADIUS
                     && cx >= 0
                     && cy >= 0
                     && cx < world.map.width as i32

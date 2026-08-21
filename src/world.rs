@@ -7,7 +7,7 @@ use crate::{
     defs::registry,
     ecs::{BlockType, Ecs, Position},
     network::Network,
-    settings::res::TEXTURE_SIZE,
+    res::TEXTURE_SIZE,
 };
 
 pub struct World {

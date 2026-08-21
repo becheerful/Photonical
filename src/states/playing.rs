@@ -1,5 +1,5 @@
 use ggez::{
-    Context, GameError, GameResult,
+    Context, GameResult,
     event::MouseButton,
     glam::UVec2,
     graphics::{DrawParam, Drawable, InstanceArray},
@@ -12,9 +12,10 @@ use crate::{
         PowerStorage, Table, UV,
     },
     game::SharedData,
+    json::get_wavelength,
     network::LightColor,
     player::Player,
-    settings::res::TEXTURE_SIZE,
+    res::TEXTURE_SIZE,
     world::World,
 };
 
@@ -101,26 +102,6 @@ impl PlayingState {
         Ok(())
     }
 
-    fn get_energy_interaction_value<T: crate::ecs::EnergyComponent>(
-        bd: &BlockDef,
-    ) -> GameResult<f32> {
-        let parameter_name = T::get_energy_param_name();
-        Ok(bd
-            .net
-            .get(parameter_name)
-            .ok_or(GameError::ConfigError(
-                format!(
-                    "Missing parameter `{parameter_name}` for network mask {}",
-                    T::get_network_mask()
-                )
-                .to_owned(),
-            ))?
-            .as_f64()
-            .ok_or(GameError::CustomError(format!(
-                "Invalid value for `{parameter_name}`"
-            )))? as f32)
-    }
-
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
@@ -200,7 +181,7 @@ impl PlayingState {
         if self.world.map.block_entities[index].is_some() {
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
-                crate::settings::lua::functions::MOUSE_BUTTON_DOWN,
+                crate::scripts::functions::MOUSE_BUTTON_DOWN,
                 &mut self.world,
                 index,
                 dt,
@@ -218,67 +199,37 @@ impl PlayingState {
         let bd = registry().get_block_directly(cur_block)?;
         let has_network = !bd.net.is_empty();
 
-        if has_network
-            && let Some(net_mask) = bd.net.get(crate::settings::json::fields::ENERGY_MASK)
-        {
+        if has_network && let Some(net_mask) = bd.net.get(crate::json::fields::ENERGY_MASK) {
             match net_mask.as_u64().unwrap_or(0) as u8 {
-                crate::settings::json::mask::PRODUCER => {
-                    let component = PowerProducer(PlayingState::get_energy_interaction_value::<
-                        PowerProducer,
-                    >(bd)?);
-
-                    let wavelength = bd
-                        .net
-                        .get(crate::settings::json::fields::WAVELENGTH)
-                        .ok_or(GameError::ConfigError(
-                            "Missing `wavelength` field for light emitter".to_owned(),
-                        ))?
-                        .as_u64()
-                        .ok_or(GameError::CustomError(
-                            "Invalid value for `wavelength`".to_owned(),
-                        ))?;
-
+                crate::network::mask::PRODUCER => {
+                    let power = crate::json::get_energy_interaction_value::<PowerProducer>(bd)?;
                     if !self.add_energy_block::<PowerProducer>(
                         data,
                         x,
                         y,
                         bd,
-                        LightColor::from(wavelength as u16),
-                        component,
+                        LightColor::from(get_wavelength(bd)?),
+                        PowerProducer(power),
                     )? {
                         return Ok(());
                     }
                 }
 
-                crate::settings::json::mask::CONSUMER => {
-                    let component = PowerConsumer(PlayingState::get_energy_interaction_value::<
-                        PowerConsumer,
-                    >(bd)?);
-
-                    let wavelength = bd
-                        .net
-                        .get(crate::settings::json::fields::WAVELENGTH)
-                        .ok_or(GameError::ConfigError(
-                            "Missing `wavelength` field for light consumer".to_owned(),
-                        ))?
-                        .as_u64()
-                        .ok_or(GameError::CustomError(
-                            "Invalid value for `wavelength`".to_owned(),
-                        ))?;
-
+                crate::network::mask::CONSUMER => {
+                    let demand = crate::json::get_energy_interaction_value::<PowerConsumer>(bd)?;
                     if !self.add_energy_block::<PowerConsumer>(
                         data,
                         x,
                         y,
                         bd,
-                        LightColor::from(wavelength as u16),
-                        component,
+                        LightColor::from(get_wavelength(bd)?),
+                        PowerConsumer(demand),
                     )? {
                         return Ok(());
                     }
                 }
 
-                crate::settings::json::mask::STORAGE => {
+                crate::network::mask::STORAGE => {
                     if !self.add_energy_block::<PowerStorage>(
                         data,
                         x,
@@ -291,7 +242,7 @@ impl PlayingState {
                     }
                 }
 
-                crate::settings::json::mask::NODE => {
+                crate::network::mask::NODE => {
                     if !self.add_neutral_energy_block(data, x, y, bd)? {
                         return Ok(());
                     }
@@ -324,7 +275,7 @@ impl PlayingState {
 
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
-                crate::settings::lua::functions::INIT,
+                crate::scripts::functions::INIT,
                 &mut self.world,
                 index,
                 dt,
@@ -495,7 +446,7 @@ impl crate::states::State for PlayingState {
 
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
-                crate::settings::lua::functions::MOUSE_BUTTON_UP,
+                crate::scripts::functions::MOUSE_BUTTON_UP,
                 &mut self.world,
                 index,
                 ctx.time.delta().as_secs_f32(),

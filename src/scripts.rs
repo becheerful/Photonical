@@ -5,12 +5,24 @@ use mlua::AnyUserData;
 use crate::{
     defs::registry,
     ecs::{BlockType, Ecs, NetNode, Position},
-    settings::lua::{
-        functions::UPDATE,
-        param::{BLOCK_INDEX_IN_REGISTRY, NETWORK_ID, POSITION},
-    },
     world::World,
 };
+
+mod param {
+    // field names for scripts
+    pub const STRING_ID: &str = "str_id";
+    pub const BLOCK_INDEX_IN_REGISTRY: &str = "raw_id";
+    pub const ENTITY_ID: &str = "entity_id";
+    pub const NETWORK_ID: &str = "net_id";
+    pub const POSITION: &str = "pos";
+}
+
+pub mod functions {
+    pub const INIT: &str = "init";
+    pub const UPDATE: &str = "update";
+    pub const MOUSE_BUTTON_DOWN: &str = "on_mouse_button_down";
+    pub const MOUSE_BUTTON_UP: &str = "on_mouse_button_up";
+}
 
 pub struct ScriptEngine {
     lua: mlua::Lua,
@@ -128,9 +140,9 @@ impl ScriptEngine {
                         let table = lua.create_table()?;
                         let block = world.map.static_tiles[world.map.index(x, y)];
 
-                        table.set(BLOCK_INDEX_IN_REGISTRY, block.0)?;
+                        table.set(param::BLOCK_INDEX_IN_REGISTRY, block.0)?;
                         table.set(
-                            crate::settings::lua::param::STRING_ID,
+                            param::STRING_ID,
                             registry()
                                 .get_block_directly(block.0)
                                 .or(Err(mlua::Error::RuntimeError(
@@ -139,7 +151,7 @@ impl ScriptEngine {
                                 .id
                                 .to_owned(),
                         )?;
-                        table.set(POSITION, block.1.to_array())?;
+                        table.set(param::POSITION, block.1.to_array())?;
 
                         Ok(table)
                     })?
@@ -206,18 +218,10 @@ impl ScriptEngine {
 
         self.lua.load(code).set_environment(env.clone()).exec()?;
 
-        self.load_lua_function(&env, block_id, crate::settings::lua::functions::INIT);
-        self.load_lua_function(&env, block_id, UPDATE);
-        self.load_lua_function(
-            &env,
-            block_id,
-            crate::settings::lua::functions::MOUSE_BUTTON_DOWN,
-        );
-        self.load_lua_function(
-            &env,
-            block_id,
-            crate::settings::lua::functions::MOUSE_BUTTON_UP,
-        );
+        self.load_lua_function(&env, block_id, functions::INIT);
+        self.load_lua_function(&env, block_id, functions::UPDATE);
+        self.load_lua_function(&env, block_id, functions::MOUSE_BUTTON_DOWN);
+        self.load_lua_function(&env, block_id, functions::MOUSE_BUTTON_UP);
 
         Ok(())
     }
@@ -232,15 +236,12 @@ impl ScriptEngine {
     ) -> mlua::Result<mlua::Table> {
         let block_table = self.lua.create_table()?;
 
-        block_table.set(
-            crate::settings::lua::param::ENTITY_ID,
-            entity.to_bits().get(),
-        )?;
-        block_table.set(BLOCK_INDEX_IN_REGISTRY, id.0)?;
-        block_table.set(POSITION, vec![pos.0, pos.1])?;
+        block_table.set(param::ENTITY_ID, entity.to_bits().get())?;
+        block_table.set(param::BLOCK_INDEX_IN_REGISTRY, id.0)?;
+        block_table.set(param::POSITION, vec![pos.0, pos.1])?;
 
         if let Some(n) = node {
-            block_table.set(NETWORK_ID, n.0)?;
+            block_table.set(param::NETWORK_ID, n.0)?;
         }
 
         for (key, value) in &registry()
@@ -289,7 +290,7 @@ impl ScriptEngine {
                 let t = self.lua.registry_value::<mlua::Table>(&key)?;
 
                 if let Some(n) = node {
-                    t.set(NETWORK_ID, n.0)?;
+                    t.set(param::NETWORK_ID, n.0)?;
                 }
 
                 t
@@ -313,7 +314,7 @@ impl ScriptEngine {
         world: &mut World,
         dt: f32,
     ) -> mlua::Result<()> {
-        let Some(func_group) = self.scripts.get(UPDATE) else {
+        let Some(func_group) = self.scripts.get(functions::UPDATE) else {
             return Ok(());
         };
 

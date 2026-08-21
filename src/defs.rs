@@ -186,7 +186,7 @@ fn load_defs_from_dir<T: serde::de::DeserializeOwned>(
 
 pub fn get_paths(registry: &Registry) -> HashSet<String> {
     let mut texture_paths = HashSet::new();
-    texture_paths.insert(crate::settings::res::MISSING_TEX.to_string());
+    texture_paths.insert(crate::res::MISSING_TEX.to_string());
 
     for block in &registry.blocks {
         texture_paths.insert(block.texture.clone());
