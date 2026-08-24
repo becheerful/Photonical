@@ -34,7 +34,7 @@ impl PlayingState {
             cur_block: None,
             dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
             static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
-            player: Player::new(&world, registry(), &data.atlas, &data.settings),
+            player: Player::new(&world, &data.atlas, &data.settings),
             world,
         })
     }

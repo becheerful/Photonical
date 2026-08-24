@@ -12,14 +12,9 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(
-        registry: &crate::defs::Registry,
-        atlas: &Atlas,
-        aspect: f32,
-        settings: &Settings,
-    ) -> Self {
+    pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
         Self {
-            block_list: BlockListUI::new(registry, atlas, aspect, settings),
+            block_list: BlockListUI::new(atlas, aspect, settings),
         }
     }
 
@@ -53,16 +48,11 @@ impl BlockListUI {
     // Basically intended to be used as `u32`
     pub const PADDING: f32 = 8.0;
 
-    pub fn new(
-        registry: &crate::defs::Registry,
-        atlas: &Atlas,
-        aspect: f32,
-        settings: &Settings,
-    ) -> Self {
+    pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
         let aspect = aspect * 2.0;
         let width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
 
-        let blocks: Vec<crate::defs::BlockDef> = registry
+        let blocks: Vec<crate::defs::BlockDef> = crate::defs::registry()
             .get_all_blocks()
             .iter()
             .filter(|def| !def.editor_only)

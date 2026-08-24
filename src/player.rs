@@ -85,13 +85,12 @@ pub struct Player {
 impl Player {
     pub fn new(
         world: &crate::world::World,
-        registry: &crate::defs::Registry,
         atlas: &crate::res::Atlas,
         settings: &Settings,
     ) -> Self {
         Self {
             camera: Camera::new(&world.map, settings),
-            ui: PlayerUI::new(registry, atlas, world.aspect, settings),
+            ui: PlayerUI::new(atlas, world.aspect, settings),
         }
     }
 
