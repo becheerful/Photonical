@@ -5,3 +5,4 @@ font = "/resources/assets/fonts/ScienceGothic-Regular.ttf"
 ui_mouse_wheel_sensitivity = 0.5
 aspect_mouse_wheel_sensitivity = 0.1
 show_fps = true
+editor_mode = true

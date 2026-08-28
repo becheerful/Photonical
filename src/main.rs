@@ -19,6 +19,7 @@ pub struct Settings {
     pub ui_mouse_wheel_sensitivity: f32,
     pub aspect_mouse_wheel_sensitivity: f32,
     pub show_fps: bool,
+    pub editor_mode: bool,
 }
 
 fn load_settings() -> ggez::GameResult<Settings> {

@@ -1,6 +1,10 @@
 use ggez::{glam::Vec2, graphics::Rect};
 
-use crate::{Settings, res::Atlas, res::TEXTURE_SIZE};
+use crate::{
+    Settings,
+    defs::registry,
+    res::{Atlas, TEXTURE_SIZE},
+};
 
 pub trait UI {
     fn get_texture_path() -> &'static str;
@@ -35,7 +39,7 @@ impl PlayerUI {
 pub struct BlockListUI {
     hitbox: Rect,
     atlas_rect: Rect,
-    aspect: f32,
+    aspect: Vec2,
     padding: f32,
     item_size: f32,
     scroll_offset: f32,
@@ -49,13 +53,13 @@ impl BlockListUI {
     pub const PADDING: f32 = 8.0;
 
     pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
-        let aspect = aspect * 2.0;
-        let width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect;
+        let aspect = Vec2::splat(aspect * 2.0);
+        let width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
 
-        let blocks: Vec<crate::defs::BlockDef> = crate::defs::registry()
+        let blocks: Vec<crate::defs::BlockDef> = registry()
             .get_all_blocks()
             .iter()
-            .filter(|def| !def.editor_only)
+            .filter(|def| !def.editor_only || settings.editor_mode)
             .map(|def| def.clone())
             .collect();
 
@@ -68,15 +72,26 @@ impl BlockListUI {
             ),
             atlas_rect: *atlas.get_ui_uv::<Self>().unwrap(),
             aspect,
-            padding: Self::PADDING * aspect,
-            item_size: (TEXTURE_SIZE + Self::PADDING as f32) * aspect,
+            padding: Self::PADDING * aspect.x,
+            item_size: (TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
-            sizes: blocks
-                .iter()
-                .map(|def| Vec2::splat(aspect) / def.size as f32)
-                .collect(),
+            sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
             blocks,
         }
+    }
+
+    pub fn update_block_list(&mut self, settings: &Settings) {
+        self.blocks = registry()
+            .get_all_blocks()
+            .iter()
+            .filter(|def| !def.editor_only || settings.editor_mode)
+            .map(|def| def.clone())
+            .collect();
+        self.sizes = self
+            .blocks
+            .iter()
+            .map(|def| self.aspect / def.size as f32)
+            .collect();
     }
 
     pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> ggez::GameResult {
@@ -87,7 +102,7 @@ impl BlockListUI {
             ggez::graphics::DrawParam::default()
                 .src(self.atlas_rect)
                 .dest(xy)
-                .scale(Vec2::splat(self.aspect)),
+                .scale(self.aspect),
         );
 
         canvas.set_scissor_rect(self.hitbox)?;
@@ -121,7 +136,7 @@ impl BlockListUI {
                 return None;
             }
 
-            return crate::defs::registry()
+            return registry()
                 .get_block_index(&self.blocks[index as usize].id)
                 .ok();
         }

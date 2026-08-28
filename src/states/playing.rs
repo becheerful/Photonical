@@ -3,6 +3,7 @@ use ggez::{
     event::MouseButton,
     glam::UVec2,
     graphics::{Color, DrawParam, Drawable, InstanceArray},
+    input::keyboard::KeyCode,
 };
 
 use crate::{
@@ -39,6 +40,8 @@ impl PlayingState {
         })
     }
 
+    /// Iterates through the `World`'s static tiles and collects them in an `InstanceArray`. \
+    /// An expensive operation that causes a noticeable drop in FPS.
     fn make_static_layer(
         ctx: &Context,
         image: &ggez::graphics::Image,
@@ -66,6 +69,7 @@ impl PlayingState {
 
     fn remove_from_dynamic_layer(&mut self, data: &mut SharedData) {
         self.dynamic_layer.clear();
+        // TODO: somehow rewrite it so we don't have to create the layer anew every time.
         for (_, (uv, pos)) in data.ecs.query_mut::<(&UV, &Position)>() {
             self.dynamic_layer.push(
                 DrawParam::default()
@@ -102,6 +106,49 @@ impl PlayingState {
         Ok(())
     }
 
+    fn add_scripted_block(
+        &mut self,
+        data: &mut SharedData,
+        raw_id: u32,
+        x: u16,
+        y: u16,
+        size: u16,
+        dt: f32,
+    ) -> GameResult {
+        let index = self.world.map.index(x, y);
+
+        match self.world.map.block_entities[index] {
+            Some(e) => {
+                if let Err(err) = data.ecs.insert_one(e, Table(None)) {
+                    eprintln!("{err}");
+                }
+            }
+
+            None => {
+                let uv = data
+                    .atlas
+                    .make_texture_rect(&registry().get_block_directly(raw_id)?.texture)?;
+                let pos = Position(x, y);
+                let e = data
+                    .ecs
+                    .spawn((uv.clone(), BlockType(raw_id), pos.clone(), Table(None)));
+                self.place_block(&mut data.ecs, &uv, &pos, size, e);
+            }
+        }
+
+        if let Err(e) = data.script_engine.run_lua_function(
+            &mut data.ecs,
+            crate::scripts::functions::INIT,
+            &mut self.world,
+            index,
+            dt,
+        ) {
+            eprintln!("{e}");
+        }
+
+        Ok(())
+    }
+
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
@@ -109,7 +156,7 @@ impl PlayingState {
         y: u16,
         bd: &BlockDef,
         light_color: LightColor,
-        component: T,
+        component: Option<T>,
     ) -> GameResult<bool> {
         if !self.world.check_for_space(x, y, bd.size) {
             return Ok(false);
@@ -124,46 +171,24 @@ impl PlayingState {
             .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
         let pos = Position(x, y);
 
-        let e = data.ecs.spawn((
-            uv,
-            BlockType(cur_block),
-            pos,
-            component,
-            LightProperties(light_color),
-            NetNode(crate::network::PLUG),
-        ));
+        let e = match component {
+            Some(c) => data.ecs.spawn((
+                uv,
+                BlockType(cur_block),
+                pos,
+                c,
+                LightProperties(light_color),
+                NetNode(crate::network::PLUG),
+            )),
 
-        self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
-        Ok(true)
-    }
-
-    fn add_neutral_energy_block(
-        &mut self,
-        data: &mut SharedData,
-        x: u16,
-        y: u16,
-        bd: &BlockDef,
-    ) -> GameResult<bool> {
-        if !self.world.check_for_space(x, y, bd.size) {
-            return Ok(false);
-        }
-
-        let Some(cur_block) = self.cur_block else {
-            return Ok(false);
+            None => data.ecs.spawn((
+                uv,
+                BlockType(cur_block),
+                pos,
+                LightProperties(light_color),
+                NetNode(crate::network::PLUG),
+            )),
         };
-
-        let uv = data
-            .atlas
-            .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
-        let pos = Position(x, y);
-
-        let e = data.ecs.spawn((
-            uv,
-            BlockType(cur_block),
-            pos,
-            LightProperties(LightColor::Undefined),
-            NetNode(crate::network::PLUG),
-        ));
 
         self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
         Ok(true)
@@ -171,6 +196,7 @@ impl PlayingState {
 
     fn handle_click_on_block(
         &mut self,
+        ctx: &Context,
         data: &mut SharedData,
         x: u16,
         y: u16,
@@ -209,7 +235,7 @@ impl PlayingState {
                         y,
                         bd,
                         LightColor::from(get_wavelength(bd)?),
-                        PowerProducer(power),
+                        Some(PowerProducer(power)),
                     )? {
                         return Ok(());
                     }
@@ -223,7 +249,7 @@ impl PlayingState {
                         y,
                         bd,
                         LightColor::from(get_wavelength(bd)?),
-                        PowerConsumer(demand),
+                        Some(PowerConsumer(demand)),
                     )? {
                         return Ok(());
                     }
@@ -236,14 +262,26 @@ impl PlayingState {
                         y,
                         bd,
                         LightColor::Undefined,
-                        PowerStorage,
+                        Some(PowerStorage),
                     )? {
                         return Ok(());
                     }
                 }
 
                 crate::network::mask::NODE => {
-                    if !self.add_neutral_energy_block(data, x, y, bd)? {
+                    /*
+                     * Technically, it's not a storage.
+                     * I just can't use `Option<impl crate::ecs::EnergyComponent + hecs::Component>` in `add_energy_block`.
+                     * So, this is a workaround. Just ignore it.
+                     */
+                    if !self.add_energy_block::<PowerStorage>(
+                        data,
+                        x,
+                        y,
+                        bd,
+                        LightColor::Undefined,
+                        None,
+                    )? {
                         return Ok(());
                     }
                 }
@@ -255,35 +293,11 @@ impl PlayingState {
         }
 
         if bd.script.is_some() {
-            if self.world.map.block_entities[index].is_none() {
-                let uv = data
-                    .atlas
-                    .make_texture_rect(&registry().get_block_directly(cur_block)?.texture)?;
-                let pos = Position(x, y);
-
-                let e =
-                    data.ecs
-                        .spawn((uv.clone(), BlockType(cur_block), pos.clone(), Table(None)));
-
-                self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
-            } else {
-                let e = self.world.map.block_entities[index].unwrap();
-                if let Err(e) = data.ecs.insert_one(e, Table(None)) {
-                    eprintln!("{e}");
-                }
-            }
-
-            if let Err(e) = data.script_engine.run_lua_function(
-                &mut data.ecs,
-                crate::scripts::functions::INIT,
-                &mut self.world,
-                index,
-                dt,
-            ) {
-                eprintln!("{e}");
-            }
+            self.add_scripted_block(data, cur_block, x, y, bd.size, dt)?;
         } else if !has_network {
             self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
+            self.static_layer =
+                PlayingState::make_static_layer(ctx, &data.atlas.image, &self.world)?;
         }
 
         Ok(())
@@ -357,13 +371,28 @@ impl crate::states::State for PlayingState {
 
     fn key_down_event(
         &mut self,
-        _data: &mut SharedData,
+        data: &mut SharedData,
         _ctx: &mut Context,
         input: ggez::input::keyboard::KeyInput,
         _repeated: bool,
     ) -> GameResult {
         if let Some(key) = input.keycode {
-            self.player.camera.key_down_event(key);
+            match key {
+                KeyCode::F1 => {
+                    data.settings.show_fps = !data.settings.show_fps;
+                }
+
+                KeyCode::F2 => {
+                    data.settings.editor_mode = !data.settings.editor_mode;
+                    self.player.ui.block_list.update_block_list(&data.settings);
+                }
+
+                _ => {
+                    if let Some(key) = input.keycode {
+                        self.player.camera.key_down_event(key);
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -405,7 +434,7 @@ impl crate::states::State for PlayingState {
                 }
 
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.handle_click_on_block(data, x, y, ctx.time.delta().as_secs_f32())?;
+                self.handle_click_on_block(ctx, data, x, y, ctx.time.delta().as_secs_f32())?;
             }
 
             MouseButton::Middle => {

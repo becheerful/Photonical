@@ -7,7 +7,7 @@
         "source": "photonical:diamond_placer",
         "resource": "photonical:diamond",
         "stored": 0,
-        "working_time": 3,
+        "working_time": 2.5,
         "timer": 0
     }
 }
