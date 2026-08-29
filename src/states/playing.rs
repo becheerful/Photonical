@@ -293,6 +293,12 @@ impl PlayingState {
         }
 
         if bd.script.is_some() {
+            /*
+             * NOTE: If a block has a script, then it's definitely an entity
+             * that is contained in `world.map.block_entities`.
+             * ===
+             * TODO: Make scriptable static tiles someday.
+             */
             self.add_scripted_block(data, cur_block, x, y, bd.size, dt)?;
         } else if !has_network {
             self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));

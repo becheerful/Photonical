@@ -281,7 +281,7 @@ impl ScriptEngine {
             &mut crate::ecs::Table,
             Option<&NetNode>,
         )>(entity)
-        {
+        { // Why, `cargo fmt`?
             let Some(func) = func_groups.get(&id.0) else {
                 return Ok(());
             };
@@ -289,6 +289,7 @@ impl ScriptEngine {
             let table = if let Some(key) = &table.0 {
                 let t = self.lua.registry_value::<mlua::Table>(&key)?;
 
+                // Should to be updated every time, because the networks are rebuilt when a block is placed.
                 if let Some(n) = node {
                     t.set(param::NETWORK_ID, n.0)?;
                 }

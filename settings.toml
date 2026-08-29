@@ -4,5 +4,5 @@ fullscreen_type = "Windowed"
 font = "/resources/assets/fonts/ScienceGothic-Regular.ttf"
 ui_mouse_wheel_sensitivity = 0.5
 aspect_mouse_wheel_sensitivity = 0.1
-show_fps = true
+show_fps = false
 editor_mode = true

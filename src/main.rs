@@ -1,3 +1,5 @@
+use ggez::GameResult;
+
 mod defs;
 mod ecs;
 mod game;
@@ -22,13 +24,42 @@ pub struct Settings {
     pub editor_mode: bool,
 }
 
-fn load_settings() -> ggez::GameResult<Settings> {
+fn load_settings() -> GameResult<Settings> {
     let content = std::fs::read_to_string("./settings.toml")
         .map_err(|e| ggez::GameError::FilesystemError(e.to_string()))?;
     toml::from_str(&content).map_err(|e| ggez::GameError::CustomError(e.to_string()))
 }
 
-fn main() -> ggez::GameResult {
+fn init_game(ctx: &mut ggez::Context, settings: Settings) -> GameResult<game::GameHandler> {
+    // Initialize the registry
+    let mut reg = defs::Registry::new()?;
+
+    // Initialize the script engine
+    let mut script_engine = scripts::ScriptEngine::new();
+    defs::link_scripts(&reg, &mut script_engine);
+    script_engine
+        .init_api()
+        .expect("Error during Lua API initialization");
+
+    // Initialize the atlas
+    let mut paths_list = defs::get_paths(&reg);
+    for path in ui::PlayerUI::collect_ui_paths() {
+        paths_list.insert(path);
+    }
+
+    let atlas = res::Atlas::new(&ctx, &paths_list)?;
+
+    // Link everything
+    defs::gen_uv_cache(&mut reg, &atlas)?;
+    defs::REGISTRY
+        .set(reg)
+        .expect("Game registry already initialized");
+
+    // Make the game handler
+    game::GameHandler::new(ctx, atlas, script_engine, settings)
+}
+
+fn main() -> GameResult {
     let settings = load_settings()?;
 
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("photonical", "becheerful")
@@ -50,28 +81,6 @@ fn main() -> ggez::GameResult {
     // ctx.gfx.set_window_icon(&ctx.fs, "/assets/textures/blocks/collimator.png")?;
     ggez::input::mouse::set_cursor_type(&mut ctx, ggez::input::mouse::CursorIcon::Crosshair);
 
-    let mut reg = defs::Registry::new()?;
-
-    let mut script_engine = scripts::ScriptEngine::new();
-    defs::link_scripts(&reg, &mut script_engine);
-    script_engine
-        .init_api()
-        .expect("Error during Lua API initialization");
-
-    let mut paths_list = defs::get_paths(&reg);
-    for path in ui::PlayerUI::collect_ui_paths() {
-        paths_list.insert(path);
-    }
-
-    let atlas = res::Atlas::new(&ctx, &paths_list)?;
-
-    defs::gen_uv_cache(&mut reg, &atlas)?;
-
-    defs::REGISTRY
-        .set(reg)
-        .expect("Game registry already initialized");
-
-    let game = game::GameHandler::new(&mut ctx, atlas, script_engine, settings)?;
-
-    ggez::event::run(ctx, event_loop, game);
+    let game_handler = init_game(&mut ctx, settings)?;
+    ggez::event::run(ctx, event_loop, game_handler);
 }

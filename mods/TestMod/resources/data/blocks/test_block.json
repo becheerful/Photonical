@@ -2,5 +2,6 @@
     "id": "test_mod:test_block",
     "name": "Test Block",
     "editor_only": true,
-    "texture": "resources/assets/textures/test_block.png"
+    "texture": "resources/assets/textures/test_block.png",
+    "script": "scripts/test_block.lua"
 }
