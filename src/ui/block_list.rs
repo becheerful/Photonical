@@ -14,6 +14,7 @@ pub struct BlockListUI {
     padding: f32,
     item_size: f32,
     scroll_offset: f32,
+    bottom_border: f32,
     sizes: Vec<Vec2>,
     blocks: Vec<crate::defs::BlockDef>,
 }
@@ -57,6 +58,7 @@ impl BlockListUI {
             padding: Self::PADDING * aspect.x,
             item_size: (TEXTURE_SIZE + Self::PADDING as f32) * aspect.x,
             scroll_offset: 0.0,
+            bottom_border: ((blocks.len() / 16) as f32) * hitbox_height,
             sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
             blocks,
         }
@@ -133,7 +135,8 @@ impl BlockListUI {
 
     pub fn mouse_motion_event(&mut self, sensitivity: f32, x: f32, y: f32, dy: f32) {
         if self.scrollbar.contains([x, y]) {
-            self.scroll_offset -= dy * self.aspect.x * sensitivity;
+            let new_offset = self.scroll_offset - (dy * self.aspect.x * sensitivity);
+            self.scroll_offset = new_offset.clamp(-self.bottom_border, 0.0);
         }
     }
 
@@ -164,7 +167,9 @@ impl BlockListUI {
     ) -> bool {
         let contains = self.hitbox.contains(mouse_pos);
         if contains {
-            self.scroll_offset += dy * (TEXTURE_SIZE + Self::PADDING) * self.aspect.x * sensitivity;
+            let new_offset = self.scroll_offset
+                + (dy * (TEXTURE_SIZE + Self::PADDING) * self.aspect.x * sensitivity);
+            self.scroll_offset = new_offset.clamp(-self.bottom_border, 0.0);
         }
 
         contains
