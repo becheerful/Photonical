@@ -281,7 +281,7 @@ impl ScriptEngine {
             &mut crate::ecs::Table,
             Option<&NetNode>,
         )>(entity)
-        { // Why, `cargo fmt`?
+        {
             let Some(func) = func_groups.get(&id.0) else {
                 return Ok(());
             };

@@ -310,7 +310,7 @@ impl PlayingState {
     }
 }
 
-impl crate::states::State for PlayingState {
+impl super::State for PlayingState {
     fn update(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
         self.player.camera.update();
 

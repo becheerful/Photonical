@@ -3,7 +3,8 @@ use ggez::{Context, GameResult};
 use crate::game::SharedData;
 
 struct MainMenuState;
-impl crate::states::State for MainMenuState {
+
+impl super::State for MainMenuState {
     fn update(&mut self, _data: &mut SharedData, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
