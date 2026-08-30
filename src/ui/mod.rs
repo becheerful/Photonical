@@ -23,8 +23,13 @@ impl PlayerUI {
         vec![BlockListUI::get_texture_path().to_owned()]
     }
 
-    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> ggez::GameResult {
-        self.block_list.draw(canvas, atlas)?;
+    pub fn draw(
+        &self,
+        ctx: &ggez::Context,
+        canvas: &mut ggez::graphics::Canvas,
+        atlas: &Atlas,
+    ) -> ggez::GameResult {
+        self.block_list.draw(ctx, canvas, atlas)?;
         Ok(())
     }
 

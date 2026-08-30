@@ -1,8 +1,8 @@
-screen_width = 1151.0
-screen_height = 712.0
+screen_width = 1027.0
+screen_height = 704.0
 fullscreen_type = "Windowed"
 font = "/resources/assets/fonts/ScienceGothic-Regular.ttf"
 ui_mouse_wheel_sensitivity = 0.5
 aspect_mouse_wheel_sensitivity = 0.1
-show_fps = false
+show_fps = true
 editor_mode = true

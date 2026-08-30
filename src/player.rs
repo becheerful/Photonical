@@ -96,10 +96,11 @@ impl Player {
 
     pub fn draw(
         &self,
+        ctx: &ggez::Context,
         canvas: &mut ggez::graphics::Canvas,
         atlas: &crate::res::Atlas,
     ) -> ggez::GameResult {
-        self.ui.draw(canvas, atlas)?;
+        self.ui.draw(ctx, canvas, atlas)?;
         Ok(())
     }
 

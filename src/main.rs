@@ -31,17 +31,17 @@ fn load_settings() -> GameResult<Settings> {
 }
 
 fn init_game(ctx: &mut ggez::Context, settings: Settings) -> GameResult<game::GameHandler> {
-    // Initialize the registry
+    // initialize the registry
     let mut reg = defs::Registry::new()?;
 
-    // Initialize the script engine
+    // initialize the script engine
     let mut script_engine = scripts::ScriptEngine::new();
     defs::link_scripts(&reg, &mut script_engine);
     script_engine
         .init_api()
         .expect("Error during Lua API initialization");
 
-    // Initialize the atlas
+    // initialize the atlas
     let mut paths_list = defs::get_paths(&reg);
     for path in ui::PlayerUI::collect_ui_paths() {
         paths_list.insert(path);
@@ -49,13 +49,13 @@ fn init_game(ctx: &mut ggez::Context, settings: Settings) -> GameResult<game::Ga
 
     let atlas = res::Atlas::new(&ctx, &paths_list)?;
 
-    // Link everything
+    // link everything
     defs::gen_uv_cache(&mut reg, &atlas)?;
     defs::REGISTRY
         .set(reg)
         .expect("Game registry already initialized");
 
-    // Make the game handler
+    // make the game handler
     game::GameHandler::new(ctx, atlas, script_engine, settings)
 }
 

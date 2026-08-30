@@ -26,6 +26,7 @@ pub struct PlayingState {
     dynamic_layer: InstanceArray,
     player: Player,
     world: World,
+    left_button_pressed: bool,
 }
 
 impl PlayingState {
@@ -37,6 +38,7 @@ impl PlayingState {
             static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
             player: Player::new(&world, &data.atlas, &data.settings),
             world,
+            left_button_pressed: false,
         })
     }
 
@@ -353,7 +355,7 @@ impl super::State for PlayingState {
         }
 
         // should be last because of scissors
-        self.player.draw(&mut canvas, &data.atlas)?;
+        self.player.draw(ctx, &mut canvas, &data.atlas)?;
         canvas.finish(ctx)?;
 
         Ok(())
@@ -410,9 +412,29 @@ impl super::State for PlayingState {
         _ctx: &mut Context,
         input: ggez::input::keyboard::KeyInput,
     ) -> GameResult {
-        match input.keycode {
-            Some(key) => self.player.camera.key_up_event(key),
-            None => {}
+        if let Some(key) = input.keycode {
+            self.player.camera.key_up_event(key);
+        }
+
+        Ok(())
+    }
+
+    fn mouse_motion_event(
+        &mut self,
+        data: &mut SharedData,
+        _ctx: &mut Context,
+        x: f32,
+        y: f32,
+        _dx: f32,
+        dy: f32,
+    ) -> GameResult {
+        if self.left_button_pressed {
+            self.player.ui.block_list.mouse_motion_event(
+                data.settings.ui_mouse_wheel_sensitivity,
+                x,
+                y,
+                dy,
+            );
         }
 
         Ok(())
@@ -428,6 +450,8 @@ impl super::State for PlayingState {
     ) -> GameResult {
         match button {
             MouseButton::Left => {
+                self.left_button_pressed = true;
+
                 let index = self
                     .player
                     .ui
@@ -490,6 +514,8 @@ impl super::State for PlayingState {
             ) {
                 eprintln!("{e}")
             }
+
+            self.left_button_pressed = false;
         }
 
         Ok(())
@@ -502,12 +528,11 @@ impl super::State for PlayingState {
         _x: f32,
         y: f32,
     ) -> GameResult {
-        if !self
-            .player
-            .ui
-            .block_list
-            .scroll_event(&data.settings, ctx.mouse.position(), y)
-        {
+        if !self.player.ui.block_list.scroll(
+            data.settings.aspect_mouse_wheel_sensitivity,
+            ctx.mouse.position(),
+            y,
+        ) {
             self.world.aspect = (self.world.aspect
                 + (y * data.settings.aspect_mouse_wheel_sensitivity))
                 .clamp(1.0, 2.0);

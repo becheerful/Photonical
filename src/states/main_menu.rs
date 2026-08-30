@@ -42,6 +42,18 @@ impl super::State for MainMenuState {
         Ok(())
     }
 
+    fn mouse_motion_event(
+        &mut self,
+        _data: &mut SharedData,
+        _ctx: &mut Context,
+        _x: f32,
+        _y: f32,
+        _dx: f32,
+        _dy: f32,
+    ) -> GameResult {
+        Ok(())
+    }
+
     fn mouse_button_down_event(
         &mut self,
         _data: &mut SharedData,

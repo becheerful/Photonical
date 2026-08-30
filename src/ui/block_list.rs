@@ -1,8 +1,14 @@
 use crate::{Settings, defs::registry, res::Atlas, res::TEXTURE_SIZE};
-use ggez::{glam::Vec2, graphics::Rect};
+use ggez::{
+    glam::Vec2,
+    graphics::{Color, DrawParam, Rect},
+};
+
+static SCROLLBAR_COLOR: Color = Color::new(1.0, 1.0, 245.0 / 255.0, 1.0);
 
 pub struct BlockListUI {
     hitbox: Rect,
+    scrollbar: Rect,
     atlas_rect: Rect,
     aspect: Vec2,
     padding: f32,
@@ -14,13 +20,11 @@ pub struct BlockListUI {
 
 impl BlockListUI {
     const COLS: usize = 4;
-    // Basically intended to be used as `u32`
-    pub const PADDING: f32 = 8.0;
+    // Only natural values
+    const PADDING: f32 = 8.0;
+    const SCROLLBAR_WIDTH: f32 = 8.0;
 
     pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
-        let aspect = Vec2::splat(aspect * 2.0);
-        let width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING) * aspect.x;
-
         let blocks: Vec<crate::defs::BlockDef> = registry()
             .get_all_blocks()
             .iter()
@@ -28,12 +32,25 @@ impl BlockListUI {
             .map(|def| def.clone())
             .collect();
 
+        let aspect = Vec2::splat(aspect * 2.0);
+        let scrollbar_width = Self::SCROLLBAR_WIDTH * aspect.x;
+
+        let hitbox_width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING)
+            * aspect.x
+            + scrollbar_width;
+        let hitbox_height = hitbox_width - scrollbar_width;
+
+        let hitbox_x = settings.screen_width - hitbox_width;
+        let hitbox_y = settings.screen_height - hitbox_height;
+
         Self {
-            hitbox: Rect::new(
-                settings.screen_width - width,
-                settings.screen_height - width,
-                width,
-                width,
+            hitbox: Rect::new(hitbox_x, hitbox_y, hitbox_width, hitbox_height),
+            scrollbar: Rect::new(
+                settings.screen_width - scrollbar_width,
+                hitbox_y,
+                scrollbar_width,
+                // 16 because of 4 rows and 4 columns
+                hitbox_height / (blocks.len().max(16) / 16) as f32,
             ),
             atlas_rect: *atlas.get_ui_uv::<Self>().unwrap(),
             aspect,
@@ -43,6 +60,11 @@ impl BlockListUI {
             sizes: blocks.iter().map(|def| aspect / def.size as f32).collect(),
             blocks,
         }
+    }
+
+    fn update_scrollbar_height(&mut self) {
+        // 16 because of 4 rows and 4 columns
+        self.scrollbar.h = self.hitbox.h / (self.blocks.len().max(16) / 16) as f32;
     }
 
     pub fn update_block_list(&mut self, settings: &Settings) {
@@ -57,14 +79,21 @@ impl BlockListUI {
             .iter()
             .map(|def| self.aspect / def.size as f32)
             .collect();
+        self.update_scrollbar_height();
     }
 
-    pub fn draw(&self, canvas: &mut ggez::graphics::Canvas, atlas: &Atlas) -> ggez::GameResult {
+    pub fn draw(
+        &self,
+        ctx: &ggez::Context,
+        canvas: &mut ggez::graphics::Canvas,
+        atlas: &Atlas,
+    ) -> ggez::GameResult {
         let xy = self.hitbox.point();
 
+        // draw background
         canvas.draw(
             &atlas.image,
-            ggez::graphics::DrawParam::default()
+            DrawParam::default()
                 .src(self.atlas_rect)
                 .dest(xy)
                 .scale(self.aspect),
@@ -72,10 +101,22 @@ impl BlockListUI {
 
         canvas.set_scissor_rect(self.hitbox)?;
 
+        // draw scrollbar
+        canvas.draw(
+            &ggez::graphics::Mesh::new_rectangle(
+                ctx,
+                ggez::graphics::DrawMode::fill(),
+                self.scrollbar,
+                SCROLLBAR_COLOR,
+            )?,
+            DrawParam::new().dest(Vec2::new(0.0, -self.scroll_offset)),
+        );
+
+        // draw blocks
         for (i, def) in self.blocks.iter().enumerate() {
             canvas.draw(
                 &atlas.image,
-                ggez::graphics::DrawParam::default()
+                DrawParam::default()
                     .src(def.uv.unwrap())
                     .dest(Vec2::new(
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
@@ -88,6 +129,12 @@ impl BlockListUI {
         }
 
         Ok(())
+    }
+
+    pub fn mouse_motion_event(&mut self, sensitivity: f32, x: f32, y: f32, dy: f32) {
+        if self.scrollbar.contains([x, y]) {
+            self.scroll_offset -= dy * self.aspect.x * sensitivity;
+        }
     }
 
     pub fn mouse_button_down_event(&self, settings: &Settings, mouse_pos: Vec2) -> Option<u32> {
@@ -109,16 +156,15 @@ impl BlockListUI {
         None
     }
 
-    pub fn scroll_event(
+    pub fn scroll(
         &mut self,
-        settings: &Settings,
-        mouse_pos: ggez::mint::Point2<f32>,
+        sensitivity: f32,
+        mouse_pos: impl Into<ggez::mint::Point2<f32>>,
         dy: f32,
     ) -> bool {
         let contains = self.hitbox.contains(mouse_pos);
         if contains {
-            self.scroll_offset +=
-                dy * (TEXTURE_SIZE + Self::PADDING) * settings.ui_mouse_wheel_sensitivity;
+            self.scroll_offset += dy * (TEXTURE_SIZE + Self::PADDING) * self.aspect.x * sensitivity;
         }
 
         contains
@@ -131,8 +177,10 @@ impl super::UI for BlockListUI {
     }
 
     fn resize_event(&mut self, new_width: f32, new_height: f32) {
-        let width = self.hitbox.w;
-        self.hitbox.x = new_width - width;
-        self.hitbox.y = new_height - width;
+        self.hitbox.x = new_width - self.hitbox.w;
+        self.hitbox.y = new_height - self.hitbox.h;
+
+        self.scrollbar.x = new_width - self.scrollbar.w;
+        self.scrollbar.y = self.hitbox.y;
     }
 }

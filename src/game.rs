@@ -74,6 +74,19 @@ impl EventHandler for GameHandler {
         Ok(())
     }
 
+    fn mouse_motion_event(
+        &mut self,
+        ctx: &mut Context,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+    ) -> GameResult {
+        self.state
+            .mouse_motion_event(&mut self.data, ctx, x, y, dx, dy)?;
+        Ok(())
+    }
+
     fn mouse_button_down_event(
         &mut self,
         ctx: &mut Context,

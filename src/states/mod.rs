@@ -33,6 +33,16 @@ pub trait State {
         input: KeyInput,
     ) -> GameResult;
 
+    fn mouse_motion_event(
+        &mut self,
+        data: &mut SharedData,
+        ctx: &mut Context,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+    ) -> GameResult;
+
     fn mouse_button_down_event(
         &mut self,
         data: &mut SharedData,
