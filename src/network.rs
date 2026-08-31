@@ -204,12 +204,12 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                             world.connections.push(LightBeam::new(
                                 [
                                     Point2 {
-                                        x: x as f32 * TEXTURE_SIZE,
-                                        y: y as f32 * TEXTURE_SIZE,
+                                        x: (x as f32 + 0.5) * TEXTURE_SIZE,
+                                        y: (y as f32 + 0.5) * TEXTURE_SIZE,
                                     },
                                     Point2 {
-                                        x: cur_x as f32 * TEXTURE_SIZE,
-                                        y: cur_y as f32 * TEXTURE_SIZE,
+                                        x: (cur_x as f32 + 0.5) * TEXTURE_SIZE,
+                                        y: (cur_y as f32 + 0.5) * TEXTURE_SIZE,
                                     },
                                 ],
                                 8.0,
