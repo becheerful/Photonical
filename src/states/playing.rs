@@ -52,7 +52,7 @@ impl PlayingState {
         let mut static_layer = InstanceArray::new(ctx, image.clone());
         for (id, pos) in world.map.static_tiles.iter() {
             static_layer.push(
-                DrawParam::default()
+                DrawParam::new()
                     .src(registry().get_block_directly(*id)?.uv.unwrap())
                     .dest(pos.as_vec2() * TEXTURE_SIZE),
             );
@@ -64,7 +64,7 @@ impl PlayingState {
     fn update_static_layer(&mut self, index: u32, raw_id: u32, pos: UVec2) -> GameResult {
         self.static_layer.update(
             index,
-            DrawParam::default()
+            DrawParam::new()
                 .src(registry().get_block_directly(raw_id)?.uv.unwrap())
                 .dest(pos.as_vec2() * TEXTURE_SIZE),
         );
@@ -74,7 +74,7 @@ impl PlayingState {
 
     fn add_to_dynamic_layer(&mut self, uv: &UV, pos: &Position) {
         self.dynamic_layer.push(
-            DrawParam::default()
+            DrawParam::new()
                 .src(uv.0)
                 .dest(pos.to_vec2() * TEXTURE_SIZE),
         );
@@ -85,7 +85,7 @@ impl PlayingState {
         // TODO: somehow rewrite it so we don't have to create the layer anew every time.
         for (_, (uv, pos)) in data.ecs.query_mut::<(&UV, &Position)>() {
             self.dynamic_layer.push(
-                DrawParam::default()
+                DrawParam::new()
                     .src(uv.0)
                     .dest(pos.to_vec2() * TEXTURE_SIZE),
             );
@@ -344,9 +344,7 @@ impl super::State for PlayingState {
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        let draw_param = DrawParam::default()
-            .dest(-self.player.camera.pos)
-            .scale(aspect);
+        let draw_param = DrawParam::new().dest(-self.player.camera.pos).scale(aspect);
 
         self.static_layer.draw(&mut canvas, draw_param);
         self.dynamic_layer.draw(&mut canvas, draw_param);
@@ -361,7 +359,7 @@ impl super::State for PlayingState {
                 ggez::graphics::Text::new(format!("FPS: {:.0}", ctx.time.fps()))
                     .set_font("ScienceGothic")
                     .set_scale(36.0),
-                DrawParam::default().color(Color::BLACK),
+                DrawParam::new().color(Color::BLACK),
             );
         }
 

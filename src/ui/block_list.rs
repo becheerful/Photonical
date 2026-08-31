@@ -95,7 +95,7 @@ impl BlockListUI {
         // draw background
         canvas.draw(
             &atlas.image,
-            DrawParam::default()
+            DrawParam::new()
                 .src(self.atlas_rect)
                 .dest(xy)
                 .scale(self.aspect),
@@ -118,7 +118,7 @@ impl BlockListUI {
         for (i, def) in self.blocks.iter().enumerate() {
             canvas.draw(
                 &atlas.image,
-                DrawParam::default()
+                DrawParam::new()
                     .src(def.uv.unwrap())
                     .dest(Vec2::new(
                         xy.x + (i % Self::COLS) as f32 * self.item_size + self.padding,
