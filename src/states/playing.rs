@@ -61,6 +61,17 @@ impl PlayingState {
         Ok(static_layer)
     }
 
+    fn update_static_layer(&mut self, index: u32, raw_id: u32, pos: UVec2) -> GameResult {
+        self.static_layer.update(
+            index,
+            DrawParam::default()
+                .src(registry().get_block_directly(raw_id)?.uv.unwrap())
+                .dest(pos.as_vec2() * TEXTURE_SIZE),
+        );
+
+        Ok(())
+    }
+
     fn add_to_dynamic_layer(&mut self, uv: &UV, pos: &Position) {
         self.dynamic_layer.push(
             DrawParam::default()
@@ -198,7 +209,7 @@ impl PlayingState {
 
     fn handle_click_on_block(
         &mut self,
-        ctx: &Context,
+        _ctx: &Context,
         data: &mut SharedData,
         x: u16,
         y: u16,
@@ -303,9 +314,9 @@ impl PlayingState {
              */
             self.add_scripted_block(data, cur_block, x, y, bd.size, dt)?;
         } else if !has_network {
-            self.world.map.static_tiles[index] = (cur_block, UVec2::new(x as u32, y as u32));
-            self.static_layer =
-                PlayingState::make_static_layer(ctx, &data.atlas.image, &self.world)?;
+            let pos = UVec2::new(x as u32, y as u32);
+            self.world.map.static_tiles[index] = (cur_block, pos);
+            self.update_static_layer(index as u32, cur_block, pos)?;
         }
 
         Ok(())

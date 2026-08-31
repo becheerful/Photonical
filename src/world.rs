@@ -116,7 +116,7 @@ impl GridMap {
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {
-        y as usize * self.width as usize + x as usize
+        (y * self.width + x) as usize
     }
 
     pub fn get(&self, x: u16, y: u16) -> Option<Entity> {
