@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
+use ggez::{graphics::Color, mint::Point2};
+
 use crate::{
     ecs::{
-        Ecs, EnergyComponent, LightProperties, NetNode, PowerConsumer, PowerProducer, PowerStorage,
+        Ecs, EnergyComponent, LightBeam, LightProperties, NetNode, PowerConsumer, PowerProducer,
+        PowerStorage,
     },
+    res::TEXTURE_SIZE,
     world::World,
 };
 
@@ -17,33 +21,27 @@ pub mod mask {
 pub const PLUG: u32 = 0;
 const CONNECTION_RADIUS: u16 = 10;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LightColor {
-    Undefined, // for storages and mirrors
-    White,
-    Red,
-    Orange,
-    Yellow,
-    Green,
-    Cyan,
-    Blue,
-    Violet,
-    Unseen,
+    Undefined,
+    Visible(Color),
 }
 
-impl LightColor {
-    pub fn from(wavelength: u16) -> Self {
-        match wavelength {
-            0 => Self::White, // don't judge me for that.
-            380..450 => Self::Violet,
-            450..480 => Self::Blue,
-            480..510 => Self::Cyan,
-            510..560 => Self::Green,
-            560..590 => Self::Yellow,
-            590..620 => Self::Orange,
-            620..750 => Self::Red,
-            _ => Self::Unseen,
-        }
+pub const UNSEEN: Color = Color::new(0.0, 0.0, 0.0, 0.0);
+const VIOLET: Color = Color::new(0.5, 0.0, 1.0, 1.0);
+const ORANGE: Color = Color::new(1.0, 0.5, 0.0, 1.0);
+
+pub fn get_color_from(wavelength: u16) -> LightColor {
+    match wavelength {
+        0 => LightColor::Visible(Color::WHITE), // don't judge me for that.
+        380..450 => LightColor::Visible(VIOLET),
+        450..480 => LightColor::Visible(Color::BLUE),
+        480..510 => LightColor::Visible(Color::CYAN),
+        510..560 => LightColor::Visible(Color::GREEN),
+        560..590 => LightColor::Visible(Color::YELLOW),
+        590..620 => LightColor::Visible(ORANGE),
+        620..750 => LightColor::Visible(Color::RED),
+        _ => LightColor::Visible(UNSEEN),
     }
 }
 
@@ -111,6 +109,8 @@ impl NetworkDsu {
 }
 
 pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
+    world.connections.clear();
+
     let mut entity_to_coord: HashMap<hecs::Entity, Vec<(u16, u16)>> = HashMap::new();
     let mut coord_to_entity = HashMap::new();
     let mut light_props = HashMap::new();
@@ -194,9 +194,27 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                             *other_light_color = light_color;
                         }
 
-                        if light_color == *other_light_color || light_color == LightColor::White {
+                        let LightColor::Visible(color) = light_color else {
+                            break;
+                        };
+
+                        if light_color == *other_light_color || color == Color::WHITE {
                             let other_idx = entity_to_idx[&other_entity];
                             dsu.union(cur_idx, other_idx);
+                            world.connections.push(LightBeam::new(
+                                [
+                                    Point2 {
+                                        x: x as f32 * TEXTURE_SIZE,
+                                        y: y as f32 * TEXTURE_SIZE,
+                                    },
+                                    Point2 {
+                                        x: cur_x as f32 * TEXTURE_SIZE,
+                                        y: cur_y as f32 * TEXTURE_SIZE,
+                                    },
+                                ],
+                                8.0,
+                                color,
+                            ));
                         }
 
                         break;

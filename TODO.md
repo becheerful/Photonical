@@ -1,6 +1,6 @@
 # TODO List
 
-- [ ] Make light beams
-- [ ] Make machines work
-- [ ] Implement prisms
-- [ ] Implement scriptable static tiles
+- Improve light beams
+- Make machines work
+- Implement prisms
+- Implement scriptable static tiles

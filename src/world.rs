@@ -14,6 +14,7 @@ pub struct World {
     pub map: GridMap,
     pub networks: HashMap<u32, Network>,
     pub aspect: f32,
+    pub connections: Vec<crate::ecs::LightBeam>,
 }
 
 impl World {
@@ -22,6 +23,7 @@ impl World {
             map: GridMap::new(width, height)?,
             networks: HashMap::new(),
             aspect: 1.0,
+            connections: Vec::new(),
         })
     }
 

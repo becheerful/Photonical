@@ -9,12 +9,12 @@ use ggez::{
 use crate::{
     defs::{BlockDef, registry},
     ecs::{
-        BlockType, LightBeam, LightProperties, NetNode, Position, PowerConsumer, PowerProducer,
-        PowerStorage, Table, UV,
+        BlockType, LightProperties, NetNode, Position, PowerConsumer, PowerProducer, PowerStorage,
+        Table, UV,
     },
     game::SharedData,
     json::get_wavelength,
-    network::LightColor,
+    network::{LightColor, get_color_from},
     player::Player,
     res::TEXTURE_SIZE,
     world::World,
@@ -247,7 +247,7 @@ impl PlayingState {
                         x,
                         y,
                         bd,
-                        LightColor::from(get_wavelength(bd)?),
+                        get_color_from(get_wavelength(bd)?),
                         Some(PowerProducer(power)),
                     )? {
                         return Ok(());
@@ -261,7 +261,7 @@ impl PlayingState {
                         x,
                         y,
                         bd,
-                        LightColor::from(get_wavelength(bd)?),
+                        get_color_from(get_wavelength(bd)?),
                         Some(PowerConsumer(demand)),
                     )? {
                         return Ok(());
@@ -349,8 +349,8 @@ impl super::State for PlayingState {
         self.static_layer.draw(&mut canvas, draw_param);
         self.dynamic_layer.draw(&mut canvas, draw_param);
 
-        for (_, beam) in data.ecs.query_mut::<&LightBeam>() {
-            let l = ggez::graphics::Mesh::new_line(ctx, &beam.0, 8.0, Color::WHITE)?;
+        for beam in &self.world.connections {
+            let l = ggez::graphics::Mesh::new_line(ctx, &beam.points, beam.thickness, beam.color)?;
             canvas.draw(&l, draw_param);
         }
 
