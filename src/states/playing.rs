@@ -94,8 +94,8 @@ impl PlayingState {
 
     fn point_to_block_pos(&self, px: f32, py: f32) -> (u16, u16) {
         (
-            ((px + self.player.camera.pos.x) / TEXTURE_SIZE / self.world.aspect) as u16,
-            ((py + self.player.camera.pos.y) / TEXTURE_SIZE / self.world.aspect) as u16,
+            ((px + self.player.camera.pos.x) / TEXTURE_SIZE / self.world.zoom) as u16,
+            ((py + self.player.camera.pos.y) / TEXTURE_SIZE / self.world.zoom) as u16,
         )
     }
 
@@ -339,12 +339,12 @@ impl super::State for PlayingState {
     }
 
     fn draw(&mut self, data: &mut SharedData, ctx: &mut Context) -> GameResult {
-        let aspect = ggez::glam::Vec2::splat(self.world.aspect);
+        let scale = ggez::glam::Vec2::splat(self.world.zoom);
 
         let mut canvas = ggez::graphics::Canvas::from_frame(ctx, Color::WHITE);
         canvas.set_sampler(ggez::graphics::Sampler::nearest_clamp());
 
-        let draw_param = DrawParam::new().dest(-self.player.camera.pos).scale(aspect);
+        let draw_param = DrawParam::new().dest(-self.player.camera.pos).scale(scale);
 
         self.static_layer.draw(&mut canvas, draw_param);
         self.dynamic_layer.draw(&mut canvas, draw_param);
@@ -542,7 +542,7 @@ impl super::State for PlayingState {
             ctx.mouse.position(),
             y,
         ) {
-            self.world.aspect = (self.world.aspect
+            self.world.zoom = (self.world.zoom
                 + (y * data.settings.aspect_mouse_wheel_sensitivity))
                 .clamp(1.0, 2.0);
 
