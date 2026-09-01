@@ -14,6 +14,7 @@ pub struct World {
     pub map: GridMap,
     pub networks: HashMap<u32, Network>,
     pub zoom: f32,
+    pub block_entities: Vec<Option<Entity>>,
     pub connections: Vec<crate::ecs::LightBeam>,
 }
 
@@ -23,12 +24,13 @@ impl World {
             map: GridMap::new(width, height)?,
             networks: HashMap::new(),
             zoom: 1.0,
+            block_entities: vec![None; width as usize * height as usize],
             connections: Vec::new(),
         })
     }
 
     pub fn remove_entity(&mut self, ecs: &mut Ecs, mut x: u16, mut y: u16) -> GameResult {
-        if let Some(entity) = self.map.get(x, y) {
+        if let Some(entity) = self.get(x, y) {
             let mut block_type = 0;
 
             if let Ok((id, pos)) = ecs.query_one_mut::<(&BlockType, &Position)>(entity) {
@@ -44,8 +46,7 @@ impl World {
             let size = registry().get_block_directly(block_type)?.size;
             for col in x..(x + size) {
                 for row in y..(y + size) {
-                    let index = self.map.index(col, row);
-                    self.map.block_entities[index] = None;
+                    *self.get_mut(col, row) = None;
                 }
             }
         }
@@ -60,7 +61,7 @@ impl World {
 
         for col in x..(x + size) {
             for row in y..(y + size) {
-                if self.map.get(col, row).is_some() {
+                if self.get(col, row).is_some() {
                     return false;
                 }
             }
@@ -72,10 +73,17 @@ impl World {
     pub fn place_block(&mut self, x: u16, y: u16, size: u16, e: Entity) {
         for col in x..(x + size) {
             for row in y..(y + size) {
-                let index = self.map.index(col, row);
-                self.map.block_entities[index] = Some(e);
+                *self.get_mut(col, row) = Some(e);
             }
         }
+    }
+
+    pub fn get(&self, x: u16, y: u16) -> Option<Entity> {
+        self.block_entities[self.map.index(x, y)]
+    }
+
+    pub fn get_mut(&mut self, x: u16, y: u16) -> &mut Option<Entity> {
+        &mut self.block_entities[self.map.index(x, y)]
     }
 }
 
@@ -84,8 +92,7 @@ pub struct GridMap {
     pub height: u16,
     pub absolute_width: f32,
     pub absolute_height: f32,
-    pub static_tiles: Vec<(u32, UVec2)>,
-    pub block_entities: Vec<Option<Entity>>,
+    pub tiles: Vec<(u32, UVec2)>,
 }
 
 impl GridMap {
@@ -95,8 +102,7 @@ impl GridMap {
             height,
             absolute_width: width as f32 * TEXTURE_SIZE,
             absolute_height: height as f32 * TEXTURE_SIZE,
-            static_tiles: GridMap::generate_world(width, height)?,
-            block_entities: vec![None; width as usize * height as usize],
+            tiles: GridMap::generate_world(width, height)?,
         })
     }
 
@@ -118,10 +124,10 @@ impl GridMap {
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {
-        (y * self.width + x) as usize
+        y as usize * self.width as usize + x as usize
     }
 
-    pub fn get(&self, x: u16, y: u16) -> Option<Entity> {
-        self.block_entities[self.index(x, y)]
+    pub fn get(&self, x: u16, y: u16) -> (u32, UVec2) {
+        self.tiles[self.index(x, y)]
     }
 }

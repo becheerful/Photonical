@@ -50,10 +50,10 @@ impl PlayingState {
         world: &World,
     ) -> GameResult<InstanceArray> {
         let mut static_layer = InstanceArray::new(ctx, image.clone());
-        for (id, pos) in world.map.static_tiles.iter() {
+        for &(id, pos) in &world.map.tiles {
             static_layer.push(
                 DrawParam::new()
-                    .src(registry().get_block_directly(*id)?.uv.unwrap())
+                    .src(registry().get_block_directly(id)?.uv.unwrap())
                     .dest(pos.as_vec2() * TEXTURE_SIZE),
             );
         }
@@ -130,7 +130,7 @@ impl PlayingState {
     ) -> GameResult {
         let index = self.world.map.index(x, y);
 
-        match self.world.map.block_entities[index] {
+        match self.world.block_entities[index] {
             Some(e) => {
                 if let Err(err) = data.ecs.insert_one(e, Table(None)) {
                     eprintln!("{err}");
@@ -217,7 +217,7 @@ impl PlayingState {
     ) -> GameResult {
         let index = self.world.map.index(x, y);
 
-        if self.world.map.block_entities[index].is_some() {
+        if self.world.block_entities[index].is_some() {
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
                 crate::scripts::functions::MOUSE_BUTTON_DOWN,
@@ -315,7 +315,7 @@ impl PlayingState {
             self.add_scripted_block(data, cur_block, x, y, bd.size, dt)?;
         } else if !has_network {
             let pos = UVec2::new(x as u32, y as u32);
-            self.world.map.static_tiles[index] = (cur_block, pos);
+            self.world.map.tiles[index] = (cur_block, pos);
             self.update_static_layer(index as u32, cur_block, pos)?;
         }
 
@@ -478,7 +478,7 @@ impl super::State for PlayingState {
 
             MouseButton::Middle => {
                 let (x, y) = self.point_to_block_pos(mx, my);
-                let Some(entity) = self.world.map.get(x, y) else {
+                let Some(entity) = self.world.get(x, y) else {
                     return Ok(());
                 };
 

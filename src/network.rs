@@ -115,7 +115,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
     let mut coord_to_entity = HashMap::new();
     let mut light_props = HashMap::new();
 
-    for (idx, entity_opt) in world.map.block_entities.iter().enumerate() {
+    for (idx, entity_opt) in world.block_entities.iter().enumerate() {
         let Some(entity) = *entity_opt else {
             continue;
         };
@@ -181,7 +181,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                     let cur_x = cx as u16;
                     let cur_y = cy as u16;
 
-                    if let Some(e) = world.map.get(cur_x, cur_y) {
+                    if let Some(e) = world.get(cur_x, cur_y) {
                         if !energy_entities.contains(&e) {
                             break;
                         }

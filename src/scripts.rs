@@ -105,9 +105,7 @@ impl ScriptEngine {
             self.lua
                 .create_function(move |_, (world, x, y): (AnyUserData, u16, u16)| {
                     world.borrow_scoped(|world: &World| {
-                        if let Some(e) =
-                            world.map.block_entities[(y * world.map.width + x) as usize]
-                        {
+                        if let Some(e) = world.get(x, y) {
                             return e.to_bits().get();
                         }
 
@@ -138,7 +136,7 @@ impl ScriptEngine {
                 .create_function(move |lua, (world, x, y): (AnyUserData, u16, u16)| {
                     world.borrow_scoped(|world: &World| {
                         let table = lua.create_table()?;
-                        let block = world.map.static_tiles[world.map.index(x, y)];
+                        let block = world.map.get(x, y);
 
                         table.set(param::BLOCK_INDEX_IN_REGISTRY, block.0)?;
                         table.set(
@@ -271,7 +269,7 @@ impl ScriptEngine {
             return Ok(());
         };
 
-        let Some(entity) = world.map.block_entities[index] else {
+        let Some(entity) = world.block_entities[index] else {
             return Ok(());
         };
 
