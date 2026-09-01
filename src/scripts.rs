@@ -289,7 +289,10 @@ impl ScriptEngine {
             let table = if let Some(key) = &table.0 {
                 let t = self.lua.registry_value::<mlua::Table>(&key)?;
 
-                // Should to be updated every time, because the networks are rebuilt when a block is placed.
+                /*
+                 * Should to be updated every time,
+                 * because the networks are rebuilt when a block is placed.
+                 */
                 if let Some(n) = node {
                     t.set(param::NETWORK_ID, n.0)?;
                 }
@@ -328,10 +331,17 @@ impl ScriptEngine {
             Option<&NetNode>,
         )>() {
             if let Some(key) = &table.0 {
-                block_groups
-                    .entry(id.0)
-                    .or_default()
-                    .push(self.lua.registry_value(&key)?);
+                let table = self.lua.registry_value::<mlua::Table>(&key)?;
+
+                /*
+                 * Should to be updated every time,
+                 * because the networks are rebuilt when a block is placed.
+                 */
+                if let Some(n) = node {
+                    table.set(param::NETWORK_ID, n.0)?;
+                }
+
+                block_groups.entry(id.0).or_default().push(table);
             } else {
                 let table = self.create_table(&entity, id, pos, table, node)?;
                 block_groups.entry(id.0).or_default().push(table);

@@ -134,7 +134,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
 
     let mut energy_entities = Vec::new();
 
-    for (&entity, _) in &entity_to_coord {
+    for &entity in entity_to_coord.keys() {
         energy_entities.push(entity);
     }
 
@@ -180,6 +180,12 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                 {
                     let cur_x = cx as u16;
                     let cur_y = cy as u16;
+
+                    if let Some(e) = world.map.get(cur_x, cur_y) {
+                        if !energy_entities.contains(&e) {
+                            break;
+                        }
+                    }
 
                     if let Some(&other_entity) = coord_to_entity.get(&(cur_x, cur_y)) {
                         if other_entity == *entity {
