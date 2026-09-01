@@ -35,7 +35,11 @@ impl World {
 
             if let Ok((id, pos)) = ecs.query_one_mut::<(&BlockType, &Position)>(entity) {
                 block_type = id.0;
-                x = pos.0; // i don't know what's going on here, so i won't touch anything
+                /*
+                 * Finds the top-left corner of the block in order
+                 * to correctly delete it from all the tiles it occupies.
+                 */
+                x = pos.0;
                 y = pos.1;
             }
 
