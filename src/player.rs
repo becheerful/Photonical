@@ -51,9 +51,9 @@ impl Camera {
             .clamp(Vec2::ZERO, self.screen_bounds);
     }
 
-    pub fn resize_event(&mut self, map: &GridMap, new_width: f32, new_height: f32) {
-        self.screen_bounds.x = map.absolute_width - new_width;
-        self.screen_bounds.y = map.absolute_height - new_height;
+    pub fn resize_event(&mut self, map: &GridMap, zoom: f32, new_width: f32, new_height: f32) {
+        self.screen_bounds.x = map.absolute_width * zoom - new_width;
+        self.screen_bounds.y = map.absolute_height * zoom - new_height;
     }
 
     pub fn key_down_event(&mut self, keycode: KeyCode) {
@@ -104,8 +104,8 @@ impl Player {
         Ok(())
     }
 
-    pub fn resize_event(&mut self, map: &GridMap, new_width: f32, new_height: f32) {
-        self.camera.resize_event(map, new_width, new_height);
+    pub fn resize_event(&mut self, map: &GridMap, zoom: f32, new_width: f32, new_height: f32) {
+        self.camera.resize_event(map, zoom, new_width, new_height);
         self.ui.resize_event(new_width, new_height);
     }
 }

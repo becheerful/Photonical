@@ -381,7 +381,7 @@ impl super::State for PlayingState {
         data.settings.screen_height = new_height;
 
         self.player
-            .resize_event(&self.world.map, new_width, new_height);
+            .resize_event(&self.world.map, self.world.zoom, new_width, new_height);
 
         Ok(())
     }
@@ -548,6 +548,7 @@ impl super::State for PlayingState {
 
             self.player.camera.resize_event(
                 &self.world.map,
+                self.world.zoom,
                 data.settings.screen_width,
                 data.settings.screen_height,
             );
