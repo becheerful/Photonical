@@ -330,7 +330,7 @@ impl ScriptEngine {
             &mut crate::ecs::Table,
             Option<&NetNode>,
         )>() {
-            if let Some(key) = &table.0 {
+            let table = if let Some(key) = &table.0 {
                 let table = self.lua.registry_value::<mlua::Table>(&key)?;
 
                 /*
@@ -341,11 +341,12 @@ impl ScriptEngine {
                     table.set(param::NETWORK_ID, n.0)?;
                 }
 
-                block_groups.entry(id.0).or_default().push(table);
+                table
             } else {
-                let table = self.create_table(&entity, id, pos, table, node)?;
-                block_groups.entry(id.0).or_default().push(table);
-            }
+                self.create_table(&entity, id, pos, table, node)?
+            };
+
+            block_groups.entry(id.0).or_default().push(table);
         }
 
         for (block_type, entities) in block_groups {
