@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ggez::{GameResult, glam::UVec2};
+use ggez::GameResult;
 use hecs::Entity;
 
 use crate::{
@@ -19,9 +19,9 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(width: u16, height: u16) -> GameResult<Self> {
+    pub fn new(ecs: &mut Ecs, width: u16, height: u16) -> GameResult<Self> {
         Ok(Self {
-            map: GridMap::new(width, height)?,
+            map: GridMap::new(ecs, width, height)?,
             networks: HashMap::new(),
             zoom: 1.0,
             block_entities: vec![None; width as usize * height as usize],
@@ -89,6 +89,13 @@ impl World {
     pub fn get_mut(&mut self, x: u16, y: u16) -> &mut Option<Entity> {
         &mut self.block_entities[self.map.index(x, y)]
     }
+
+    /// Searches for an entity in `block_entities`;
+    /// if the entity is not found, it returns an entity from `tiles`.
+    pub fn get_any(&self, x: u16, y: u16) -> Entity {
+        let index = self.map.index(x, y);
+        self.block_entities[index].unwrap_or(self.map.tiles[index])
+    }
 }
 
 pub struct GridMap {
@@ -96,42 +103,57 @@ pub struct GridMap {
     pub height: u16,
     pub absolute_width: f32,
     pub absolute_height: f32,
-    pub tiles: Vec<(u32, UVec2)>,
+    pub tiles: Vec<Entity>,
 }
 
 impl GridMap {
-    pub fn new(width: u16, height: u16) -> GameResult<Self> {
+    pub fn new(ecs: &mut Ecs, width: u16, height: u16) -> GameResult<Self> {
         Ok(Self {
             width,
             height,
             absolute_width: width as f32 * TEXTURE_SIZE,
             absolute_height: height as f32 * TEXTURE_SIZE,
-            tiles: GridMap::generate_world(width, height)?,
+            tiles: GridMap::generate_world(ecs, width, height)?,
         })
     }
 
-    fn generate_world(width: u16, height: u16) -> GameResult<Vec<(u32, UVec2)>> {
-        let mut map = Vec::with_capacity(width as usize * height as usize);
-        for i in 0..map.capacity() {
-            map.push((
-                registry().get_block_index("photonical:sand")?,
-                UVec2::new(i as u32 % width as u32, i as u32 / width as u32),
-            ));
+    pub fn replace_tile(&mut self, index: usize, ecs: &mut Ecs, new_id: u32) -> Option<Entity> {
+        let e = self.tiles[index];
+
+        match ecs.get::<&mut BlockType>(e) {
+            Ok(mut id) => {
+                if id.0 == new_id {
+                    return None;
+                }
+
+                id.0 = new_id;
+            }
+
+            Err(e) => {
+                eprintln!("{e}");
+            }
         }
 
-        map[0] = (
-            registry().get_block_index("photonical:diamond_placer")?,
-            UVec2::splat(0),
-        );
+        Some(e)
+    }
 
-        Ok(map)
+    fn generate_world(ecs: &mut Ecs, width: u16, height: u16) -> GameResult<Vec<Entity>> {
+        let sand_index = registry().get_block_index("photonical:sand")?;
+        Ok(ecs
+            .spawn_batch((0..(width as usize * height as usize)).map(|i| {
+                (
+                    BlockType(sand_index),
+                    Position(i as u16 % width, i as u16 / width),
+                )
+            }))
+            .collect::<Vec<Entity>>())
     }
 
     pub fn index(&self, x: u16, y: u16) -> usize {
         y as usize * self.width as usize + x as usize
     }
 
-    pub fn get(&self, x: u16, y: u16) -> (u32, UVec2) {
+    pub fn get(&self, x: u16, y: u16) -> Entity {
         self.tiles[self.index(x, y)]
     }
 }

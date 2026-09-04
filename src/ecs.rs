@@ -17,6 +17,10 @@ impl Position {
     pub fn to_vec2(&self) -> ggez::glam::Vec2 {
         ggez::glam::Vec2::new(self.0 as f32, self.1 as f32)
     }
+
+    pub fn to_uvec2(&self) -> ggez::glam::UVec2 {
+        ggez::glam::UVec2::new(self.0 as u32, self.1 as u32)
+    }
 }
 
 pub struct Table(pub Option<mlua::RegistryKey>);

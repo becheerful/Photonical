@@ -5,12 +5,13 @@ use ggez::{
     graphics::{Color, DrawParam, Drawable, InstanceArray},
     input::keyboard::KeyCode,
 };
+use hecs::Entity;
 
 use crate::{
     defs::{BlockDef, registry},
     ecs::{
-        BlockType, LightProperties, NetNode, Position, PowerConsumer, PowerProducer, PowerStorage,
-        Table, UV,
+        BlockType, Ecs, LightProperties, NetNode, Position, PowerConsumer, PowerProducer,
+        PowerStorage, Table, UV,
     },
     game::SharedData,
     json::get_wavelength,
@@ -31,11 +32,11 @@ pub struct PlayingState {
 
 impl PlayingState {
     pub fn new(ctx: &Context, data: &mut SharedData) -> GameResult<Self> {
-        let world = World::new(128, 128)?;
+        let world = World::new(&mut data.ecs, 128, 128)?;
         Ok(Self {
             cur_block: None,
             dynamic_layer: InstanceArray::new(ctx, data.atlas.image.clone()),
-            static_layer: PlayingState::make_static_layer(ctx, &data.atlas.image, &world)?,
+            static_layer: PlayingState::make_static_layer(ctx, &mut data.ecs, &data.atlas.image)?,
             player: Player::new(&world, &data.atlas, &data.settings),
             world,
             left_button_pressed: false,
@@ -46,15 +47,15 @@ impl PlayingState {
     /// An expensive operation that causes a noticeable drop in FPS.
     fn make_static_layer(
         ctx: &Context,
+        ecs: &mut Ecs,
         image: &ggez::graphics::Image,
-        world: &World,
     ) -> GameResult<InstanceArray> {
         let mut static_layer = InstanceArray::new(ctx, image.clone());
-        for &(id, pos) in &world.map.tiles {
+        for (_, (id, pos)) in ecs.query_mut::<(&BlockType, &Position)>() {
             static_layer.push(
                 DrawParam::new()
-                    .src(registry().get_block_directly(id)?.uv.unwrap())
-                    .dest(pos.as_vec2() * TEXTURE_SIZE),
+                    .src(registry().get_block_directly(id.0)?.uv.unwrap())
+                    .dest(pos.to_vec2() * TEXTURE_SIZE),
             );
         }
 
@@ -99,17 +100,29 @@ impl PlayingState {
         )
     }
 
-    fn place_block(
-        &mut self,
-        ecs: &mut crate::ecs::Ecs,
-        uv: &UV,
-        pos: &Position,
-        size: u16,
-        e: hecs::Entity,
-    ) {
+    fn place_block(&mut self, ecs: &mut Ecs, uv: &UV, pos: &Position, size: u16, e: Entity) {
         self.world.place_block(pos.0, pos.1, size, e);
         crate::network::rebuild_networks(&mut self.world, ecs);
         self.add_to_dynamic_layer(uv, pos);
+    }
+
+    fn place_tile(
+        &mut self,
+        index: usize,
+        raw_id: u32,
+        ecs: &mut Ecs,
+        // WHY SO MANY WRAPPERS
+    ) -> GameResult<Option<Entity>> {
+        if let Some(entity) = self.world.map.replace_tile(index, ecs, raw_id) {
+            let Ok(pos) = ecs.get::<&Position>(entity) else {
+                return Ok(None);
+            };
+
+            self.update_static_layer(index as u32, raw_id, pos.to_uvec2())?;
+            return Ok(Some(entity));
+        }
+
+        Ok(None)
     }
 
     fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
@@ -126,34 +139,53 @@ impl PlayingState {
         x: u16,
         y: u16,
         size: u16,
+        is_static_tile: bool,
         dt: f32,
     ) -> GameResult {
         let index = self.world.map.index(x, y);
+        let entity;
 
         match self.world.block_entities[index] {
             Some(e) => {
                 if let Err(err) = data.ecs.insert_one(e, Table(None)) {
                     eprintln!("{err}");
                 }
+
+                entity = Some(e);
             }
 
             None => {
-                let uv = data
-                    .atlas
-                    .make_texture_rect(&registry().get_block_directly(raw_id)?.texture)?;
-                let pos = Position(x, y);
-                let e = data
-                    .ecs
-                    .spawn((uv.clone(), BlockType(raw_id), pos.clone(), Table(None)));
-                self.place_block(&mut data.ecs, &uv, &pos, size, e);
+                if is_static_tile {
+                    entity = self.place_tile(index, raw_id, &mut data.ecs)?;
+                    if let Some(e) = entity {
+                        if let Err(err) = data.ecs.insert_one(e, Table(None)) {
+                            eprintln!("{err}");
+                        }
+                    }
+                } else {
+                    let uv = data
+                        .atlas
+                        .make_texture_rect(&registry().get_block_directly(raw_id)?.texture)?;
+                    let pos = Position(x, y);
+                    let e =
+                        data.ecs
+                            .spawn((uv.clone(), BlockType(raw_id), pos.clone(), Table(None)));
+                    self.place_block(&mut data.ecs, &uv, &pos, size, e);
+
+                    entity = Some(e);
+                }
             }
         }
+
+        let Some(entity) = entity else {
+            return Ok(());
+        };
 
         if let Err(e) = data.script_engine.run_lua_function(
             &mut data.ecs,
             crate::scripts::functions::INIT,
             &mut self.world,
-            index,
+            entity,
             dt,
         ) {
             eprintln!("{e}");
@@ -215,25 +247,22 @@ impl PlayingState {
         y: u16,
         dt: f32,
     ) -> GameResult {
-        let index = self.world.map.index(x, y);
-
-        if self.world.block_entities[index].is_some() {
+        let Some(cur_block) = self.cur_block else {
+            let entity = self.world.get_any(x, y);
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
                 crate::scripts::functions::MOUSE_BUTTON_DOWN,
                 &mut self.world,
-                index,
+                entity,
                 dt,
             ) {
                 eprintln!("{e}");
             }
 
             return Ok(());
-        }
-
-        let Some(cur_block) = self.cur_block else {
-            return Ok(());
         };
+
+        let index = self.world.map.index(x, y);
 
         let bd = registry().get_block_directly(cur_block)?;
         let has_network = !bd.net.is_empty();
@@ -306,17 +335,9 @@ impl PlayingState {
         }
 
         if bd.script.is_some() {
-            /*
-             * NOTE: If a block has a script, then it's definitely an entity
-             * that is contained in `world.map.block_entities`.
-             * ===
-             * TODO: Make scriptable static tiles someday.
-             */
-            self.add_scripted_block(data, cur_block, x, y, bd.size, dt)?;
+            self.add_scripted_block(data, cur_block, x, y, bd.size, bd.editor_only, dt)?;
         } else if !has_network {
-            let pos = UVec2::new(x as u32, y as u32);
-            self.world.map.tiles[index] = (cur_block, pos);
-            self.update_static_layer(index as u32, cur_block, pos)?;
+            self.place_tile(index, cur_block, &mut data.ecs)?;
         }
 
         Ok(())
@@ -512,13 +533,13 @@ impl super::State for PlayingState {
     ) -> GameResult {
         if button == MouseButton::Left {
             let (x, y) = self.point_to_block_pos(mx, my);
-            let index = self.world.map.index(x, y);
+            let entity = self.world.get_any(x, y);
 
             if let Err(e) = data.script_engine.run_lua_function(
                 &mut data.ecs,
                 crate::scripts::functions::MOUSE_BUTTON_UP,
                 &mut self.world,
-                index,
+                entity,
                 ctx.time.delta().as_secs_f32(),
             ) {
                 eprintln!("{e}")

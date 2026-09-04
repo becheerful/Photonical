@@ -1,6 +1,8 @@
-function update(world, _ecs, miners, dt)
+function update(world, ecs, miners, dt)
     for _, miner in ipairs(miners) do
-        if get_block_at(world, miner.pos[1], miner.pos[2]).str_id ~= miner.source then
+        if get_str_id(
+            get_raw_id(ecs, get_tile_uid_at(world, miner.pos[1], miner.pos[2]))
+        ) ~= miner.source then
             goto continue
         end
 

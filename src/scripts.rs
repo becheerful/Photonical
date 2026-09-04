@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use hecs::Entity;
 use mlua::AnyUserData;
 
 use crate::{
@@ -81,7 +82,7 @@ impl ScriptEngine {
                 .clone())
         })?;
 
-        let get_block_str_id = self.lua.create_function(move |_, raw_id: u32| {
+        let get_str_id = self.lua.create_function(move |_, raw_id: u32| {
             Ok(registry()
                 .get_block_directly(raw_id)
                 .or(Err(mlua::Error::RuntimeError(
@@ -101,7 +102,19 @@ impl ScriptEngine {
                 .clone())
         })?;
 
-        let get_entity_at =
+        let get_any_uid_at =
+            self.lua
+                .create_function(move |_, (world, x, y): (AnyUserData, u16, u16)| {
+                    world.borrow_scoped(|world: &World| world.get_any(x, y).to_bits().get())
+                })?;
+
+        let get_tile_uid_at =
+            self.lua
+                .create_function(move |_, (world, x, y): (AnyUserData, u16, u16)| {
+                    world.borrow_scoped(|world: &World| world.map.get(x, y).to_bits().get())
+                })?;
+
+        let get_block_uid_at =
             self.lua
                 .create_function(move |_, (world, x, y): (AnyUserData, u16, u16)| {
                     world.borrow_scoped(|world: &World| {
@@ -118,7 +131,7 @@ impl ScriptEngine {
                 .create_function(move |lua, (ecs, entity): (AnyUserData, u64)| {
                     ecs.borrow_scoped(|ecs: &Ecs| {
                         if let Some(key) = &ecs
-                            .get::<&crate::ecs::Table>(hecs::Entity::from_bits(entity).unwrap())
+                            .get::<&crate::ecs::Table>(Entity::from_bits(entity).unwrap())
                             .expect("Entity not found")
                             .0
                         {
@@ -131,28 +144,14 @@ impl ScriptEngine {
                     })?
                 })?;
 
-        let get_block_at =
+        let get_raw_id =
             self.lua
-                .create_function(move |lua, (world, x, y): (AnyUserData, u16, u16)| {
-                    world.borrow_scoped(|world: &World| {
-                        let table = lua.create_table()?;
-                        let block = world.map.get(x, y);
-
-                        table.set(param::BLOCK_INDEX_IN_REGISTRY, block.0)?;
-                        table.set(
-                            param::STRING_ID,
-                            registry()
-                                .get_block_directly(block.0)
-                                .or(Err(mlua::Error::RuntimeError(
-                                    "The block with this raw ID was not found".to_owned(),
-                                )))?
-                                .id
-                                .to_owned(),
-                        )?;
-                        table.set(param::POSITION, block.1.to_array())?;
-
-                        Ok(table)
-                    })?
+                .create_function(move |_, (ecs, entity): (AnyUserData, u64)| {
+                    ecs.borrow_scoped(|ecs: &Ecs| {
+                        ecs.get::<&BlockType>(Entity::from_bits(entity).unwrap())
+                            .unwrap()
+                            .0
+                    })
                 })?;
 
         let get_imbalance =
@@ -177,15 +176,17 @@ impl ScriptEngine {
 
         self.lua.globals().set("get_name", get_name)?;
         // Gets the block's string ID in the registry
+        self.lua.globals().set("get_str_id", get_str_id)?;
+        self.lua.globals().set("get_size", get_size)?;
+        self.lua.globals().set("get_any_uid_at", get_any_uid_at)?;
+        self.lua.globals().set("get_tile_uid_at", get_tile_uid_at)?;
         self.lua
             .globals()
-            .set("get_block_str_id", get_block_str_id)?;
-        self.lua.globals().set("get_size", get_size)?;
-        self.lua.globals().set("get_entity_at", get_entity_at)?;
+            .set("get_block_uid_at", get_block_uid_at)?;
         self.lua
             .globals()
             .set("get_entity_table", get_entity_table)?;
-        self.lua.globals().set("get_block_at", get_block_at)?;
+        self.lua.globals().set("get_raw_id", get_raw_id)?;
         // Gets the total network imbalance divided by the number of energy storages
         self.lua.globals().set("get_imbalance", get_imbalance)?;
         self.lua.globals().set("get_world_width", get_world_width)?;
@@ -226,7 +227,7 @@ impl ScriptEngine {
 
     fn create_table(
         &self,
-        entity: &hecs::Entity,
+        entity: &Entity,
         id: &BlockType,
         pos: &Position,
         table: &mut crate::ecs::Table,
@@ -235,6 +236,10 @@ impl ScriptEngine {
         let block_table = self.lua.create_table()?;
 
         block_table.set(param::ENTITY_ID, entity.to_bits().get())?;
+        block_table.set(
+            param::STRING_ID,
+            registry().get_block_directly(id.0).unwrap().id.clone(),
+        )?;
         block_table.set(param::BLOCK_INDEX_IN_REGISTRY, id.0)?;
         block_table.set(param::POSITION, vec![pos.0, pos.1])?;
 
@@ -261,15 +266,11 @@ impl ScriptEngine {
         &mut self,
         ecs: &mut Ecs,
         name: &str,
-        world: &mut crate::world::World,
-        index: usize,
+        world: &mut World,
+        entity: Entity,
         dt: f32,
     ) -> mlua::Result<()> {
         let Some(func_groups) = self.scripts.get(name) else {
-            return Ok(());
-        };
-
-        let Some(entity) = world.block_entities[index] else {
             return Ok(());
         };
 

@@ -2,6 +2,7 @@ use ggez::{Context, GameResult};
 
 use crate::game::SharedData;
 
+#[allow(unused)]
 struct MainMenuState;
 
 impl super::State for MainMenuState {
