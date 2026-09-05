@@ -13,9 +13,9 @@ pub struct PlayerUI {
 }
 
 impl PlayerUI {
-    pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
+    pub fn new(atlas: &Atlas, settings: &Settings) -> Self {
         Self {
-            block_list: BlockListUI::new(atlas, aspect, settings),
+            block_list: BlockListUI::new(atlas, settings),
         }
     }
 

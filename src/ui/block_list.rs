@@ -25,7 +25,7 @@ impl BlockListUI {
     const PADDING: f32 = 8.0;
     const SCROLLBAR_WIDTH: f32 = 8.0;
 
-    pub fn new(atlas: &Atlas, aspect: f32, settings: &Settings) -> Self {
+    pub fn new(atlas: &Atlas, settings: &Settings) -> Self {
         let blocks: Vec<crate::defs::BlockDef> = registry()
             .get_all_blocks()
             .iter()
@@ -33,7 +33,7 @@ impl BlockListUI {
             .map(|def| def.clone())
             .collect();
 
-        let aspect = Vec2::splat(aspect * 2.0);
+        let aspect = Vec2::splat(2.0);
         let scrollbar_width = Self::SCROLLBAR_WIDTH * aspect.x;
 
         let hitbox_width = ((TEXTURE_SIZE + Self::PADDING) * Self::COLS as f32 + Self::PADDING)

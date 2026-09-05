@@ -13,7 +13,6 @@ use crate::{
 pub struct World {
     pub map: GridMap,
     pub networks: HashMap<u32, Network>,
-    pub zoom: f32,
     pub block_entities: Vec<Option<Entity>>,
     pub connections: Vec<crate::ecs::LightBeam>,
 }
@@ -23,7 +22,6 @@ impl World {
         Ok(Self {
             map: GridMap::new(ecs, width, height)?,
             networks: HashMap::new(),
-            zoom: 1.0,
             block_entities: vec![None; width as usize * height as usize],
             connections: Vec::new(),
         })
