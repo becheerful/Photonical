@@ -100,10 +100,19 @@ impl PlayingState {
         )
     }
 
-    fn place_block(&mut self, ecs: &mut Ecs, uv: &UV, pos: &Position, size: u16, e: Entity) {
+    fn place_block(
+        &mut self,
+        ctx: &Context,
+        ecs: &mut Ecs,
+        uv: &UV,
+        pos: &Position,
+        size: u16,
+        e: Entity,
+    ) -> GameResult {
         self.world.place_block(pos.0, pos.1, size, e);
-        crate::network::rebuild_networks(&mut self.world, ecs);
+        crate::network::rebuild_networks(ctx, &mut self.world, ecs)?;
         self.add_to_dynamic_layer(uv, pos);
+        Ok(())
     }
 
     fn place_tile(
@@ -125,9 +134,9 @@ impl PlayingState {
         Ok(None)
     }
 
-    fn remove_block(&mut self, data: &mut SharedData, x: u16, y: u16) -> GameResult {
+    fn remove_block(&mut self, data: &mut SharedData, ctx: &Context, x: u16, y: u16) -> GameResult {
         self.world.remove_entity(&mut data.ecs, x, y)?;
-        crate::network::rebuild_networks(&mut self.world, &mut data.ecs);
+        crate::network::rebuild_networks(ctx, &mut self.world, &mut data.ecs)?;
         self.remove_from_dynamic_layer(data);
         Ok(())
     }
@@ -135,6 +144,7 @@ impl PlayingState {
     fn add_scripted_block(
         &mut self,
         data: &mut SharedData,
+        ctx: &Context,
         raw_id: u32,
         x: u16,
         y: u16,
@@ -170,7 +180,7 @@ impl PlayingState {
                     let e =
                         data.ecs
                             .spawn((uv.clone(), BlockType(raw_id), pos.clone(), Table(None)));
-                    self.place_block(&mut data.ecs, &uv, &pos, size, e);
+                    self.place_block(ctx, &mut data.ecs, &uv, &pos, size, e)?;
 
                     entity = Some(e);
                 }
@@ -197,6 +207,7 @@ impl PlayingState {
     fn add_energy_block<T: crate::ecs::EnergyComponent + hecs::Component>(
         &mut self,
         data: &mut SharedData,
+        ctx: &Context,
         x: u16,
         y: u16,
         bd: &BlockDef,
@@ -235,14 +246,14 @@ impl PlayingState {
             )),
         };
 
-        self.place_block(&mut data.ecs, &uv, &pos, bd.size, e);
+        self.place_block(ctx, &mut data.ecs, &uv, &pos, bd.size, e)?;
         Ok(true)
     }
 
     fn handle_click_on_block(
         &mut self,
-        _ctx: &Context,
         data: &mut SharedData,
+        ctx: &Context,
         x: u16,
         y: u16,
         dt: f32,
@@ -273,6 +284,7 @@ impl PlayingState {
                     let power = crate::json::get_energy_interaction_value::<PowerProducer>(bd)?;
                     if !self.add_energy_block::<PowerProducer>(
                         data,
+                        ctx,
                         x,
                         y,
                         bd,
@@ -287,6 +299,7 @@ impl PlayingState {
                     let demand = crate::json::get_energy_interaction_value::<PowerConsumer>(bd)?;
                     if !self.add_energy_block::<PowerConsumer>(
                         data,
+                        ctx,
                         x,
                         y,
                         bd,
@@ -300,6 +313,7 @@ impl PlayingState {
                 crate::network::mask::STORAGE => {
                     if !self.add_energy_block::<PowerStorage>(
                         data,
+                        ctx,
                         x,
                         y,
                         bd,
@@ -318,6 +332,7 @@ impl PlayingState {
                      */
                     if !self.add_energy_block::<PowerStorage>(
                         data,
+                        ctx,
                         x,
                         y,
                         bd,
@@ -335,7 +350,7 @@ impl PlayingState {
         }
 
         if bd.script.is_some() {
-            self.add_scripted_block(data, cur_block, x, y, bd.size, bd.editor_only, dt)?;
+            self.add_scripted_block(data, ctx, cur_block, x, y, bd.size, bd.editor_only, dt)?;
         } else if !has_network {
             self.place_tile(index, cur_block, &mut data.ecs)?;
         }
@@ -371,8 +386,7 @@ impl super::State for PlayingState {
         self.dynamic_layer.draw(&mut canvas, draw_param);
 
         for beam in &self.world.connections {
-            let l = ggez::graphics::Mesh::new_line(ctx, &beam.points, beam.thickness, beam.color)?;
-            canvas.draw(&l, draw_param);
+            canvas.draw(beam, draw_param);
         }
 
         if data.settings.show_fps {
@@ -494,7 +508,7 @@ impl super::State for PlayingState {
                 }
 
                 let (x, y) = self.point_to_block_pos(mx, my);
-                self.handle_click_on_block(ctx, data, x, y, ctx.time.delta().as_secs_f32())?;
+                self.handle_click_on_block(data, ctx, x, y, ctx.time.delta().as_secs_f32())?;
             }
 
             MouseButton::Middle => {
@@ -513,7 +527,7 @@ impl super::State for PlayingState {
                     self.cur_block = None;
                 } else {
                     let (x, y) = self.point_to_block_pos(mx, my);
-                    self.remove_block(data, x, y)?;
+                    self.remove_block(data, ctx, x, y)?;
                 }
             }
 

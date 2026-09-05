@@ -14,7 +14,7 @@ pub struct World {
     pub map: GridMap,
     pub networks: HashMap<u32, Network>,
     pub block_entities: Vec<Option<Entity>>,
-    pub connections: Vec<crate::ecs::LightBeam>,
+    pub connections: Vec<ggez::graphics::Mesh>,
 }
 
 impl World {

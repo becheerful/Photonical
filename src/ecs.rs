@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use ggez::{graphics::Color, mint::Point2};
-
 use crate::network::Network;
 
 #[derive(Debug, Clone, Copy)]
@@ -89,21 +87,5 @@ pub struct NetNode(pub u32);
 
 #[derive(Debug, Clone, Copy)]
 pub struct LightProperties(pub crate::network::LightColor);
-
-pub struct LightBeam {
-    pub points: [Point2<f32>; 2],
-    pub thickness: f32,
-    pub color: Color,
-}
-
-impl LightBeam {
-    pub fn new(points: [Point2<f32>; 2], thickness: f32, color: Color) -> Self {
-        Self {
-            points,
-            thickness,
-            color,
-        }
-    }
-}
 
 pub type Ecs = hecs::World;

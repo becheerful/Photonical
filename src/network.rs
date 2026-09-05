@@ -4,8 +4,7 @@ use ggez::{graphics::Color, mint::Point2};
 
 use crate::{
     ecs::{
-        Ecs, EnergyComponent, LightBeam, LightProperties, NetNode, PowerConsumer, PowerProducer,
-        PowerStorage,
+        Ecs, EnergyComponent, LightProperties, NetNode, PowerConsumer, PowerProducer, PowerStorage,
     },
     res::TEXTURE_SIZE,
     world::World,
@@ -108,7 +107,7 @@ impl NetworkDsu {
     }
 }
 
-pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
+pub fn rebuild_networks(ctx: &ggez::Context, world: &mut World, ecs: &mut Ecs) -> ggez::GameResult {
     world.connections.clear();
 
     let mut entity_to_coord: HashMap<hecs::Entity, Vec<(u16, u16)>> = HashMap::new();
@@ -139,7 +138,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
     }
 
     if energy_entities.is_empty() {
-        return;
+        return Ok(());
     }
 
     let mut dsu = NetworkDsu::new(energy_entities.len());
@@ -187,48 +186,50 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
                         }
                     }
 
-                    if let Some(&other_entity) = coord_to_entity.get(&(cur_x, cur_y)) {
-                        if other_entity == *entity {
-                            cx += dx;
-                            cy += dy;
-                            continue;
-                        }
+                    let Some(&other_entity) = coord_to_entity.get(&(cur_x, cur_y)) else {
+                        cx += dx;
+                        cy += dy;
+                        steps += 1;
+                        continue;
+                    };
 
-                        let other_light_color =
-                            &mut ecs.get::<&mut LightProperties>(other_entity).unwrap().0;
-                        if *other_light_color == LightColor::Undefined {
-                            *other_light_color = light_color;
-                        }
-
-                        let LightColor::Visible(color) = light_color else {
-                            break;
-                        };
-
-                        if light_color == *other_light_color || color == Color::WHITE {
-                            let other_idx = entity_to_idx[&other_entity];
-                            dsu.union(cur_idx, other_idx);
-                            world.connections.push(LightBeam::new(
-                                [
-                                    Point2 {
-                                        x: (x as f32 + 0.5) * TEXTURE_SIZE,
-                                        y: (y as f32 + 0.5) * TEXTURE_SIZE,
-                                    },
-                                    Point2 {
-                                        x: (cur_x as f32 + 0.5) * TEXTURE_SIZE,
-                                        y: (cur_y as f32 + 0.5) * TEXTURE_SIZE,
-                                    },
-                                ],
-                                8.0,
-                                color,
-                            ));
-                        }
-
-                        break;
+                    if other_entity == *entity {
+                        cx += dx;
+                        cy += dy;
+                        continue;
                     }
 
-                    cx += dx;
-                    cy += dy;
-                    steps += 1;
+                    let other_light_color =
+                        &mut ecs.get::<&mut LightProperties>(other_entity).unwrap().0;
+                    if *other_light_color == LightColor::Undefined {
+                        *other_light_color = light_color;
+                    }
+
+                    let LightColor::Visible(color) = light_color else {
+                        break;
+                    };
+
+                    if light_color == *other_light_color || color == Color::WHITE {
+                        let other_idx = entity_to_idx[&other_entity];
+                        dsu.union(cur_idx, other_idx);
+                        world.connections.push(ggez::graphics::Mesh::new_line(
+                            ctx,
+                            &[
+                                Point2 {
+                                    x: (x as f32 + 0.5) * TEXTURE_SIZE,
+                                    y: (y as f32 + 0.5) * TEXTURE_SIZE,
+                                },
+                                Point2 {
+                                    x: (cur_x as f32 + 0.5) * TEXTURE_SIZE,
+                                    y: (cur_y as f32 + 0.5) * TEXTURE_SIZE,
+                                },
+                            ],
+                            8.0,
+                            color,
+                        )?);
+                    }
+
+                    break;
                 }
             }
         }
@@ -248,6 +249,7 @@ pub fn rebuild_networks(world: &mut World, ecs: &mut Ecs) {
     }
 
     collect_network_stats(world, ecs);
+    Ok(())
 }
 
 pub fn collect_network_stats(world: &mut World, ecs: &mut Ecs) {
